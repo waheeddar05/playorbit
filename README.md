@@ -76,8 +76,9 @@ To deploy this application to Vercel, follow these steps:
     *   `INITIAL_ADMIN_MOBILE`: (Optional) Mobile number that will be granted admin access on first login.
     *   `OTP_TTL_MINUTES`: (Optional) Minutes before OTP expires (default: 10).
 4.  **Automatic Build Configuration**:
-    *   The `package.json` includes a `postinstall` script (`prisma generate`) that ensures the Prisma client is generated during the build process on Vercel.
+    *   The `package.json` includes a `postinstall` script (`prisma generate && prisma migrate deploy`) that ensures the Prisma client is generated and all migrations are applied to your database during the build process on Vercel.
     *   Vercel will automatically detect Next.js and use `npm run build` to build the project.
+    *   **Note**: Ensure your `DATABASE_URL` is accessible from Vercel's build environment. If you are using a database that requires a static IP, you may need to use a proxy or allow-list Vercel's IP ranges.
 
 ## Creator
 

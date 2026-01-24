@@ -7,19 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  USER
-  ADMIN
-}
-
 model User {
   id           String       @id @default(cuid())
   name         String?
   email        String?      @unique
   mobileNumber String?      @unique
   authProvider AuthProvider
-  role         UserRole     @default(USER)
   createdAt    DateTime     @default(now())
+  role         UserRole     @default(USER)
   bookings     Booking[]
   otps         Otp[]
 }
@@ -54,6 +49,11 @@ model Booking {
   user       User?         @relation(fields: [userId], references: [id])
 
   @@unique([date, startTime, ballType])
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 enum AuthProvider {
