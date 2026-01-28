@@ -8,15 +8,16 @@ datasource db {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  name         String?
-  email        String?      @unique
-  mobileNumber String?      @unique
-  authProvider AuthProvider
-  createdAt    DateTime     @default(now())
-  role         UserRole     @default(USER)
-  bookings     Booking[]
-  otps         Otp[]
+  id            String             @id @default(cuid())
+  name          String?
+  email         String?            @unique
+  mobileNumber  String?            @unique
+  authProvider  AuthProvider
+  createdAt     DateTime           @default(now())
+  role          UserRole           @default(USER)
+  bookings      Booking[]
+  otps          Otp[]
+  subscriptions UserSubscription[]
 }
 
 model Policy {
@@ -37,18 +38,46 @@ model Otp {
 }
 
 model Booking {
-  id         String        @id @default(cuid())
-  userId     String?
-  date       DateTime      @db.Date
-  startTime  DateTime
-  endTime    DateTime
-  status     BookingStatus @default(BOOKED)
-  ballType   BallType      @default(TENNIS)
-  playerName String
-  createdAt  DateTime      @default(now())
-  user       User?         @relation(fields: [userId], references: [id])
+  id             String            @id @default(cuid())
+  userId         String?
+  date           DateTime          @db.Date
+  startTime      DateTime
+  endTime        DateTime
+  status         BookingStatus     @default(BOOKED)
+  ballType       BallType          @default(TENNIS)
+  playerName     String
+  createdAt      DateTime          @default(now())
+  user           User?             @relation(fields: [userId], references: [id])
+  subscriptionId String?
+  subscription   UserSubscription? @relation(fields: [subscriptionId], references: [id])
 
   @@unique([date, startTime, ballType])
+}
+
+model MonthlyPlan {
+  id               String             @id @default(cuid())
+  name             String
+  sessionsPerMonth Int
+  price            Float              @default(0)
+  isActive         Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  subscriptions    UserSubscription[]
+}
+
+model UserSubscription {
+  id                String             @id @default(cuid())
+  userId            String
+  planId            String
+  sessionsRemaining Int
+  monthYear         String             // Format: "2026-01" to track which month
+  status            SubscriptionStatus @default(ACTIVE)
+  createdAt         DateTime           @default(now())
+  expiresAt         DateTime           // End of the month
+  user              User               @relation(fields: [userId], references: [id])
+  plan              MonthlyPlan        @relation(fields: [planId], references: [id])
+  bookings          Booking[]
+
+  @@unique([userId, planId, monthYear]) // One subscription per plan per month per user
 }
 
 enum UserRole {
@@ -71,4 +100,10 @@ enum BallType {
   TENNIS
   LEATHER
   MACHINE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
 }

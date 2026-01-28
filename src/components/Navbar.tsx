@@ -3,15 +3,42 @@
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
+
+interface ActiveSubscription {
+  sessionsRemaining: number;
+  plan: {
+    name: string;
+    sessionsPerMonth: number;
+  };
+}
 
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeSubscription, setActiveSubscription] = useState<ActiveSubscription | null>(null);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  const fetchSubscription = useCallback(async () => {
+    try {
+      const res = await fetch('/api/subscriptions');
+      if (res.ok) {
+        const data = await res.json();
+        setActiveSubscription(data.activeSubscription);
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscription', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (session) {
+      fetchSubscription();
+    }
+  }, [session, fetchSubscription]);
 
   return (
     <nav className="bg-white border-b border-gray-200">
@@ -31,6 +58,14 @@ export default function Navbar() {
                 <Link href="/bookings" className="text-gray-600 hover:text-red-600 font-medium">
                   My Bookings
                 </Link>
+                <Link href="/plans" className="text-gray-600 hover:text-red-600 font-medium">
+                  Plans
+                </Link>
+                {activeSubscription && (
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                    {activeSubscription.sessionsRemaining} sessions left
+                  </span>
+                )}
               </>
             )}
             {(session?.user as any)?.role === 'ADMIN' && (
@@ -76,6 +111,11 @@ export default function Navbar() {
               <>
                 <div className="px-3 py-2 text-sm font-semibold text-gray-900 border-b border-gray-100 mb-2">
                   {session.user?.name || session.user?.email}
+                  {activeSubscription && (
+                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                      {activeSubscription.sessionsRemaining} sessions left
+                    </span>
+                  )}
                 </div>
                 <Link
                   href="/slots"
@@ -90,6 +130,13 @@ export default function Navbar() {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   My Bookings
+                </Link>
+                <Link
+                  href="/plans"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-red-600 hover:bg-gray-50"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Plans
                 </Link>
                 {(session?.user as any)?.role === 'ADMIN' && (
                   <Link

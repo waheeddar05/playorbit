@@ -45,6 +45,18 @@ export default function AdminLayout({
           >
             Policy Management
           </Link>
+          <Link
+            href="/admin/plans"
+            className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+          >
+            Monthly Plans
+          </Link>
+          <Link
+            href="/admin/subscriptions"
+            className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
+          >
+            Subscriptions
+          </Link>
         </nav>
       </aside>
 

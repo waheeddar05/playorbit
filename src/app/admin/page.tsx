@@ -76,6 +76,12 @@ export default function AdminDashboard() {
           <Link href="/admin/policies" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md transition-colors">
             Update Policies
           </Link>
+          <Link href="/admin/plans" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md transition-colors">
+            Manage Plans
+          </Link>
+          <Link href="/admin/subscriptions" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md transition-colors">
+            Manage Subscriptions
+          </Link>
         </div>
       </div>
     </div>

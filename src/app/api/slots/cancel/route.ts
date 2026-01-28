@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { getISTTime } from '@/lib/time';
-import { isBefore } from 'date-fns';
+import { getISTTime, TIMEZONE } from '@/lib/time';
+import { isBefore, isSameMonth } from 'date-fns';
+import { toDate } from 'date-fns-tz';
+import { incrementSession } from '@/lib/subscription';
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,6 +46,19 @@ export async function POST(req: NextRequest) {
       where: { id: bookingId },
       data: { status: 'CANCELLED' },
     });
+
+    // If booking was made using a subscription and it's still the same month, refund the session
+    if (booking.subscriptionId) {
+      const now = toDate(new Date(), { timeZone: TIMEZONE });
+      const subscription = await prisma.userSubscription.findUnique({
+        where: { id: booking.subscriptionId },
+      });
+
+      // Only refund if subscription is still active and in the same month
+      if (subscription && subscription.status === 'ACTIVE' && isSameMonth(now, subscription.expiresAt)) {
+        await incrementSession(booking.subscriptionId);
+      }
+    }
 
     return NextResponse.json({ message: 'Booking cancelled' });
   } catch (error) {

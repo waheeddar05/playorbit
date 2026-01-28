@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { startOfDay, parseISO, isAfter } from 'date-fns';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { getRelevantBallTypes, isValidBallType } from '@/lib/constants';
+import { getActiveSubscription, decrementSession } from '@/lib/subscription';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,6 +21,28 @@ export async function POST(req: NextRequest) {
 
     if (slotsToBook.length === 0) {
       return NextResponse.json({ error: 'No slots provided' }, { status: 400 });
+    }
+
+    // Check if user wants to use subscription
+    const useSubscription = body.useSubscription !== false; // Default to true if not specified
+
+    // Get active subscription if using subscription
+    let activeSubscription = null;
+    if (useSubscription) {
+      activeSubscription = await getActiveSubscription(userId!);
+    }
+
+    // Validate that user has enough sessions if using subscription
+    if (useSubscription && activeSubscription) {
+      if (activeSubscription.sessionsRemaining < slotsToBook.length) {
+        return NextResponse.json(
+          {
+            error: `Not enough sessions remaining. You have ${activeSubscription.sessionsRemaining} sessions, but trying to book ${slotsToBook.length} slots.`,
+            sessionsRemaining: activeSubscription.sessionsRemaining,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const results = [];
@@ -91,6 +114,7 @@ export async function POST(req: NextRequest) {
               endTime: end,
               status: 'BOOKED',
               playerName: playerName,
+              subscriptionId: activeSubscription?.id || null,
             },
           });
         }
@@ -104,12 +128,18 @@ export async function POST(req: NextRequest) {
             status: 'BOOKED',
             ballType: ballType || 'TENNIS',
             playerName: playerName,
+            subscriptionId: activeSubscription?.id || null,
           },
         });
 
         return booking;
       });
       results.push(result);
+
+      // Decrement session count if using subscription
+      if (activeSubscription) {
+        await decrementSession(activeSubscription.id);
+      }
     }
 
     return NextResponse.json(Array.isArray(body) ? results : results[0]);
