@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format, addDays, startOfDay, parseISO } from 'date-fns';
+import { format, addDays, parseISO } from 'date-fns';
+import { Calendar, Check, Loader2 } from 'lucide-react';
 
 export default function SlotsPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -62,7 +63,6 @@ export default function SlotsPage() {
           startTime: slot.startTime,
           endTime: slot.endTime,
           ballType: ballType,
-          // playerName is now handled by the backend automatically from session
         }))),
       });
 
@@ -81,56 +81,102 @@ export default function SlotsPage() {
     }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Available Slots</h1>
+  const ballTypes = [
+    { value: 'TENNIS', label: 'Tennis', color: 'bg-green-500' },
+    { value: 'LEATHER', label: 'Leather', color: 'bg-red-500' },
+    { value: 'MACHINE', label: 'Machine', color: 'bg-blue-500' },
+  ];
 
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Select Ball Type</label>
-        <div className="flex flex-wrap gap-2">
-          {['TENNIS', 'LEATHER', 'MACHINE'].map((type) => (
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-5 pb-28">
+      {/* Page Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Calendar className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Book a Slot</h1>
+          <p className="text-xs text-gray-400">Select date, type & time</p>
+        </div>
+      </div>
+
+      {/* Ball Type Selection */}
+      <div className="mb-5">
+        <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Ball Type</label>
+        <div className="flex gap-2">
+          {ballTypes.map((type) => (
             <button
-              key={type}
-              onClick={() => setBallType(type)}
-              className={`px-4 py-2 rounded-md border ${
-                ballType === type ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200'
+              key={type.value}
+              onClick={() => setBallType(type.value)}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                ballType === type.value
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'
               }`}
             >
-              {type}
+              <span className={`w-2 h-2 rounded-full ${type.color}`}></span>
+              {type.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
-        {[0, 1, 2, 3, 4, 5, 6].map((days) => {
-          const date = addDays(new Date(), days);
-          const isSelected = format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
-          return (
-            <button
-              key={days}
-              onClick={() => setSelectedDate(date)}
-              className={`flex-shrink-0 p-4 rounded-lg border ${
-                isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200'
-              }`}
-            >
-              <div className="text-xs uppercase">{format(date, 'EEE')}</div>
-              <div className="text-xl font-bold">{format(date, 'd')}</div>
-              <div className="text-xs">{format(date, 'MMM')}</div>
-            </button>
-          );
-        })}
+      {/* Date Selector - Horizontal scroll */}
+      <div className="mb-6">
+        <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Select Date</label>
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          {[0, 1, 2, 3, 4, 5, 6].map((days) => {
+            const date = addDays(new Date(), days);
+            const isSelected = format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
+            const isToday = days === 0;
+            return (
+              <button
+                key={days}
+                onClick={() => setSelectedDate(date)}
+                className={`flex-shrink-0 w-16 py-3 rounded-xl text-center transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-primary text-white shadow-md shadow-primary/20'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'
+                }`}
+              >
+                <div className={`text-[10px] uppercase font-medium ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                  {isToday ? 'Today' : format(date, 'EEE')}
+                </div>
+                <div className="text-lg font-bold mt-0.5">{format(date, 'd')}</div>
+                <div className={`text-[10px] ${isSelected ? 'text-white/60' : 'text-gray-400'}`}>
+                  {format(date, 'MMM')}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-12">Loading slots...</div>
-      ) : error ? (
-        <div className="text-red-600 text-center py-12">{error}</div>
-      ) : slots.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">No slots available for this date.</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      {/* Slots Grid */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
+          Available Slots
+        </label>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <Loader2 className="w-6 h-6 animate-spin mb-2" />
+            <span className="text-sm">Loading slots...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center py-16">
+            <p className="text-red-500 text-sm">{error}</p>
+            <button onClick={fetchSlots} className="mt-3 text-sm text-primary font-medium cursor-pointer">Try again</button>
+          </div>
+        ) : slots.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+              <Calendar className="w-5 h-5 text-gray-400" />
+            </div>
+            <p className="text-sm text-gray-500">No slots available for this date</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             {slots.map((slot) => {
               const isSelected = selectedSlots.some(s => s.startTime === slot.startTime);
               const isBooked = slot.status === 'Booked';
@@ -140,39 +186,66 @@ export default function SlotsPage() {
                   key={slot.startTime}
                   disabled={isBooked || bookingLoading}
                   onClick={() => handleToggleSlot(slot)}
-                  className={`p-4 border rounded-lg transition-colors text-left ${
+                  className={`relative p-3.5 rounded-xl transition-all text-left cursor-pointer ${
                     isBooked
-                      ? 'bg-gray-100 border-gray-200 cursor-not-allowed'
+                      ? 'bg-gray-50 border border-gray-100 cursor-not-allowed'
                       : isSelected
-                      ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500'
-                      : 'bg-white border-gray-200 hover:border-blue-500'
+                      ? 'bg-primary text-white shadow-md shadow-primary/20 border border-primary'
+                      : 'bg-white border border-gray-200 hover:border-primary/40 active:scale-[0.97]'
                   }`}
                 >
-                  <div className={`font-semibold ${isBooked ? 'text-gray-400' : 'text-gray-900'}`}>
-                    {format(parseISO(slot.startTime), 'HH:mm')} - {format(parseISO(slot.endTime), 'HH:mm')}
+                  {isSelected && (
+                    <div className="absolute top-2 right-2">
+                      <Check className="w-4 h-4" />
+                    </div>
+                  )}
+                  <div className={`text-sm font-bold ${isBooked ? 'text-gray-300' : ''}`}>
+                    {format(parseISO(slot.startTime), 'HH:mm')}
                   </div>
-                  <div className={`text-xs mt-1 ${
-                    isBooked ? 'text-red-500' : isSelected ? 'text-blue-600 font-medium' : 'text-blue-600'
+                  <div className={`text-[10px] mt-0.5 ${
+                    isBooked ? 'text-gray-300' : isSelected ? 'text-white/70' : 'text-gray-400'
                   }`}>
-                    {isBooked ? 'Unavailable' : isSelected ? 'Selected' : 'Available'}
+                    to {format(parseISO(slot.endTime), 'HH:mm')}
+                  </div>
+                  <div className={`text-[10px] mt-1.5 font-semibold uppercase tracking-wider ${
+                    isBooked ? 'text-red-300' : isSelected ? 'text-white/80' : 'text-green-500'
+                  }`}>
+                    {isBooked ? 'Booked' : isSelected ? 'Selected' : 'Open'}
                   </div>
                 </button>
               );
             })}
           </div>
+        )}
+      </div>
 
-          {selectedSlots.length > 0 && (
-            <div className="mt-8 flex justify-center">
-              <button
-                onClick={handleBook}
-                disabled={bookingLoading}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {bookingLoading ? 'Booking...' : `Book ${selectedSlots.length} Selected Slot(s)`}
-              </button>
+      {/* Fixed Bottom Booking Bar */}
+      {selectedSlots.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 z-40 safe-bottom">
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold text-gray-900">{selectedSlots.length} slot{selectedSlots.length > 1 ? 's' : ''} selected</p>
+              <p className="text-[11px] text-gray-400">{format(selectedDate, 'EEE, MMM d')} &middot; {ballType}</p>
             </div>
-          )}
-        </>
+            <button
+              onClick={handleBook}
+              disabled={bookingLoading}
+              className="flex items-center gap-2 bg-primary hover:bg-primary-light text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] disabled:opacity-50 cursor-pointer"
+            >
+              {bookingLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Booking...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  Confirm
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

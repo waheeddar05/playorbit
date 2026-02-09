@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
+import { LayoutDashboard, CalendarCheck, Users, Settings } from 'lucide-react';
 
 export default function AdminLayout({
   children,
@@ -9,51 +11,72 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const isSuperAdmin = session?.user?.email === 'waheeddar8@gmail.com';
 
-  return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-64px)]">
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-gray-200 p-4 md:p-6 space-y-2">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 md:mb-4">
-          Admin Menu
-        </h2>
-        <nav className="flex flex-wrap md:flex-col gap-1 md:space-y-1">
-          <Link
-            href="/admin"
-            className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/admin/bookings"
-            className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
-          >
-            All Bookings
-          </Link>
-          {isSuperAdmin && (
-            <Link
-              href="/admin/users"
-              className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
-            >
-              Manage Admins
-            </Link>
-          )}
-          <Link
-            href="/admin/policies"
-            className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600"
-          >
-            Policy Management
-          </Link>
-        </nav>
-      </aside>
+  const links = [
+    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/bookings', label: 'Bookings', icon: CalendarCheck },
+    ...(isSuperAdmin ? [{ href: '/admin/users', label: 'Admins', icon: Users }] : []),
+    { href: '/admin/policies', label: 'Policies', icon: Settings },
+  ];
 
-      {/* Main Content */}
-      <main className="flex-1 bg-gray-50 p-4 md:p-8">
-        <div className="max-w-6xl mx-auto">
-          {children}
+  const isActive = (href: string) =>
+    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
+
+  return (
+    <div className="min-h-[calc(100vh-56px)] bg-gray-50/50">
+      {/* Mobile: Horizontal tabs */}
+      <div className="md:hidden sticky top-14 z-30 bg-white border-b border-gray-200">
+        <div className="flex overflow-x-auto px-2 py-1 gap-1">
+          {links.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                isActive(href)
+                  ? 'bg-primary/5 text-primary'
+                  : 'text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </Link>
+          ))}
         </div>
-      </main>
+      </div>
+
+      <div className="flex">
+        {/* Desktop: Sidebar */}
+        <aside className="hidden md:block w-56 bg-white border-r border-gray-200 min-h-[calc(100vh-64px)] p-4">
+          <h2 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3 px-3">
+            Admin Panel
+          </h2>
+          <nav className="space-y-0.5">
+            {links.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  isActive(href)
+                    ? 'bg-primary/5 text-primary'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 p-4 md:p-6">
+          <div className="max-w-5xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

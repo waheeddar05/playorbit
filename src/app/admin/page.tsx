@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { CalendarCheck, Users, Activity, UserPlus, CalendarDays, Settings } from 'lucide-react';
 
 interface Stats {
   totalBookings: number;
@@ -35,46 +36,79 @@ export default function AdminDashboard() {
     fetchStats();
   }, []);
 
+  const statCards = [
+    {
+      label: 'Total Bookings',
+      value: stats?.totalBookings ?? 0,
+      icon: CalendarCheck,
+      color: 'text-primary',
+      bg: 'bg-primary/5',
+    },
+    {
+      label: 'Active Admins',
+      value: stats?.activeAdmins ?? 0,
+      icon: Users,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+    },
+    {
+      label: 'System Status',
+      value: stats?.systemStatus ?? 'Healthy',
+      icon: Activity,
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+    },
+  ];
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Admin Dashboard</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-          <h3 className="text-sm font-medium text-gray-500 uppercase">Total Bookings</h3>
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {loading ? 'Loading...' : stats?.totalBookings ?? 0}
-          </p>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-          <h3 className="text-sm font-medium text-gray-500 uppercase">Active Admins</h3>
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {loading ? 'Loading...' : stats?.activeAdmins ?? 0}
-          </p>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-          <h3 className="text-sm font-medium text-gray-500 uppercase">System Status</h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">
-            {loading ? 'Checking...' : stats?.systemStatus ?? 'Healthy'}
-          </p>
-        </div>
+      <h1 className="text-xl font-bold text-gray-900 mb-5">Dashboard</h1>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        {statCards.map((card) => (
+          <div key={card.label} className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}>
+                <card.icon className={`w-5 h-5 ${card.color}`} />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{card.label}</p>
+                <p className={`text-xl font-bold ${card.label === 'System Status' ? card.color : 'text-gray-900'}`}>
+                  {loading ? '...' : card.value}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="flex flex-wrap gap-4">
+      {/* Quick Actions */}
+      <div className="bg-white rounded-xl border border-gray-100 p-5">
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h2>
+        <div className="flex flex-wrap gap-2">
           {isSuperAdmin && (
-            <Link href="/admin/users" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors">
-              Invite New Admin
+            <Link
+              href="/admin/users"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              Invite Admin
             </Link>
           )}
-          <Link href="/admin/bookings" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md transition-colors">
-            View Today's Bookings
+          <Link
+            href="/admin/bookings"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            <CalendarDays className="w-4 h-4" />
+            View Bookings
           </Link>
-          <Link href="/admin/policies" className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md transition-colors">
-            Update Policies
+          <Link
+            href="/admin/policies"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            Manage Policies
           </Link>
         </div>
       </div>

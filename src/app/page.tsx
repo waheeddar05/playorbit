@@ -3,101 +3,98 @@ import { redirect } from "next/navigation";
 import { getToken } from "next-auth/jwt";
 import { headers, cookies } from "next/headers";
 import { verifyToken } from "@/lib/jwt";
+import { Calendar, Zap, Clock, ChevronRight, Star } from "lucide-react";
 
 export default async function Home() {
   const cookieStore = await cookies();
-  const token = await getToken({ 
-    req: { 
+  const token = await getToken({
+    req: {
       headers: await headers(),
       cookies: cookieStore,
-    } as any, 
-    secret: process.env.NEXTAUTH_SECRET 
+    } as any,
+    secret: process.env.NEXTAUTH_SECRET
   });
-  
+
   const otpTokenStr = cookieStore.get("token")?.value;
   const otpToken = otpTokenStr ? verifyToken(otpTokenStr) as any : null;
 
   if (token || otpToken) {
-    console.log("Home: User is authenticated, redirecting to /slots");
     redirect("/slots");
   }
 
-  console.log("Home: User is NOT authenticated, showing landing page");
-
   return (
-    <div className="flex flex-col min-h-[calc(100vh-64px)] bg-slate-950">
-      {/* Background Image with Overlay */}
-      <div className="fixed inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=2067&auto=format&fit=crop" 
-          alt="Cricket Ground" 
-          className="w-full h-full object-cover opacity-20"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-transparent to-slate-950"></div>
-      </div>
+    <div className="flex flex-col min-h-screen bg-[#0a1628]">
+      {/* Hero Section */}
+      <section className="relative flex-1 flex flex-col items-center justify-center px-4 py-16 md:py-0 overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0a1628] via-[#132240] to-[#0d1f3c]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,168,67,0.08),transparent_60%)]"></div>
 
-      {/* Combined Hero & Action Section */}
-      <section className="relative flex-1 text-white flex flex-col items-center justify-center px-4 py-12 md:py-0 overflow-hidden z-10">
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="mb-6 flex justify-center gap-4">
-            <div className="w-16 h-16 md:w-24 md:h-24 rounded-full border-2 border-red-600 overflow-hidden shadow-xl transform -rotate-12 hover:rotate-0 transition-transform">
-              <img src="https://images.unsplash.com/photo-1593341646782-e0b495cff86d?q=80&w=1000&auto=format&fit=crop" alt="Cricket Ball" className="w-full h-full object-cover" />
-            </div>
-            <div className="w-16 h-16 md:w-24 md:h-24 rounded-full border-2 border-red-600 overflow-hidden shadow-xl transform rotate-12 hover:rotate-0 transition-transform">
-              <img src="https://images.unsplash.com/photo-1624491028326-6dd5d2346ef3?q=80&w=1000&auto=format&fit=crop" alt="Cricket Bat" className="w-full h-full object-cover" />
-            </div>
+        {/* Subtle cricket seam pattern */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0 L30 60' stroke='%23fff' stroke-width='0.5' fill='none'/%3E%3Cpath d='M0 30 L60 30' stroke='%23fff' stroke-width='0.5' fill='none'/%3E%3C/svg%3E")`,
+        }}></div>
+
+        <div className="relative z-10 max-w-2xl mx-auto text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full bg-accent/10 border border-accent/20">
+            <Star className="w-3.5 h-3.5 text-accent" />
+            <span className="text-xs font-semibold text-accent tracking-wide uppercase">Premium Practice Facility</span>
           </div>
-          <h1 className="text-3xl md:text-5xl font-extrabold mb-3 leading-tight drop-shadow-lg">
-            Master Your Game at ABCA Cricket
+
+          <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4 leading-[1.1] tracking-tight">
+            Train Like a
+            <span className="block text-accent">Champion</span>
           </h1>
-          <p className="text-base md:text-xl mb-6 text-slate-300 max-w-2xl mx-auto">
-            Professional-grade bowling machines and practice nets for cricketers of all levels.
+
+          <p className="text-base md:text-lg text-slate-400 mb-8 max-w-md mx-auto leading-relaxed">
+            Professional bowling machines and practice nets. Book your session and elevate your cricket game.
           </p>
-          
-          <div className="bg-slate-900/60 backdrop-blur-md p-6 md:p-8 rounded-2xl border border-white/10 shadow-2xl inline-block w-full max-w-md">
-             <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Start Your Session</h2>
-             <div className="flex flex-col gap-3">
-                <Link 
-                  href="/login" 
-                  className="bg-red-600 text-white hover:bg-red-700 px-8 py-3 rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
-                >
-                  Book Your Slot
-                </Link>
-                <p className="text-xs md:text-sm text-slate-400">
-                  Join ABCA Cricket Today
-                </p>
-             </div>
+
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 bg-accent hover:bg-accent-light text-primary px-8 py-3.5 rounded-xl font-bold text-base transition-all hover:shadow-lg hover:shadow-accent/20 active:scale-[0.98]"
+          >
+            Book Your Session
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+
+          <p className="mt-4 text-xs text-slate-500">
+            No subscription required. Pay per session.
+          </p>
+        </div>
+
+        {/* Feature Cards */}
+        <div className="relative z-10 mt-12 md:mt-16 grid grid-cols-3 gap-3 md:gap-5 max-w-lg md:max-w-2xl mx-auto w-full px-4">
+          <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
+              <Zap className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+            </div>
+            <h3 className="text-xs md:text-sm font-semibold text-white">Pro Machines</h3>
+            <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">Advanced bowling tech</p>
           </div>
-        </div>
-
-        {/* Features Preview - Compact */}
-        <div className="mt-8 md:mt-12 grid grid-cols-3 gap-3 md:gap-4 max-w-4xl mx-auto w-full relative z-10 px-4">
-           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-2 md:p-3 border border-white/10 text-center">
-             <div className="text-xl md:text-2xl mb-1">🏏</div>
-             <h3 className="text-[10px] md:text-sm font-bold">Advanced Machines</h3>
-           </div>
-           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-2 md:p-3 border border-white/10 text-center">
-             <div className="text-xl md:text-2xl mb-1">🏟️</div>
-             <h3 className="text-[10px] md:text-sm font-bold">Quality Nets</h3>
-           </div>
-           <div className="bg-white/5 backdrop-blur-sm rounded-xl p-2 md:p-3 border border-white/10 text-center">
-             <div className="text-xl md:text-2xl mb-1">📱</div>
-             <h3 className="text-[10px] md:text-sm font-bold">Easy Booking</h3>
-           </div>
-        </div>
-
-        {/* Simple decorative elements - Hidden on mobile if needed, but kept for flair */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-5 pointer-events-none z-0">
-           <div className="absolute -top-20 -left-20 w-64 h-64 border-8 border-white rounded-full"></div>
-           <div className="absolute top-1/2 right-10 w-32 h-32 border-4 border-white rotate-45"></div>
-           <div className="absolute bottom-10 left-1/4 w-48 h-48 border-2 border-white rounded-lg"></div>
+          <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
+              <Calendar className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+            </div>
+            <h3 className="text-xs md:text-sm font-semibold text-white">Easy Booking</h3>
+            <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">Book in 30 seconds</p>
+          </div>
+          <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
+              <Clock className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+            </div>
+            <h3 className="text-xs md:text-sm font-semibold text-white">Flexible Slots</h3>
+            <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">30-min sessions</p>
+          </div>
         </div>
       </section>
 
-      <footer className="py-4 px-4 bg-white border-t text-center text-gray-500 text-[10px] md:text-xs">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-2">
-          <span>© {new Date().getFullYear()} ABCA Cricket Machine Booking. All rights reserved.</span>
-          <span className="font-medium text-gray-600">Created by Waheed</span>
+      {/* Footer */}
+      <footer className="relative z-10 py-5 px-4 border-t border-white/[0.06] text-center">
+        <div className="max-w-2xl mx-auto flex flex-col md:flex-row justify-between items-center gap-2">
+          <span className="text-[11px] text-slate-600">&copy; {new Date().getFullYear()} ABCA Cricket. All rights reserved.</span>
+          <span className="text-[11px] text-slate-600">Made by Waheed</span>
         </div>
       </footer>
     </div>

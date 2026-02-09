@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import { Providers } from "@/components/Providers";
@@ -15,8 +15,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ABCA Cricket Machine Booking",
-  description: "Book your cricket practice sessions with advanced bowling machines.",
+  title: "ABCA Cricket - Book Practice Sessions",
+  description: "Book professional cricket practice sessions with advanced bowling machines at ABCA Cricket.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#1e3a5f",
 };
 
 export default function RootLayout({
@@ -27,11 +35,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background min-h-screen`}
       >
         <Providers>
           <Navbar />
-          <main>{children}</main>
+          <main className="safe-bottom">{children}</main>
         </Providers>
       </body>
     </html>

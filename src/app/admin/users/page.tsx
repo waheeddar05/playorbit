@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { UserPlus, Trash2, Loader2 } from 'lucide-react';
 
 export default function AdminManagement() {
   const { data: session } = useSession();
@@ -76,74 +77,66 @@ export default function AdminManagement() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Manage Admins</h1>
+      <h1 className="text-xl font-bold text-gray-900 mb-5">Manage Admins</h1>
 
+      {/* Add Admin Form */}
       {isSuperAdmin && (
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-8">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Add / Invite New Admin</h2>
-          <form onSubmit={handleAddAdmin} className="flex gap-4">
+        <div className="bg-white rounded-xl border border-gray-100 p-5 mb-5">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">Invite New Admin</h2>
+          <form onSubmit={handleAddAdmin} className="flex gap-3">
             <input
               type="email"
               placeholder="Enter email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="flex-1 border rounded px-3 py-2"
+              className="flex-1 border border-gray-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
             />
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded transition-colors"
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary-light text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
             >
-              Add Admin
+              <UserPlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add</span>
             </button>
           </form>
           {message.text && (
-            <p className={`mt-2 text-sm ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`mt-3 text-sm ${message.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
               {message.text}
             </p>
           )}
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Added On</th>
-              <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-gray-500">Loading admins...</td>
-              </tr>
-            ) : (
-              admins.map((admin) => (
-                <tr key={admin.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900">{admin.name || 'N/A'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{admin.email}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {new Date(admin.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-right text-sm font-medium">
-                    {isSuperAdmin && admin.email !== 'waheeddar8@gmail.com' && (
-                      <button
-                        onClick={() => handleRemoveAdmin(admin.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Admin List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-gray-400">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" />
+          <span className="text-sm">Loading admins...</span>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {admins.map((admin) => (
+            <div key={admin.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{admin.name || 'Unnamed'}</p>
+                <p className="text-xs text-gray-400">{admin.email}</p>
+                <p className="text-[11px] text-gray-300 mt-0.5">
+                  Added {new Date(admin.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              {isSuperAdmin && admin.email !== 'waheeddar8@gmail.com' && (
+                <button
+                  onClick={() => handleRemoveAdmin(admin.id)}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
