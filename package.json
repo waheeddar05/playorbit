@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "TZ=Asia/Kolkata next dev",
+    "build": "TZ=Asia/Kolkata next build",
+    "start": "TZ=Asia/Kolkata next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "db:check": "npx tsx scripts/check-migrations.ts",
-    "db:migrate": "prisma migrate deploy"
+    "db:check": "TZ=Asia/Kolkata npx tsx scripts/check-migrations.ts",
+    "db:migrate": "TZ=Asia/Kolkata prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
