@@ -64,8 +64,8 @@ export async function GET(req: NextRequest) {
       totalDiscount: totalDiscount._sum.discountAmount || 0,
       systemStatus: 'Healthy',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin stats fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }

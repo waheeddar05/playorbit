@@ -71,22 +71,32 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Fetch slot prices from admin-created slots
-    const adminSlots = await prisma.slot.findMany({
-      where: {
-        date: dateUTC,
-        isActive: true,
-      },
-      select: { startTime: true, price: true },
-    });
+    // Fetch slot prices from admin-created slots (graceful if Slot table doesn't exist yet)
+    let adminSlots: { startTime: Date; price: number }[] = [];
+    try {
+      adminSlots = await prisma.slot.findMany({
+        where: {
+          date: dateUTC,
+          isActive: true,
+        },
+        select: { startTime: true, price: true },
+      });
+    } catch {
+      // Slot table may not exist yet if migration hasn't been applied
+    }
 
     // Get machine config for extra charges
-    const machineConfigPolicies = await prisma.policy.findMany({
-      where: {
-        key: { in: ['DEFAULT_SLOT_PRICE', 'LEATHER_BALL_EXTRA_CHARGE', 'MACHINE_BALL_EXTRA_CHARGE', 'ASTRO_PITCH_PRICE', 'TURF_PITCH_PRICE'] },
-      },
-    });
-    const mcMap = Object.fromEntries(machineConfigPolicies.map(p => [p.key, p.value]));
+    let mcMap: Record<string, string> = {};
+    try {
+      const machineConfigPolicies = await prisma.policy.findMany({
+        where: {
+          key: { in: ['DEFAULT_SLOT_PRICE', 'LEATHER_BALL_EXTRA_CHARGE', 'MACHINE_BALL_EXTRA_CHARGE', 'ASTRO_PITCH_PRICE', 'TURF_PITCH_PRICE'] },
+        },
+      });
+      mcMap = Object.fromEntries(machineConfigPolicies.map(p => [p.key, p.value]));
+    } catch {
+      // Graceful fallback
+    }
     const defaultPrice = parseFloat(mcMap['DEFAULT_SLOT_PRICE'] || '600');
 
     const availableSlots = slots.map(slot => {
@@ -107,8 +117,11 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(availableSlots);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Available slots error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Internal server error', stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined },
+      { status: 500 }
+    );
   }
 }

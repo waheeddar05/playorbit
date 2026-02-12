@@ -98,8 +98,8 @@ export async function POST(req: NextRequest) {
       created: result.count,
       skipped: slotsToCreate.length - result.count,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bulk slot create error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }

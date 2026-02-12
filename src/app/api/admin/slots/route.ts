@@ -64,9 +64,9 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(slotsWithBookingInfo);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin slots fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -113,9 +113,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(slot, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin slot create error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -163,9 +163,9 @@ export async function PATCH(req: NextRequest) {
     });
 
     return NextResponse.json(updated);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin slot update error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -207,8 +207,8 @@ export async function DELETE(req: NextRequest) {
     await prisma.slot.delete({ where: { id: slotId } });
 
     return NextResponse.json({ message: 'Slot deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin slot delete error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }

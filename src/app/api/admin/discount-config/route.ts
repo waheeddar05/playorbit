@@ -33,9 +33,9 @@ export async function GET(req: NextRequest) {
       discountValue: parseFloat(config['CONSECUTIVE_DISCOUNT_VALUE'] || '0'),
       defaultSlotPrice: parseFloat(config['DEFAULT_SLOT_PRICE'] || '600'),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Discount config fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ message: 'Discount configuration updated successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Discount config update error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
