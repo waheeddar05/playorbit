@@ -3,6 +3,20 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/adminAuth';
 import { getISTTodayUTC, getISTLastMonthRange, dateStringToUTC, formatIST } from '@/lib/time';
 
+const SAFE_BOOKING_SELECT = {
+  id: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  ballType: true,
+  playerName: true,
+  price: true,
+  discountAmount: true,
+  createdAt: true,
+  user: { select: { email: true, mobileNumber: true } },
+} as const;
+
 export async function GET(req: NextRequest) {
   try {
     const session = await requireAdmin(req);
@@ -48,15 +62,21 @@ export async function GET(req: NextRequest) {
       where.status = status;
     }
 
-    const bookings = await prisma.booking.findMany({
-      where,
-      include: {
-        user: {
-          select: { name: true, email: true, mobileNumber: true },
-        },
-      },
-      orderBy: [{ date: 'desc' }, { startTime: 'asc' }],
-    });
+    // Try full query; fall back to safe select if new columns don't exist yet
+    let bookings: any[];
+    try {
+      bookings = await prisma.booking.findMany({
+        where,
+        include: { user: { select: { email: true, mobileNumber: true } } },
+        orderBy: [{ date: 'desc' }, { startTime: 'asc' }],
+      });
+    } catch {
+      bookings = await prisma.booking.findMany({
+        where,
+        select: SAFE_BOOKING_SELECT,
+        orderBy: [{ date: 'desc' }, { startTime: 'asc' }],
+      });
+    }
 
     // Build CSV
     const headers = [
@@ -76,7 +96,7 @@ export async function GET(req: NextRequest) {
       'Created At',
     ];
 
-    const rows = bookings.map(b => [
+    const rows = bookings.map((b: any) => [
       b.id,
       formatIST(b.date, 'yyyy-MM-dd'),
       formatIST(b.startTime, 'HH:mm'),
@@ -85,10 +105,10 @@ export async function GET(req: NextRequest) {
       b.user?.email || '',
       b.user?.mobileNumber || '',
       b.ballType,
-      (b as any).pitchType || '',
+      b.pitchType || '',
       b.status,
       b.price?.toString() || '',
-      (b as any).extraCharge?.toString() || '',
+      b.extraCharge?.toString() || '',
       b.discountAmount?.toString() || '',
       formatIST(b.createdAt, 'yyyy-MM-dd HH:mm:ss'),
     ]);

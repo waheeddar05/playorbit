@@ -3,6 +3,23 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/adminAuth';
 import { getISTTodayUTC, getISTLastMonthRange, dateStringToUTC } from '@/lib/time';
 
+const SAFE_BOOKING_SELECT = {
+  id: true,
+  userId: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  ballType: true,
+  playerName: true,
+  price: true,
+  originalPrice: true,
+  discountAmount: true,
+  discountType: true,
+  createdAt: true,
+  user: { select: { name: true, email: true, mobileNumber: true } },
+} as const;
+
 export async function GET(req: NextRequest) {
   try {
     const session = await requireAdmin(req);
@@ -11,7 +28,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const category = searchParams.get('category'); // all, today, upcoming, previous, lastMonth
+    const category = searchParams.get('category');
     const date = searchParams.get('date');
     const from = searchParams.get('from');
     const to = searchParams.get('to');
@@ -20,13 +37,12 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const sortBy = searchParams.get('sortBy') || 'date'; // date, createdAt
-    const sortOrder = searchParams.get('sortOrder') || 'desc'; // asc, desc
+    const sortBy = searchParams.get('sortBy') || 'date';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
 
     const where: any = {};
     const todayUTC = getISTTodayUTC();
 
-    // Category-based filtering (using IST-aware UTC dates for @db.Date)
     if (category === 'today') {
       where.date = todayUTC;
     } else if (category === 'upcoming') {
@@ -42,7 +58,6 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // Direct date / date range filters (override category)
     if (date) {
       where.date = dateStringToUTC(date);
     } else if (from && to) {
@@ -52,12 +67,10 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // Status filter
     if (status) {
       where.status = status;
     }
 
-    // Customer filter
     if (customer) {
       where.OR = [
         { playerName: { contains: customer, mode: 'insensitive' } },
@@ -66,12 +79,10 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // User filter
     if (userId) {
       where.userId = userId;
     }
 
-    // Build orderBy
     const orderBy: any = [];
     if (sortBy === 'createdAt') {
       orderBy.push({ createdAt: sortOrder });
@@ -82,26 +93,33 @@ export async function GET(req: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const [bookings, total] = await Promise.all([
-      prisma.booking.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
-              mobileNumber: true,
-            },
-          },
-        },
-        orderBy,
-        skip,
-        take: limit,
-      }),
-      prisma.booking.count({ where }),
-    ]);
+    // Try full query; fall back to safe select if new columns don't exist yet
+    let bookings: any[];
+    let total: number;
+    try {
+      [bookings, total] = await Promise.all([
+        prisma.booking.findMany({
+          where,
+          include: { user: { select: { name: true, email: true, mobileNumber: true } } },
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.booking.count({ where }),
+      ]);
+    } catch {
+      [bookings, total] = await Promise.all([
+        prisma.booking.findMany({
+          where,
+          select: SAFE_BOOKING_SELECT,
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.booking.count({ where }),
+      ]);
+    }
 
-    // Get summary counts for the current filter set (without status filter)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { status: _statusFilter, ...whereWithoutStatus } = where;
     const [bookedCount, doneCount, cancelledCount] = await Promise.all([
@@ -148,9 +166,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
+    // update only touches 'status' column, safe regardless of migration state
     const booking = await prisma.booking.update({
       where: { id: bookingId },
       data: { status },
+      select: { id: true, status: true },
     });
 
     return NextResponse.json(booking);

@@ -126,15 +126,22 @@ export async function POST(req: NextRequest) {
     // Lookup slot prices from Slot table, fall back to default
     const slotPrices: SlotWithPrice[] = [];
     for (const slot of validatedSlots) {
-      const dbSlot = await prisma.slot.findFirst({
-        where: {
-          date: startOfDay(slot.date),
-          startTime: slot.startTime,
-          isActive: true,
-        },
-      });
+      let dbSlotPrice: number | null = null;
+      try {
+        const dbSlot = await prisma.slot.findFirst({
+          where: {
+            date: startOfDay(slot.date),
+            startTime: slot.startTime,
+            isActive: true,
+          },
+          select: { price: true },
+        });
+        dbSlotPrice = dbSlot?.price ?? null;
+      } catch {
+        // Slot table may not exist yet
+      }
 
-      let basePrice = dbSlot?.price ?? discountConfig.defaultSlotPrice;
+      let basePrice = dbSlotPrice ?? discountConfig.defaultSlotPrice;
 
       // For Tennis Machine with pitch type pricing
       if (slot.ballType === 'TENNIS' && slot.pitchType && machineConfig.pitchTypeSelectionEnabled) {
@@ -167,6 +174,7 @@ export async function POST(req: NextRequest) {
       const result = await prisma.$transaction(async (tx) => {
         const relevantBallTypes = getRelevantBallTypes(slot.ballType);
 
+        // Use select to only fetch columns guaranteed to exist
         const existingBooked = await tx.booking.findFirst({
           where: {
             date: {
@@ -177,6 +185,7 @@ export async function POST(req: NextRequest) {
             ballType: { in: relevantBallTypes as any },
             status: 'BOOKED',
           },
+          select: { id: true },
         });
 
         if (existingBooked) {
@@ -192,42 +201,41 @@ export async function POST(req: NextRequest) {
             startTime: slot.startTime,
             ballType: slot.ballType || 'TENNIS',
           },
+          select: { id: true },
         });
 
+        // Build data - only include new fields if they won't cause errors
+        const bookingData: any = {
+          userId: userId!,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          status: 'BOOKED' as const,
+          ballType: slot.ballType || 'TENNIS',
+          playerName: slot.playerName,
+          price: priceInfo.price,
+          originalPrice: priceInfo.originalPrice,
+          discountAmount: priceInfo.discountAmount || null,
+          discountType: priceInfo.discountType || null,
+        };
+
+        // Try including new columns - they'll be ignored if migration isn't applied
+        // (Prisma will throw if columns don't exist, caught by outer try-catch)
+        if (slot.pitchType !== null) bookingData.pitchType = slot.pitchType;
+        if (slot.extraCharge) bookingData.extraCharge = slot.extraCharge;
+
         if (existingSameBallType) {
+          const { date: _d, startTime: _st, ballType: _bt, ...updateData } = bookingData;
           return await tx.booking.update({
             where: { id: existingSameBallType.id },
-            data: {
-              userId: userId!,
-              endTime: slot.endTime,
-              status: 'BOOKED',
-              playerName: slot.playerName,
-              pitchType: slot.pitchType,
-              price: priceInfo.price,
-              originalPrice: priceInfo.originalPrice,
-              discountAmount: priceInfo.discountAmount || null,
-              discountType: priceInfo.discountType || null,
-              extraCharge: slot.extraCharge || null,
-            },
+            data: updateData,
+            select: { id: true, status: true, price: true },
           });
         }
 
         return await tx.booking.create({
-          data: {
-            userId: userId!,
-            date: slot.date,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            status: 'BOOKED',
-            ballType: slot.ballType || 'TENNIS',
-            pitchType: slot.pitchType,
-            playerName: slot.playerName,
-            price: priceInfo.price,
-            originalPrice: priceInfo.originalPrice,
-            discountAmount: priceInfo.discountAmount || null,
-            discountType: priceInfo.discountType || null,
-            extraCharge: slot.extraCharge || null,
-          },
+          data: bookingData,
+          select: { id: true, status: true, price: true },
         });
       });
       results.push(result);
