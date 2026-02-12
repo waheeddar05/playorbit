@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
         ballType: { in: relevantBallTypes as any },
         status: 'BOOKED',
       },
+      select: { startTime: true },
     });
 
     // Fetch slot prices from admin-created slots (graceful if Slot table doesn't exist yet)

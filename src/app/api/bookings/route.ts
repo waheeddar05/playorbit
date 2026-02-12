@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 
+// Safe select: only columns guaranteed to exist (pre-migration)
+const SAFE_BOOKING_SELECT = {
+  id: true,
+  userId: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  status: true,
+  ballType: true,
+  playerName: true,
+  price: true,
+  originalPrice: true,
+  discountAmount: true,
+  discountType: true,
+  createdAt: true,
+} as const;
+
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
@@ -12,16 +29,22 @@ export async function GET(req: NextRequest) {
 
     const userId = user.id;
 
-    const bookings = await prisma.booking.findMany({
-      where: {
-        userId: userId,
-      },
-      orderBy: {
-        startTime: 'desc',
-      },
-    });
+    // Try full query first; if new columns don't exist, fall back to safe select
+    let bookings: any[];
+    try {
+      bookings = await prisma.booking.findMany({
+        where: { userId },
+        orderBy: { startTime: 'desc' },
+      });
+    } catch {
+      bookings = await prisma.booking.findMany({
+        where: { userId },
+        orderBy: { startTime: 'desc' },
+        select: SAFE_BOOKING_SELECT,
+      });
+    }
 
-    const mappedBookings = bookings.map(b => ({
+    const mappedBookings = bookings.map((b: any) => ({
       id: b.id,
       date: b.date.toISOString(),
       startTime: b.startTime.toISOString(),
@@ -33,8 +56,8 @@ export async function GET(req: NextRequest) {
       originalPrice: b.originalPrice ?? null,
       discountAmount: b.discountAmount ?? null,
       discountType: b.discountType ?? null,
-      pitchType: (b as any).pitchType ?? null,
-      extraCharge: (b as any).extraCharge ?? null,
+      pitchType: b.pitchType ?? null,
+      extraCharge: b.extraCharge ?? null,
     }));
 
     return NextResponse.json(mappedBookings);
