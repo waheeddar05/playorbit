@@ -114,62 +114,66 @@ export default function SlotsPage() {
         </div>
       </div>
 
-      {/* Cricket Machine Panel */}
+      {/* Bowling Machine Panel */}
       <div className="mb-5">
-        <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Cricket Machine</label>
-        <div className="flex gap-2">
+        <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Bowling Machine</label>
+        <div className="flex gap-2 items-start">
           {/* Leather Ball Machine Card */}
-          <button
-            onClick={() => handleCategoryChange('MACHINE')}
-            className={`flex-1 rounded-xl transition-all cursor-pointer text-left p-3 ${
-              category === 'MACHINE'
-                ? 'bg-primary text-white shadow-md shadow-primary/20'
-                : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-500"></span>
-              <span className="text-sm font-semibold">Leather Ball Machine</span>
-            </div>
-            <p className={`text-[10px] mt-1 ${category === 'MACHINE' ? 'text-white/60' : 'text-gray-400'}`}>Select ball type</p>
-          </button>
+          <div className="flex-1">
+            <button
+              onClick={() => handleCategoryChange('MACHINE')}
+              className={`w-full rounded-xl transition-all cursor-pointer text-left p-3 ${
+                category === 'MACHINE'
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                <span className="text-sm font-semibold">Leather Ball Machine</span>
+              </div>
+              <p className={`text-[10px] mt-1 ${category === 'MACHINE' ? 'text-white/60' : 'text-gray-400'}`}>Select ball type</p>
+            </button>
+
+            {/* Ball type sub-selector */}
+            {category === 'MACHINE' && (
+              <div className="flex gap-2 mt-2">
+                {machineSubTypes.map((type) => (
+                  <button
+                    key={type.value}
+                    onClick={() => setBallType(type.value)}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      ballType === type.value
+                        ? 'bg-primary/10 text-primary border border-primary/30'
+                        : 'bg-gray-50 text-gray-500 border border-gray-100 hover:border-primary/20'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${type.color}`}></span>
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Tennis Ball Machine Card */}
-          <button
-            onClick={() => handleCategoryChange('TENNIS')}
-            className={`flex-1 rounded-xl transition-all cursor-pointer text-left p-3 ${
-              category === 'TENNIS'
-                ? 'bg-primary text-white shadow-md shadow-primary/20'
-                : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500"></span>
-              <span className="text-sm font-semibold">Tennis Ball Machine</span>
-            </div>
-            <p className={`text-[10px] mt-1 ${category === 'TENNIS' ? 'text-white/60' : 'text-gray-400'}`}>No options needed</p>
-          </button>
-        </div>
-
-        {/* Ball type sub-selector for Leather Ball Machine */}
-        {category === 'MACHINE' && (
-          <div className="flex gap-2 mt-2">
-            {machineSubTypes.map((type) => (
-              <button
-                key={type.value}
-                onClick={() => setBallType(type.value)}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  ballType === type.value
-                    ? 'bg-primary/10 text-primary border border-primary/30'
-                    : 'bg-gray-50 text-gray-500 border border-gray-100 hover:border-primary/20'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${type.color}`}></span>
-                {type.label}
-              </button>
-            ))}
+          <div className="flex-1">
+            <button
+              onClick={() => handleCategoryChange('TENNIS')}
+              className={`w-full rounded-xl transition-all cursor-pointer text-left p-3 ${
+                category === 'TENNIS'
+                  ? 'bg-primary text-white shadow-md shadow-primary/20'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/30'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span className="text-sm font-semibold">Tennis Ball Machine</span>
+              </div>
+              <p className={`text-[10px] mt-1 ${category === 'TENNIS' ? 'text-white/60' : 'text-gray-400'}`}>No options needed</p>
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Date Selector - Horizontal scroll */}
