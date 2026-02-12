@@ -102,8 +102,8 @@ export async function GET(req: NextRequest) {
         'Content-Disposition': `attachment; filename=bookings-export-${formatIST(now, 'yyyy-MM-dd')}.csv`,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bookings export error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }

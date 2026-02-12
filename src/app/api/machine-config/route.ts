@@ -35,8 +35,8 @@ export async function GET() {
       },
       defaultSlotPrice: parseFloat(config['DEFAULT_SLOT_PRICE'] || '600'),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Public machine config fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }

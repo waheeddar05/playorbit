@@ -125,9 +125,9 @@ export async function GET(req: NextRequest) {
         total: bookedCount + doneCount + cancelledCount,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bookings fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -154,8 +154,8 @@ export async function PATCH(req: NextRequest) {
     });
 
     return NextResponse.json(booking);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin booking update error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }

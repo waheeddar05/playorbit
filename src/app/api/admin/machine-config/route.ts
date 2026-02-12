@@ -39,9 +39,9 @@ export async function GET(req: NextRequest) {
         turfPitchPrice: parseFloat(config['TURF_PITCH_PRICE'] || '700'),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Machine config fetch error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -90,8 +90,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ message: 'Machine configuration updated successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Machine config update error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });
   }
 }
