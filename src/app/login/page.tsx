@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { Star } from 'lucide-react';
+import { Star, Phone, Instagram } from 'lucide-react';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -63,9 +63,32 @@ export default function LoginPage() {
             {/* Mobile login temporarily disabled */}
           </div>
 
-          <p className="text-center mt-6 text-xs text-slate-500 italic">
-            &ldquo;Champions are made in the nets&rdquo;
+          <p className="text-center mt-6 text-sm text-accent/80 font-semibold italic">
+            &ldquo;Champions Aren&apos;t Born. They&apos;re Built &mdash; Ball by Ball.&rdquo;
           </p>
+
+          {/* Contact */}
+          <div className="flex flex-col items-center gap-2 mt-6 text-xs text-slate-500">
+            <div className="flex items-center gap-4">
+              <a href="tel:7058683664" className="flex items-center gap-1.5 hover:text-accent transition-colors">
+                <Phone className="w-3 h-3" />
+                7058683664
+              </a>
+              <a href="tel:7774077995" className="flex items-center gap-1.5 hover:text-accent transition-colors">
+                <Phone className="w-3 h-3" />
+                7774077995
+              </a>
+            </div>
+            <a
+              href="https://www.instagram.com/ankeetbawanecricketacademy?igsh=MWFvd2p0MzlrOWQ1Mg%3D%3D"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-accent transition-colors"
+            >
+              <Instagram className="w-3 h-3" />
+              @ankeetbawanecricketacademy
+            </a>
+          </div>
         </div>
       </div>
     </div>

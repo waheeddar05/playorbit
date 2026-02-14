@@ -25,7 +25,7 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-[#0a1628]">
       {/* Hero Section */}
-      <section className="relative flex-1 flex flex-col items-center justify-center px-4 py-16 md:py-0 overflow-hidden">
+      <section className="relative flex flex-col items-center justify-center px-4 pt-16 pb-10 md:pt-24 md:pb-14 overflow-hidden">
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0a1628] via-[#132240] to-[#0d1f3c]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,168,67,0.08),transparent_60%)]"></div>
@@ -63,58 +63,171 @@ export default async function Home() {
             No subscription required. Pay per session.
           </p>
         </div>
+      </section>
 
-        {/* Feature Cards */}
-        <div className="relative z-10 mt-12 md:mt-16 grid grid-cols-3 gap-3 md:gap-5 max-w-lg md:max-w-2xl mx-auto w-full px-4">
-          <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
-              <Zap className="w-5 h-5 md:w-6 md:h-6 text-accent" />
-            </div>
-            <h3 className="text-xs md:text-sm font-semibold text-white">Pro Machines</h3>
-            <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">Advanced bowling tech</p>
+      {/* Quote Banner 1 */}
+      <div className="relative z-10 py-6 bg-gradient-to-r from-accent/5 via-accent/10 to-accent/5 border-y border-accent/10">
+        <p className="text-center text-base md:text-lg font-semibold text-accent italic tracking-wide px-4">
+          &ldquo;Sweat in Practice. Shine in Matches.&rdquo;
+        </p>
+      </div>
+
+      {/* Our Machines Section - Huge prominent cards */}
+      <section className="relative z-10 px-4 py-12 md:py-16">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2">Our Bowling Machines</h2>
+            <p className="text-sm text-slate-400">Professional-grade equipment for serious practice</p>
           </div>
-          <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
-              <Calendar className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Leather Ball Machine - Hero Card */}
+            <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-accent/30 transition-all hover:shadow-xl hover:shadow-accent/5">
+              <div className="relative w-full aspect-square bg-gradient-to-br from-red-950/50 via-[#1a2235] to-[#132240] flex items-center justify-center overflow-hidden">
+                {/* Large machine SVG */}
+                <svg viewBox="0 0 200 200" className="w-4/5 h-4/5 drop-shadow-2xl group-hover:scale-105 transition-transform duration-500" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="50" y="30" width="100" height="110" rx="14" fill="#1e3a5f" stroke="#d4a843" strokeWidth="2"/>
+                  <path d="M75 30 L75 10 Q75 3 82 3 L118 3 Q125 3 125 10 L125 30" fill="#1e3a5f" stroke="#d4a843" strokeWidth="2"/>
+                  <circle cx="100" cy="18" r="11" fill="#0a1628" stroke="#d4a843" strokeWidth="1.5"/>
+                  <circle cx="100" cy="18" r="7" fill="#dc2626"/>
+                  <path d="M97 13 Q100 18 97 23" stroke="#fff" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  <path d="M103 13 Q100 18 103 23" stroke="#fff" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  <rect x="65" y="52" width="70" height="34" rx="7" fill="#0a1628" stroke="#d4a843" strokeWidth="1.5"/>
+                  <circle cx="80" cy="69" r="5" fill="#22c55e"/>
+                  <circle cx="100" cy="69" r="5" fill="#d4a843"/>
+                  <circle cx="120" cy="69" r="5" fill="#ef4444"/>
+                  <rect x="72" y="96" width="56" height="12" rx="6" fill="#0a1628" stroke="#d4a843" strokeWidth="1"/>
+                  <rect x="76" y="99" width="22" height="6" rx="3" fill="#d4a843" opacity="0.7"/>
+                  <line x1="65" y1="140" x2="55" y2="168" stroke="#d4a843" strokeWidth="3.5" strokeLinecap="round"/>
+                  <line x1="135" y1="140" x2="145" y2="168" stroke="#d4a843" strokeWidth="3.5" strokeLinecap="round"/>
+                  <circle cx="55" cy="175" r="12" fill="#0a1628" stroke="#d4a843" strokeWidth="2"/>
+                  <circle cx="55" cy="175" r="4" fill="#1e3a5f"/>
+                  <circle cx="145" cy="175" r="12" fill="#0a1628" stroke="#d4a843" strokeWidth="2"/>
+                  <circle cx="145" cy="175" r="4" fill="#1e3a5f"/>
+                  <line x1="30" y1="187" x2="170" y2="187" stroke="#d4a843" strokeWidth="0.5" opacity="0.3"/>
+                </svg>
+                {/* Glow */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-red-500/10 to-transparent"></div>
+              </div>
+              <div className="p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                  <h3 className="text-lg font-bold text-white">Leather Ball Machine</h3>
+                </div>
+                <p className="text-sm text-slate-400">Professional leather ball bowling for match-level practice. Real pace, real swing.</p>
+              </div>
             </div>
-            <h3 className="text-xs md:text-sm font-semibold text-white">Easy Booking</h3>
-            <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">Book in 30 seconds</p>
+
+            {/* Tennis Ball Machine - Hero Card */}
+            <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-green-500/30 transition-all hover:shadow-xl hover:shadow-green-500/5">
+              <div className="relative w-full aspect-square bg-gradient-to-br from-green-950/50 via-[#1a2235] to-[#132240] flex items-center justify-center overflow-hidden">
+                {/* Large machine SVG */}
+                <svg viewBox="0 0 200 200" className="w-4/5 h-4/5 drop-shadow-2xl group-hover:scale-105 transition-transform duration-500" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="50" y="30" width="100" height="110" rx="14" fill="#1e3a5f" stroke="#22c55e" strokeWidth="2"/>
+                  <path d="M75 30 L75 10 Q75 3 82 3 L118 3 Q125 3 125 10 L125 30" fill="#1e3a5f" stroke="#22c55e" strokeWidth="2"/>
+                  <circle cx="100" cy="18" r="11" fill="#0a1628" stroke="#22c55e" strokeWidth="1.5"/>
+                  <circle cx="100" cy="18" r="7" fill="#22c55e"/>
+                  <path d="M97 13 Q100 18 97 23" stroke="#fff" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  <path d="M103 13 Q100 18 103 23" stroke="#fff" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  <rect x="65" y="52" width="70" height="34" rx="7" fill="#0a1628" stroke="#22c55e" strokeWidth="1.5"/>
+                  <circle cx="80" cy="69" r="5" fill="#22c55e"/>
+                  <circle cx="100" cy="69" r="5" fill="#d4a843"/>
+                  <circle cx="120" cy="69" r="5" fill="#ef4444"/>
+                  <rect x="72" y="96" width="56" height="12" rx="6" fill="#0a1628" stroke="#22c55e" strokeWidth="1"/>
+                  <rect x="76" y="99" width="30" height="6" rx="3" fill="#22c55e" opacity="0.7"/>
+                  <line x1="65" y1="140" x2="55" y2="168" stroke="#22c55e" strokeWidth="3.5" strokeLinecap="round"/>
+                  <line x1="135" y1="140" x2="145" y2="168" stroke="#22c55e" strokeWidth="3.5" strokeLinecap="round"/>
+                  <circle cx="55" cy="175" r="12" fill="#0a1628" stroke="#22c55e" strokeWidth="2"/>
+                  <circle cx="55" cy="175" r="4" fill="#1e3a5f"/>
+                  <circle cx="145" cy="175" r="12" fill="#0a1628" stroke="#22c55e" strokeWidth="2"/>
+                  <circle cx="145" cy="175" r="4" fill="#1e3a5f"/>
+                  <line x1="30" y1="187" x2="170" y2="187" stroke="#22c55e" strokeWidth="0.5" opacity="0.3"/>
+                </svg>
+                {/* Glow */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-green-500/10 to-transparent"></div>
+              </div>
+              <div className="p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                  <h3 className="text-lg font-bold text-white">Tennis Ball Machine</h3>
+                </div>
+                <p className="text-sm text-slate-400">Perfect for building technique and timing. Self-operate option available.</p>
+              </div>
+            </div>
           </div>
-          <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
-              <Clock className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+        </div>
+      </section>
+
+      {/* Quote Banner 2 */}
+      <div className="relative z-10 py-5 bg-white/[0.02] border-y border-white/[0.04]">
+        <p className="text-center text-sm md:text-base font-medium text-slate-300 italic tracking-wide px-4">
+          &ldquo;Champions Aren&apos;t Born. They&apos;re Built &mdash; Ball by Ball.&rdquo;
+        </p>
+      </div>
+
+      {/* Feature Cards */}
+      <section className="relative z-10 px-4 py-12 md:py-16">
+        <div className="max-w-2xl mx-auto">
+          <div className="grid grid-cols-3 gap-3 md:gap-5">
+            <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
+                <Zap className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+              </div>
+              <h3 className="text-xs md:text-sm font-semibold text-white">Pro Machines</h3>
+              <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">Advanced bowling tech</p>
             </div>
-            <h3 className="text-xs md:text-sm font-semibold text-white">Flexible Slots</h3>
-            <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">30-min sessions</p>
+            <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
+                <Calendar className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+              </div>
+              <h3 className="text-xs md:text-sm font-semibold text-white">Easy Booking</h3>
+              <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">Book in 30 seconds</p>
+            </div>
+            <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-4 md:p-5 border border-white/[0.06] text-center group hover:bg-white/[0.07] transition-all">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-2.5">
+                <Clock className="w-5 h-5 md:w-6 md:h-6 text-accent" />
+              </div>
+              <h3 className="text-xs md:text-sm font-semibold text-white">Flexible Slots</h3>
+              <p className="text-[10px] md:text-xs text-slate-500 mt-1 hidden md:block">30-min sessions</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section className="relative z-10 px-4 py-10 bg-white/[0.02] border-t border-white/[0.06]">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-lg font-bold text-white mb-1">Get In Touch</h2>
+          <p className="text-xs text-slate-400 mb-5">Book your session or ask us anything</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="tel:7058683664" className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:border-accent/30 transition-all text-sm text-slate-300 hover:text-accent">
+              <Phone className="w-4 h-4" />
+              <span><span className="font-semibold">Pratyush:</span> 7058683664</span>
+            </a>
+            <a href="tel:7774077995" className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:border-accent/30 transition-all text-sm text-slate-300 hover:text-accent">
+              <Phone className="w-4 h-4" />
+              <span><span className="font-semibold">Rahul:</span> 7774077995</span>
+            </a>
+            <a
+              href="https://www.instagram.com/ankeetbawanecricketacademy?igsh=MWFvd2p0MzlrOWQ1Mg%3D%3D"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:border-accent/30 transition-all text-sm text-slate-300 hover:text-accent"
+            >
+              <Instagram className="w-4 h-4" />
+              @ankeetbawanecricketacademy
+            </a>
           </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="relative z-10 py-6 px-4 border-t border-white/[0.06]">
-        <div className="max-w-2xl mx-auto space-y-4">
-          {/* Contact & Social */}
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-xs text-slate-400">
-            <div className="flex items-center gap-4">
-              <a href="tel:7058683664" className="flex items-center gap-1.5 hover:text-accent transition-colors">
-                <Phone className="w-3.5 h-3.5" />
-                Pratyush: 7058683664
-              </a>
-              <a href="tel:7774077995" className="flex items-center gap-1.5 hover:text-accent transition-colors">
-                <Phone className="w-3.5 h-3.5" />
-                Rahul: 7774077995
-              </a>
-            </div>
-            <a
-              href="https://www.instagram.com/ankeetbawanecricketacademy?igsh=MWFvd2p0MzlrOWQ1Mg%3D%3D"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-accent transition-colors"
-            >
-              <Instagram className="w-3.5 h-3.5" />
-              @ankeetbawanecricketacademy
-            </a>
-          </div>
+        <div className="max-w-2xl mx-auto space-y-3">
+          {/* Quote */}
+          <p className="text-center text-xs text-slate-500 italic">
+            &ldquo;Champions Train When Others Rest.&rdquo;
+          </p>
           {/* Copyright */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-2 text-center">
             <span className="text-[11px] text-slate-600">&copy; {new Date().getFullYear()} Ankeet Bawane Cricket Academy. All rights reserved.</span>
