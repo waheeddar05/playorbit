@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { ClipboardList, Loader2, X, Calendar, Clock, IndianRupee } from 'lucide-react';
+import { ClipboardList, Loader2, X, Calendar, Clock, IndianRupee, Phone, Instagram } from 'lucide-react';
 
 interface Booking {
   id: string;
@@ -124,6 +124,13 @@ export default function BookingsPage() {
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Motivational quote banner */}
+          <div className="py-3 px-4 rounded-xl bg-gradient-to-r from-accent/5 via-accent/10 to-accent/5 border border-accent/10 mb-1">
+            <p className="text-center text-xs md:text-sm font-semibold text-accent italic">
+              &ldquo;Sweat in Practice. Shine in Matches.&rdquo;
+            </p>
+          </div>
+
           {bookings.map((booking) => {
             const displayStatus = getDisplayStatus(booking);
             const status = statusConfig[displayStatus];
@@ -210,6 +217,30 @@ export default function BookingsPage() {
           })}
         </div>
       )}
+
+      {/* Contact Section */}
+      <div className="mt-8 pt-6 border-t border-white/[0.06]">
+        <p className="text-center text-xs text-slate-500 mb-4 italic">&ldquo;Champions Train When Others Rest.&rdquo;</p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-slate-400">
+          <a href="tel:7058683664" className="flex items-center gap-1.5 hover:text-accent transition-colors">
+            <Phone className="w-3.5 h-3.5" />
+            Pratyush: 7058683664
+          </a>
+          <a href="tel:7774077995" className="flex items-center gap-1.5 hover:text-accent transition-colors">
+            <Phone className="w-3.5 h-3.5" />
+            Rahul: 7774077995
+          </a>
+          <a
+            href="https://www.instagram.com/ankeetbawanecricketacademy?igsh=MWFvd2p0MzlrOWQ1Mg%3D%3D"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 hover:text-accent transition-colors"
+          >
+            <Instagram className="w-3.5 h-3.5" />
+            @ankeetbawanecricketacademy
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

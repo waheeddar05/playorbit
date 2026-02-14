@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { format, addDays, parseISO } from 'date-fns';
-import { Calendar, Check, Loader2, IndianRupee, AlertTriangle } from 'lucide-react';
+import { Calendar, Check, Loader2, IndianRupee, AlertTriangle, Phone } from 'lucide-react';
 import type { PricingConfig, TimeSlabConfig } from '@/lib/pricing';
 
 interface MachineConfig {
@@ -248,31 +248,64 @@ export default function SlotsPage() {
 
       {/* Bowling Machine Panel */}
       <div className="mb-5">
-        <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">Bowling Machine</label>
-        <div className="flex gap-2 items-start">
+        <label className="block text-xs font-medium text-slate-400 mb-3 uppercase tracking-wider">Choose Your Machine</label>
+        <div className="grid grid-cols-2 gap-3">
           {/* Leather Ball Machine Card */}
-          <div className="flex-1">
+          <div>
             <button
               onClick={() => handleCategoryChange('MACHINE')}
-              className={`w-full rounded-xl transition-all cursor-pointer text-left p-3 ${
+              className={`w-full rounded-2xl transition-all cursor-pointer text-left overflow-hidden ${
                 category === 'MACHINE'
-                  ? 'bg-accent text-primary shadow-md shadow-accent/20'
-                  : 'bg-white/[0.04] text-slate-300 border border-white/[0.08] hover:border-accent/30'
+                  ? 'ring-2 ring-accent shadow-lg shadow-accent/20'
+                  : 'border border-white/[0.08] hover:border-accent/40'
               }`}
             >
-              <div className="flex items-center gap-2 mb-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/images/leather-ball-machine.svg"
-                  alt="Leather Ball Bowling Machine"
-                  width={40}
-                  height={40}
-                  className="w-10 h-10 rounded-lg"
-                />
+              {/* Machine Image Area */}
+              <div className={`relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden ${
+                category === 'MACHINE' ? 'bg-gradient-to-br from-red-900/40 via-red-800/20 to-[#132240]' : 'bg-gradient-to-br from-[#1a2a44] to-[#132240]'
+              }`}>
+                {/* Large bowling machine illustration */}
+                <svg viewBox="0 0 200 180" className="w-full h-full p-4 drop-shadow-lg" xmlns="http://www.w3.org/2000/svg">
+                  {/* Machine body */}
+                  <rect x="55" y="25" width="90" height="100" rx="12" fill="#1e3a5f" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="2"/>
+                  {/* Delivery chute */}
+                  <path d="M80 25 L80 8 Q80 2 86 2 L114 2 Q120 2 120 8 L120 25" fill="#1e3a5f" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="2"/>
+                  {/* Opening */}
+                  <circle cx="100" cy="14" r="9" fill="#0a1628" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="1.5"/>
+                  {/* Red leather ball */}
+                  <circle cx="100" cy="14" r="6" fill="#dc2626"/>
+                  <path d="M97 10 Q100 14 97 18" stroke="#fff" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  <path d="M103 10 Q100 14 103 18" stroke="#fff" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  {/* Control panel */}
+                  <rect x="68" y="45" width="64" height="30" rx="6" fill="#0a1628" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="1.5"/>
+                  <circle cx="82" cy="60" r="4" fill="#22c55e"/>
+                  <circle cx="100" cy="60" r="4" fill="#d4a843"/>
+                  <circle cx="118" cy="60" r="4" fill="#ef4444"/>
+                  {/* Speed dial */}
+                  <rect x="75" y="85" width="50" height="10" rx="5" fill="#0a1628" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="1"/>
+                  <rect x="78" y="88" width="20" height="4" rx="2" fill={category === 'MACHINE' ? '#d4a843' : '#3b5578'} opacity="0.7"/>
+                  {/* Legs */}
+                  <line x1="70" y1="125" x2="62" y2="150" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="3" strokeLinecap="round"/>
+                  <line x1="130" y1="125" x2="138" y2="150" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="3" strokeLinecap="round"/>
+                  {/* Wheels */}
+                  <circle cx="62" cy="156" r="10" fill="#0a1628" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="2"/>
+                  <circle cx="62" cy="156" r="3.5" fill="#1e3a5f"/>
+                  <circle cx="138" cy="156" r="10" fill="#0a1628" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="2"/>
+                  <circle cx="138" cy="156" r="3.5" fill="#1e3a5f"/>
+                  {/* Ground */}
+                  <line x1="40" y1="166" x2="160" y2="166" stroke={category === 'MACHINE' ? '#d4a843' : '#3b5578'} strokeWidth="0.5" opacity="0.4"/>
+                </svg>
+                {/* Glow effect when selected */}
+                {category === 'MACHINE' && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-accent/10 to-transparent pointer-events-none"></div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                <span className="text-sm font-semibold">Leather Ball Machine</span>
+              {/* Label */}
+              <div className={`px-3 py-3 ${category === 'MACHINE' ? 'bg-accent' : 'bg-white/[0.04]'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${category === 'MACHINE' ? 'bg-red-600' : 'bg-red-500'}`}></span>
+                  <span className={`text-sm font-bold ${category === 'MACHINE' ? 'text-primary' : 'text-white'}`}>Leather Ball Machine</span>
+                </div>
               </div>
             </button>
 
@@ -301,28 +334,61 @@ export default function SlotsPage() {
           </div>
 
           {/* Tennis Ball Machine Card */}
-          <div className="flex-1">
+          <div>
             <button
               onClick={() => handleCategoryChange('TENNIS')}
-              className={`w-full rounded-xl transition-all cursor-pointer text-left p-3 ${
+              className={`w-full rounded-2xl transition-all cursor-pointer text-left overflow-hidden ${
                 category === 'TENNIS'
-                  ? 'bg-accent text-primary shadow-md shadow-accent/20'
-                  : 'bg-white/[0.04] text-slate-300 border border-white/[0.08] hover:border-accent/30'
+                  ? 'ring-2 ring-accent shadow-lg shadow-accent/20'
+                  : 'border border-white/[0.08] hover:border-accent/40'
               }`}
             >
-              <div className="flex items-center gap-2 mb-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/images/tennis-ball-machine.svg"
-                  alt="Tennis Ball Bowling Machine"
-                  width={40}
-                  height={40}
-                  className="w-10 h-10 rounded-lg"
-                />
+              {/* Machine Image Area */}
+              <div className={`relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden ${
+                category === 'TENNIS' ? 'bg-gradient-to-br from-green-900/40 via-green-800/20 to-[#132240]' : 'bg-gradient-to-br from-[#1a2a44] to-[#132240]'
+              }`}>
+                {/* Large bowling machine illustration */}
+                <svg viewBox="0 0 200 180" className="w-full h-full p-4 drop-shadow-lg" xmlns="http://www.w3.org/2000/svg">
+                  {/* Machine body */}
+                  <rect x="55" y="25" width="90" height="100" rx="12" fill="#1e3a5f" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="2"/>
+                  {/* Delivery chute */}
+                  <path d="M80 25 L80 8 Q80 2 86 2 L114 2 Q120 2 120 8 L120 25" fill="#1e3a5f" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="2"/>
+                  {/* Opening */}
+                  <circle cx="100" cy="14" r="9" fill="#0a1628" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="1.5"/>
+                  {/* Green tennis ball */}
+                  <circle cx="100" cy="14" r="6" fill="#22c55e"/>
+                  <path d="M97 10 Q100 14 97 18" stroke="#fff" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  <path d="M103 10 Q100 14 103 18" stroke="#fff" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  {/* Control panel */}
+                  <rect x="68" y="45" width="64" height="30" rx="6" fill="#0a1628" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="1.5"/>
+                  <circle cx="82" cy="60" r="4" fill="#22c55e"/>
+                  <circle cx="100" cy="60" r="4" fill="#d4a843"/>
+                  <circle cx="118" cy="60" r="4" fill="#ef4444"/>
+                  {/* Speed dial */}
+                  <rect x="75" y="85" width="50" height="10" rx="5" fill="#0a1628" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="1"/>
+                  <rect x="78" y="88" width="28" height="4" rx="2" fill={category === 'TENNIS' ? '#22c55e' : '#3b5578'} opacity="0.7"/>
+                  {/* Legs */}
+                  <line x1="70" y1="125" x2="62" y2="150" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="3" strokeLinecap="round"/>
+                  <line x1="130" y1="125" x2="138" y2="150" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="3" strokeLinecap="round"/>
+                  {/* Wheels */}
+                  <circle cx="62" cy="156" r="10" fill="#0a1628" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="2"/>
+                  <circle cx="62" cy="156" r="3.5" fill="#1e3a5f"/>
+                  <circle cx="138" cy="156" r="10" fill="#0a1628" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="2"/>
+                  <circle cx="138" cy="156" r="3.5" fill="#1e3a5f"/>
+                  {/* Ground */}
+                  <line x1="40" y1="166" x2="160" y2="166" stroke={category === 'TENNIS' ? '#22c55e' : '#3b5578'} strokeWidth="0.5" opacity="0.4"/>
+                </svg>
+                {/* Glow effect when selected */}
+                {category === 'TENNIS' && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-green-500/10 to-transparent pointer-events-none"></div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span className="text-sm font-semibold">Tennis Ball Machine</span>
+              {/* Label */}
+              <div className={`px-3 py-3 ${category === 'TENNIS' ? 'bg-accent' : 'bg-white/[0.04]'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${category === 'TENNIS' ? 'bg-green-700' : 'bg-green-500'}`}></span>
+                  <span className={`text-sm font-bold ${category === 'TENNIS' ? 'text-primary' : 'text-white'}`}>Tennis Ball Machine</span>
+                </div>
               </div>
             </button>
 
@@ -548,6 +614,21 @@ export default function SlotsPage() {
           </p>
         </div>
       )}
+
+      {/* Contact + Quote */}
+      <div className="mt-8 pt-5 border-t border-white/[0.06] pb-4">
+        <p className="text-center text-xs text-slate-500 italic mb-3">&ldquo;Champions Aren&apos;t Born. They&apos;re Built &mdash; Ball by Ball.&rdquo;</p>
+        <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500">
+          <a href="tel:7058683664" className="flex items-center gap-1 hover:text-accent transition-colors">
+            <Phone className="w-3 h-3" />
+            7058683664
+          </a>
+          <a href="tel:7774077995" className="flex items-center gap-1 hover:text-accent transition-colors">
+            <Phone className="w-3 h-3" />
+            7774077995
+          </a>
+        </div>
+      </div>
 
       {/* Fixed Bottom Booking Bar */}
       {selectedSlots.length > 0 && (
