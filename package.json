@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "TZ=Asia/Kolkata next dev",
-    "build": "TZ=Asia/Kolkata next build",
+    "build": "prisma migrate deploy && TZ=Asia/Kolkata next build",
     "start": "TZ=Asia/Kolkata next start",
     "lint": "eslint",
     "postinstall": "prisma generate",

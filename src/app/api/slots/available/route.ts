@@ -80,12 +80,15 @@ export async function GET(req: NextRequest) {
     const [pricingConfig, timeSlabConfig, blockedSlots] = await Promise.all([
       getPricingConfig(),
       getTimeSlabConfig(),
-      prisma.blockedSlot ? prisma.blockedSlot.findMany({
+      prisma.blockedSlot.findMany({
         where: {
           startDate: { lte: dateUTC },
           endDate: { gte: dateUTC },
         }
-      }) : Promise.resolve([])
+      }).catch((err: unknown) => {
+        console.warn('BlockedSlot query failed (table may not exist yet):', err instanceof Error ? err.message : err);
+        return [];
+      })
     ]);
 
     // Generate slots using dual time windows
