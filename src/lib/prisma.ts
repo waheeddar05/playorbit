@@ -93,11 +93,11 @@ async function checkDatabaseConnection() {
     }
 
     // Check for optional tables and columns from newer migrations
-    const optionalTables = ['slot'];
+    const optionalTables = ['slot', 'blockedslot', 'notification'];
     const missingOptional = optionalTables.filter(t => !existingTables.includes(t));
     if (missingOptional.length > 0) {
       console.warn(`⚠️  Optional tables missing: ${missingOptional.join(', ')}`);
-      console.warn('Some features (slot management, pricing) will be unavailable.');
+      console.warn('Some features (slot management, blocked slots, notifications) will be unavailable.');
       console.warn('Run "npx prisma migrate deploy" to apply pending migrations.');
     }
 
