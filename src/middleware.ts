@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { verifyToken } from "@/lib/jwt";
 
-const SUPER_ADMIN_EMAIL = 'waheeddar8@gmail.com';
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || '';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -20,7 +20,9 @@ export async function middleware(req: NextRequest) {
     pathname === "/favicon.ico" ||
     pathname.startsWith("/images/");
 
-  console.log(`Middleware: ${pathname}, isPublic: ${isPublicPath}, cookies: ${req.cookies.get("token")?.value ? 'exists' : 'none'}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Middleware: ${pathname}, isPublic: ${isPublicPath}`);
+  }
 
   if (isPublicPath) {
     // If the user is logged in and tries to access login or otp page, redirect to slots
@@ -44,7 +46,9 @@ export async function middleware(req: NextRequest) {
   const otpTokenStr = req.cookies.get("token")?.value;
   const otpToken = otpTokenStr ? verifyToken(otpTokenStr) as any : null;
 
-  console.log(`Middleware: ${pathname}, token: ${!!token}, otpToken: ${!!otpToken}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`Middleware: ${pathname}, token: ${!!token}, otpToken: ${!!otpToken}`);
+  }
 
   if (!token && !otpToken) {
     const loginUrl = new URL("/login", req.url);

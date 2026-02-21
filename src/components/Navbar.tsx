@@ -29,7 +29,7 @@ export default function Navbar() {
     { href: '/bookings', label: 'My Bookings', icon: ClipboardList, show: !!session },
     { href: '/packages', label: 'Packages', icon: Package, show: !!session },
     { href: '/notifications', label: 'Notifications', icon: Bell, show: !!session },
-    { href: '/admin', label: 'Admin', icon: Shield, show: (session?.user as any)?.role === 'ADMIN' },
+    { href: '/admin', label: 'Admin', icon: Shield, show: session?.user?.role === 'ADMIN' },
   ].filter(link => link.show);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');

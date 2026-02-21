@@ -1,0 +1,561 @@
+diff --git a/src/app/slots/page.tsx b/src/app/slots/page.tsx
+index 5d72d48..2f27467 100644
+--- a/src/app/slots/page.tsx
++++ b/src/app/slots/page.tsx
+@@ -3,8 +3,8 @@
+ import { useState, useEffect, useMemo, Suspense } from 'react';
+ import { useSession } from 'next-auth/react';
+ import { useSearchParams } from 'next/navigation';
+-import { format, addDays, parseISO, isBefore, startOfDay } from 'date-fns';
+-import { Calendar, Check, Loader2, IndianRupee, AlertTriangle, Phone, Package, ChevronDown, UserCircle } from 'lucide-react';
++import { format, addDays } from 'date-fns';
++import { Check, Loader2, IndianRupee, AlertTriangle, Phone, Package, ChevronDown } from 'lucide-react';
+ import type { PricingConfig, TimeSlabConfig } from '@/lib/pricing';
+ 
+ type MachineId = 'GRAVITY' | 'YANTRA' | 'LEVERAGE_INDOOR' | 'LEVERAGE_OUTDOOR';
+@@ -106,6 +106,12 @@ const PITCH_TYPE_LABELS: Record<string, { label: string; color: string }> = {
+   TURF: { label: 'Cement Wicket', color: 'bg-amber-500' },
+ };
+ 
++const BALL_TYPES = [
++  { value: 'LEATHER', label: 'Leather Ball', color: 'bg-red-500' },
++  { value: 'MACHINE', label: 'Machine Ball', color: 'bg-green-500' },
++  { value: 'TENNIS', label: 'Tennis Ball', color: 'bg-yellow-500' },
++];
++
+ export default function SlotsPage() {
+   return (
+     <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>}>
+@@ -141,7 +147,6 @@ function SlotsContent() {
+ 
+   // Derive category from selected machine
+   const selectedCard = MACHINE_CARDS.find(m => m.id === selectedMachineId)!;
+-  const category = selectedCard.category === 'LEATHER' ? 'MACHINE' : 'TENNIS';
+   const isLeatherMachine = selectedCard.category === 'LEATHER';
+ 
+   // Get enabled pitch types from machine config API response
+@@ -317,14 +322,15 @@ function SlotsContent() {
+     for (const slot of sorted) {
+       const slab = (slot.timeSlab as 'morning' | 'evening') || 'morning';
+ 
+-      let consecutivePriceFor2: number;
++    let consecutivePriceFor2: number;
++      const pType = pitchType === 'TURF' ? 'CEMENT' : (pitchType || 'ASTRO');
++      const validPType = (pType === 'ASTRO' || pType === 'CEMENT' || pType === 'NATURAL') ? pType : 'ASTRO';
++
+       if (isLeatherMachine) {
+         const subType = ballType === 'LEATHER' ? 'leather' : 'machine';
+-        consecutivePriceFor2 = pc.leatherMachine[subType as 'leather' | 'machine'][slab].consecutive;
+-      } else if (pitchType === 'TURF' || pitchType === 'CEMENT') {
+-        consecutivePriceFor2 = pc.cementWicket[slab].consecutive;
++        consecutivePriceFor2 = pc[subType as 'leather' | 'machine'][validPType as 'ASTRO' | 'CEMENT' | 'NATURAL'][slab].consecutive;
+       } else {
+-        consecutivePriceFor2 = pc.tennisMachine[slab].consecutive;
++        consecutivePriceFor2 = pc.tennis[validPType as 'ASTRO' | 'CEMENT' | 'NATURAL'][slab].consecutive;
+       }
+ 
+       const perSlotConsecutive = consecutivePriceFor2 / 2;
+@@ -444,11 +450,6 @@ function SlotsContent() {
+     }
+   };
+ 
+-  const machineSubTypes = [
+-    { value: 'LEATHER', label: 'Leather Ball', color: 'bg-red-500' },
+-    { value: 'MACHINE', label: 'Machine Ball', color: 'bg-green-500' },
+-  ];
+-
+   const handleMachineSelect = (machineId: MachineId) => {
+     const card = MACHINE_CARDS.find(m => m.id === machineId)!;
+     setSelectedMachineId(machineId);
+@@ -491,194 +492,101 @@ function SlotsContent() {
+   };
+ 
+   return (
+-    <div className="max-w-2xl mx-auto px-4 py-5 pb-28">
+-      {/* Background gradient */}
+-      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-[#0a1628] via-[#132240] to-[#0d1f3c]"></div>
+-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(212,168,67,0.05),transparent_60%)]"></div>
+-
+-      {/* Page Header */}
+-      {isBookingForOther && (
+-        <div className="mb-6 px-4 py-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center gap-3">
+-          <UserCircle className="w-5 h-5 text-accent" />
+-          <div>
+-            <p className="text-[10px] font-bold text-accent uppercase tracking-wider">Admin Mode</p>
+-            <p className="text-sm font-medium text-white">Booking for: <span className="text-accent">{userName}</span></p>
+-          </div>
+-        </div>
+-      )}
+-      <div className="flex items-center gap-3 mb-6">
+-        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+-          <Calendar className="w-5 h-5 text-accent" />
+-        </div>
+-        <div>
+-          <h1 className="text-xl font-bold text-white">Book a Slot</h1>
+-          <p className="text-xs text-slate-400">Select date, machine & time</p>
+-        </div>
+-      </div>
+-
+-      {/* Machine Selection - 4 Cards */}
+-      <div className="mb-5">
+-        <label className="block text-xs font-medium text-slate-400 mb-3 uppercase tracking-wider">Choose Your Machine</label>
+-        <div className="grid grid-cols-2 gap-3">
++    <div className="min-h-screen bg-[#0f1d2f] text-white pb-32 px-4 pt-4">
++      {/* ── MACHINE CHIPS ── */}
++      <div className="mb-4">
++        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">Choose Your Machine</label>
++        <div className="flex gap-2 overflow-x-auto pb-1" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
+           {MACHINE_CARDS.map((card) => {
+             const isSelected = selectedMachineId === card.id;
+             return (
+               <button
+                 key={card.id}
+                 onClick={() => handleMachineSelect(card.id)}
+-                className={`w-full rounded-2xl transition-all cursor-pointer text-left overflow-hidden ${
++                className={`flex-shrink-0 flex items-center gap-2 px-3.5 py-2.5 rounded-full text-sm font-semibold transition-all cursor-pointer ${
+                   isSelected
+-                    ? 'ring-2 ring-accent shadow-lg shadow-accent/20'
+-                    : 'border border-white/[0.08] hover:border-accent/40'
++                    ? 'border-2 border-accent bg-accent/10 text-white shadow-[0_0_0_1px_rgba(212,168,67,0.5),0_4px_16px_rgba(212,168,67,0.15)]'
++                    : 'border border-white/[0.1] bg-white/[0.04] text-slate-400 hover:border-accent/30'
+                 }`}
+               >
+-                {/* Machine Image Area */}
+-                <div className={`relative w-full aspect-[4/3] overflow-hidden ${
+-                  isSelected ? card.gradientActive : card.gradientInactive
+-                }`}>
+-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+-                  <img
+-                    src={card.image}
+-                    alt={card.label}
+-                    className="w-full h-full object-contain p-3"
+-                  />
+-                  {isSelected && (
+-                    <div className={`absolute inset-0 bg-gradient-to-t ${card.glowColor} to-transparent pointer-events-none`}></div>
+-                  )}
+-                </div>
+-                {/* Label */}
+-                <div className={`px-3 py-2.5 ${isSelected ? 'bg-accent' : 'bg-white/[0.04]'}`}>
+-                  <div className="flex items-center gap-2">
+-                    <span className={`w-2.5 h-2.5 rounded-full ${isSelected ? card.dotColorSelected : card.dotColor}`}></span>
+-                    <span className={`text-xs font-bold ${isSelected ? 'text-primary' : 'text-white'}`}>{card.label}</span>
+-                  </div>
+-                  <p className={`text-[10px] ml-[18px] ${isSelected ? 'text-primary/60' : 'text-slate-500'}`}>{card.shortLabel}</p>
++                <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-[rgba(212,168,67,0.2)]' : 'bg-[rgba(255,255,255,0.08)]'}`}>
++                  <img src={card.image} alt={card.label} className="w-full h-full object-contain rounded-full" />
+                 </div>
++                {card.label}
++                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isSelected ? card.dotColorSelected : card.dotColor}`} />
+               </button>
+             );
+           })}
+         </div>
+       </div>
+ 
+-      {/* Options below machine grid */}
+-      <div className="mb-5 space-y-3">
+-        {/* Ball Type - for leather machines when enabled */}
+-        {isLeatherMachine && machineConfig?.leatherMachine.ballTypeSelectionEnabled && (
+-          <div>
+-            <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase tracking-wider">Ball Type</label>
+-            <div className="flex gap-2">
+-              {machineSubTypes.map((type) => (
++      {/* ── BALL TYPE + PITCH TYPE (inline) ── */}
++      <div className="flex items-center flex-wrap gap-2 mb-4">
++        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-1">Ball</span>
++        {BALL_TYPES.map((type) => (
++          <button
++            key={type.value}
++            onClick={() => setBallType(type.value)}
++            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
++              ballType === type.value
++                ? 'bg-accent text-primary border border-accent font-bold'
++                : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'
++            }`}
++          >
++            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${type.color}`} />
++            {type.label}
++          </button>
++        ))}
++        {showPitchSelection && (
++          <>
++            <div className="w-px h-4 bg-white/[0.08] mx-1" />
++            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mr-1">Pitch</span>
++            {enabledPitchTypes.map((pt) => {
++              const info = PITCH_TYPE_LABELS[pt];
++              return (
+                 <button
+-                  key={type.value}
+-                  onClick={() => { setBallType(type.value); setSelectedSlots([]); }}
+-                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+-                    ballType === type.value
+-                      ? 'bg-accent text-primary shadow-sm'
++                  key={pt}
++                  onClick={() => setPitchType(pt)}
++                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
++                    pitchType === pt
++                      ? 'bg-accent text-primary border border-accent font-bold'
+                       : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'
+                   }`}
+                 >
+-                  <span className={`w-1.5 h-1.5 rounded-full ${type.color}`}></span>
+-                  {type.label}
++                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${info?.color}`} />
++                  {info?.label ?? pt}
+                 </button>
+-              ))}
+-            </div>
+-          </div>
+-        )}
+-
+-        {/* Pitch Type - shown when machine has multiple enabled pitch types */}
+-        {showPitchSelection && (
+-          <div>
+-            <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase tracking-wider">Pitch Type</label>
+-            <div className="flex gap-2">
+-              {enabledPitchTypes.map((pt) => {
+-                const info = PITCH_TYPE_LABELS[pt] || { label: pt, color: 'bg-slate-500' };
+-                return (
+-                  <button
+-                    key={pt}
+-                    onClick={() => { setPitchType(pt); setSelectedSlots([]); }}
+-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+-                      pitchType === pt
+-                        ? 'bg-accent text-primary shadow-sm'
+-                        : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'
+-                    }`}
+-                  >
+-                    <span className={`w-1.5 h-1.5 rounded-full ${info.color}`}></span>
+-                    {info.label}
+-                  </button>
+-                );
+-              })}
+-            </div>
+-          </div>
+-        )}
+-
+-        {/* Operation Mode - for tennis machines */}
+-        {!isLeatherMachine && (
+-          <div>
+-            <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase tracking-wider">Operation Mode</label>
+-            <div className="flex gap-2">
+-              <button
+-                onClick={() => { setOperationMode('WITH_OPERATOR'); setSelectedSlots([]); }}
+-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+-                  operationMode === 'WITH_OPERATOR'
+-                    ? 'bg-accent text-primary shadow-sm'
+-                    : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'
+-                }`}
+-              >
+-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+-                With Operator
+-              </button>
+-              <button
+-                onClick={() => { setOperationMode('SELF_OPERATE'); setSelectedSlots([]); }}
+-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+-                  operationMode === 'SELF_OPERATE'
+-                    ? 'bg-accent text-primary shadow-sm'
+-                    : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'
+-                }`}
+-              >
+-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+-                Self Operate
+-              </button>
+-            </div>
+-          </div>
++              );
++            })}
++          </>
+         )}
+       </div>
+ 
+-      {/* Self Operate Warning */}
+-      {operationMode === 'SELF_OPERATE' && !isLeatherMachine && (
+-        <div className="mb-4 px-3 py-3 bg-red-500/15 border-2 border-red-500/40 rounded-lg flex items-start gap-2">
+-          <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+-          <div>
+-            <p className="text-sm font-bold text-red-400">Self Operate Mode</p>
+-            <p className="text-xs text-red-300 mt-0.5">
+-              No machine operator will be provided. You must operate the bowling machine yourself. Please ensure you are familiar with machine operation before booking.
+-            </p>
+-          </div>
+-        </div>
+-      )}
+-
+-      {/* Date Selector - Horizontal scroll */}
+-      <div className="mb-6">
+-        <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">Select Date</label>
+-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+-          {[0, 1, 2, 3, 4, 5, 6].map((days) => {
++      {/* ── DATE PICKER ── */}
++      <div className="mb-5">
++        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">Select Date</label>
++        <div className="flex gap-2 overflow-x-auto pb-1" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
++          {Array.from({ length: 7 }).map((_, days) => {
+             const date = addDays(new Date(), days);
+-            const isSelected = format(selectedDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
+             const isToday = days === 0;
++            const isSelected = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+             return (
+               <button
+                 key={days}
+                 onClick={() => setSelectedDate(date)}
+-                className={`flex-shrink-0 w-16 py-3 rounded-xl text-center transition-all cursor-pointer ${
++                className={`flex-shrink-0 w-[68px] py-3 rounded-xl text-center transition-all cursor-pointer ${
+                   isSelected
+-                    ? 'bg-accent text-primary shadow-md shadow-accent/20'
+-                    : 'bg-white/[0.04] text-slate-300 border border-white/[0.08] hover:border-accent/30'
++                    ? 'border-2 border-accent bg-accent/[0.08] shadow-[0_0_0_1px_rgba(212,168,67,0.5)]'
++                    : 'border border-white/[0.08] bg-white/[0.04] hover:border-accent/30'
+                 }`}
+               >
+-                <div className={`text-[10px] uppercase font-medium ${isSelected ? 'text-primary/70' : 'text-slate-500'}`}>
+-                  {isToday ? 'Today' : format(date, 'EEE')}
++                <div className={`text-[9px] font-bold uppercase tracking-widest ${isSelected ? 'text-accent/70' : 'text-slate-600'}`}>
++                  {isToday ? 'TODAY' : format(date, 'EEE')}
+                 </div>
+-                <div className="text-lg font-bold mt-0.5">{format(date, 'd')}</div>
+-                <div className={`text-[10px] ${isSelected ? 'text-primary/60' : 'text-slate-500'}`}>
++                <div className={`text-xl font-black leading-tight mt-0.5 ${isSelected ? 'text-accent' : 'text-white'}`}>
++                  {format(date, 'd')}
++                </div>
++                <div className={`text-[9px] font-medium ${isSelected ? 'text-accent/60' : 'text-slate-600'}`}>
+                   {format(date, 'MMM')}
+                 </div>
+               </button>
+@@ -687,131 +595,111 @@ function SlotsContent() {
+         </div>
+       </div>
+ 
+-      {/* Slots Grid */}
+-      <div className="mb-6">
+-        <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">
+-          Available Slots
+-        </label>
+-
++      {/* ── AVAILABLE SLOTS ── */}
++      <div className="mb-2">
+         {loading ? (
+-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+-            <Loader2 className="w-6 h-6 animate-spin mb-2" />
+-            <span className="text-sm">Loading slots...</span>
++          <div className="flex items-center justify-center py-12">
++            <div className="w-6 h-6 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+           </div>
+         ) : error ? (
+-          <div className="text-center py-16">
+-            <p className="text-red-400 text-sm">{error}</p>
+-            <button onClick={fetchSlots} className="mt-3 text-sm text-accent font-medium cursor-pointer">Try again</button>
++          <div className="text-center py-8">
++            <p className="text-slate-500 text-sm mb-3">{error}</p>
++            <button onClick={fetchSlots} className="text-accent text-xs font-semibold border border-accent/30 px-4 py-2 rounded-lg hover:bg-accent/10 transition-all cursor-pointer">Try again</button>
+           </div>
+         ) : slots.length === 0 ? (
+-          <div className="text-center py-16">
+-            <div className="w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center mx-auto mb-3">
+-              <Calendar className="w-5 h-5 text-slate-500" />
+-            </div>
+-            <p className="text-sm text-slate-400">No slots available for this date</p>
+-          </div>
++          <div className="text-center py-8 text-slate-500 text-sm">No slots available for this date.</div>
+         ) : (
+-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+-            {slots.map((slot) => {
+-              const isSelected = selectedSlots.some(s => s.startTime === slot.startTime);
+-              const isBooked = slot.status === 'Booked';
+-              const isOperatorUnavailable = slot.status === 'OperatorUnavailable';
+-              const isDisabled = isBooked || isOperatorUnavailable || bookingLoading;
+-              const displayPrice = getSlotDisplayPrice(slot);
+-
+-              const showOperatorWarning = !isLeatherMachine &&
+-                !isBooked && !isOperatorUnavailable &&
+-                !slot.operatorAvailable &&
+-                operationMode === 'WITH_OPERATOR';
+-
+-              return (
+-                <button
+-                  key={slot.startTime}
+-                  disabled={isDisabled}
+-                  onClick={() => handleToggleSlot(slot)}
+-                  className={`relative p-3.5 rounded-xl transition-all text-left cursor-pointer ${
+-                    isBooked || isOperatorUnavailable
+-                      ? 'bg-white/[0.02] border border-white/[0.05] cursor-not-allowed'
+-                      : isSelected
+-                      ? 'bg-accent text-primary shadow-md shadow-accent/20 border border-accent'
+-                      : showOperatorWarning
+-                      ? 'bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/30 active:scale-[0.97]'
+-                      : 'bg-white/[0.04] border border-white/[0.08] hover:border-accent/40 active:scale-[0.97]'
+-                  }`}
+-                >
+-                  {isSelected && (
+-                    <div className="absolute top-2 right-2">
+-                      <Check className="w-4 h-4" />
+-                    </div>
+-                  )}
+-                  {(showOperatorWarning || (!isBooked && !isOperatorUnavailable && !slot.operatorAvailable && !isLeatherMachine)) && !isSelected && (
+-                    <div className="absolute top-2 right-2">
+-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+-                    </div>
+-                  )}
+-                  <div className={`text-sm font-bold ${isBooked || isOperatorUnavailable ? 'text-slate-600' : isSelected ? '' : 'text-white'}`}>
+-                    {format(parseISO(slot.startTime), 'HH:mm')}
+-                  </div>
+-                  <div className={`text-[10px] mt-0.5 ${
+-                    isBooked || isOperatorUnavailable ? 'text-slate-600' : isSelected ? 'text-primary/70' : 'text-slate-400'
+-                  }`}>
+-                    to {format(parseISO(slot.endTime), 'HH:mm')}
+-                  </div>
+-                  <div className="flex items-center justify-between mt-1.5">
+-                    <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+-                      isOperatorUnavailable ? 'text-amber-400' :
+-                      isBooked ? 'text-red-400' :
+-                      isSelected ? 'text-primary/80' :
+-                      !slot.operatorAvailable && !isLeatherMachine ? 'text-amber-400' :
+-                      'text-green-400'
+-                    }`}>
+-                      {isOperatorUnavailable ? 'No Machine Operator' :
+-                       isBooked ? 'Booked' :
+-                       isSelected ? 'Selected' :
+-                       !slot.operatorAvailable && !isLeatherMachine ? 'Self Operate' :
+-                       'Open'}
+-                    </span>
+-                    {!isBooked && !isOperatorUnavailable && (
+-                      <span className={`text-[10px] font-medium ${
+-                        isSelected ? 'text-primary/70' : 'text-slate-400'
+-                      }`}>
+-                        {selectedPackageId && packageValidation && packageValidation.valid ? 'Package' : `₹${displayPrice}`}
+-                      </span>
+-                    )}
+-                  </div>
+-                </button>
+-              );
+-            })}
+-          </div>
++          <>
++            {/* Morning Slots */}
++            {slots.filter(s => {
++              const h = parseInt(s.startTime.split(':')[0]);
++              return h < 17;
++            }).length > 0 && (
++              <div className="mb-5">
++                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-accent/[0.15] text-accent text-[11px] font-bold mb-3">
++                  🌅 Morning Slots
++                  <span className="text-accent/60 font-medium">
++                    · ₹{getSlotDisplayPrice(slots.find(s => parseInt(s.startTime.split(':')[0]) < 17)!)}
++                  </span>
++                </div>
++                <div className="grid grid-cols-4 gap-2">
++                  {slots.filter(s => parseInt(s.startTime.split(':')[0]) < 17).map((slot) => {
++                    const isSelected = selectedSlots.some(s => s.startTime === slot.startTime);
++                    const isBooked = slot.status === 'Booked';
++                    const isOperatorUnavailable = isLeatherMachine && !slot.operatorAvailable;
++                    const isDisabled = isBooked || isOperatorUnavailable || bookingLoading;
++                    const displayPrice = getSlotDisplayPrice(slot);
++                    return (
++                      <button
++                        key={slot.startTime}
++                        onClick={() => !isDisabled && handleToggleSlot(slot)}
++                        disabled={isDisabled}
++                        className={`py-3 px-1 rounded-xl text-center transition-all active:scale-[0.95] ${
++                          isDisabled
++                            ? 'bg-white/[0.02] border border-white/[0.05] opacity-40 cursor-not-allowed'
++                            : isSelected
++                            ? 'bg-[#0a0f18] border-2 border-accent shadow-[0_0_0_1px_rgba(212,168,67,0.4),0_4px_16px_rgba(212,168,67,0.15)] cursor-pointer'
++                            : 'bg-gradient-to-b from-[#133929] to-[#164730] border border-green-900/40 hover:border-green-700/50 cursor-pointer'
++                        }`}
++                      >
++                        <div className={`text-base font-black leading-none ${isDisabled ? 'text-slate-600' : isSelected ? 'text-accent' : 'text-white'}`}>
++                          {slot.startTime}
++                        </div>
++                        <div className={`text-[10px] font-semibold mt-1.5 ${isDisabled ? 'text-slate-700' : isSelected ? 'text-accent/60' : 'text-accent'}`}>
++                          {isBooked ? 'Booked' : isOperatorUnavailable ? 'N/A' : `₹${displayPrice}`}
++                        </div>
++                      </button>
++                    );
++                  })}
++                </div>
++              </div>
++            )}
++
++            {/* Evening Slots */}
++            {slots.filter(s => parseInt(s.startTime.split(':')[0]) >= 17).length > 0 && (
++              <div className="mb-5">
++                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-accent/[0.15] text-accent text-[11px] font-bold mb-3">
++                  🌆 Evening Slots
++                  <span className="text-accent/60 font-medium">
++                    · ₹{getSlotDisplayPrice(slots.find(s => parseInt(s.startTime.split(':')[0]) >= 17)!)}
++                  </span>
++                </div>
++                <div className="grid grid-cols-4 gap-2">
++                  {slots.filter(s => parseInt(s.startTime.split(':')[0]) >= 17).map((slot) => {
++                    const isSelected = selectedSlots.some(s => s.startTime === slot.startTime);
++                    const isBooked = slot.status === 'Booked';
++                    const isOperatorUnavailable = isLeatherMachine && !slot.operatorAvailable;
++                    const isDisabled = isBooked || isOperatorUnavailable || bookingLoading;
++                    const displayPrice = getSlotDisplayPrice(slot);
++                    return (
++                      <button
++                        key={slot.startTime}
++                        onClick={() => !isDisabled && handleToggleSlot(slot)}
++                        disabled={isDisabled}
++                        className={`py-3 px-1 rounded-xl text-center transition-all active:scale-[0.95] ${
++                          isDisabled
++                            ? 'bg-white/[0.02] border border-white/[0.05] opacity-40 cursor-not-allowed'
++                            : isSelected
++                            ? 'bg-[#0a0f18] border-2 border-accent shadow-[0_0_0_1px_rgba(212,168,67,0.4),0_4px_16px_rgba(212,168,67,0.15)] cursor-pointer'
++                            : 'bg-gradient-to-b from-[#133929] to-[#164730] border border-green-900/40 hover:border-green-700/50 cursor-pointer'
++                        }`}
++                      >
++                        <div className={`text-base font-black leading-none ${isDisabled ? 'text-slate-600' : isSelected ? 'text-accent' : 'text-white'}`}>
++                          {slot.startTime}
++                        </div>
++                        <div className={`text-[10px] font-semibold mt-1.5 ${isDisabled ? 'text-slate-700' : isSelected ? 'text-accent/60' : 'text-accent'}`}>
++                          {isBooked ? 'Booked' : isOperatorUnavailable ? 'N/A' : `₹${displayPrice}`}
++                        </div>
++                      </button>
++                    );
++                  })}
++                </div>
++              </div>
++            )}
++          </>
+         )}
+       </div>
+ 
+-      {/* Operator warning for Tennis self-operate slots */}
+-      {!isLeatherMachine && hasSelectedSlotsWithoutOperator && (
+-        <div className="mt-4 px-3 py-3 bg-red-500/15 border-2 border-red-500/40 rounded-lg flex items-start gap-2">
+-          <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+-          <div>
+-            <p className="text-sm font-bold text-red-400">Self Operate Warning</p>
+-            <p className="text-xs text-red-300 mt-0.5">
+-              Machine operator not available for some selected slots. Those slots will be booked as Self Operate &mdash; you must operate the machine yourself.
+-            </p>
+-          </div>
+-        </div>
+-      )}
+-
+-      {/* Operator unavailable warning for Leather Machine */}
+-      {isLeatherMachine && slots.some(s => s.status === 'OperatorUnavailable') && (
+-        <div className="mt-4 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2">
+-          <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+-          <p className="text-xs text-amber-400">
+-            Some slots show &ldquo;No Machine Operator&rdquo; because the machine operator is busy with another machine at that time.
+-            Leather machine always requires a machine operator.
+-          </p>
+-        </div>
+-      )}
+-
+-      {/* Package Selection */}
+-      {session && userPackages.length > 0 && (
+         <div className="mb-8">
+           <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">Use a Package</label>
+           <div className="relative">
+@@ -867,7 +755,6 @@ function SlotsContent() {
+             </div>
+           )}
+         </div>
+-      )}
+ 
+       {/* Contact + Quote */}
+       <div className="mt-8 pt-5 border-t border-white/[0.06] pb-4">

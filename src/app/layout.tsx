@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import { Providers } from "@/components/Providers";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -53,8 +55,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a1628] min-h-screen`}
       >
         <Providers>
-          <Navbar />
-          <main className="safe-bottom">{children}</main>
+          <ToastProvider>
+            <ErrorBoundary>
+              <Navbar />
+              <main className="safe-bottom">{children}</main>
+            </ErrorBoundary>
+          </ToastProvider>
         </Providers>
       </body>
     </html>

@@ -35,14 +35,21 @@ if (prismaDatasourceUrl && !process.env.PRISMA_DATABASE_URL) {
   process.env.PRISMA_DATABASE_URL = prismaDatasourceUrl;
 }
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 const prismaClientOptions: Prisma.PrismaClientOptions = {
   datasources: prismaDatasourceUrl ? { db: { url: prismaDatasourceUrl } } : undefined,
-  log: [
-    { level: 'query', emit: 'event' },
-    { level: 'info', emit: 'stdout' },
-    { level: 'warn', emit: 'stdout' },
-    { level: 'error', emit: 'stdout' },
-  ],
+  log: isDev
+    ? [
+        { level: 'query', emit: 'event' },
+        { level: 'info', emit: 'stdout' },
+        { level: 'warn', emit: 'stdout' },
+        { level: 'error', emit: 'stdout' },
+      ]
+    : [
+        { level: 'warn', emit: 'stdout' },
+        { level: 'error', emit: 'stdout' },
+      ],
 };
 
 export const prisma =
@@ -50,13 +57,15 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Bind query logging
-// @ts-ignore
-prisma.$on('query', (e: any) => {
-  console.log('Query: ' + e.query);
-  console.log('Params: ' + e.params);
-  console.log('Duration: ' + e.duration + 'ms');
-});
+// Bind query logging (dev only)
+if (isDev) {
+  // @ts-ignore
+  prisma.$on('query', (e: { query: string; params: string; duration: number }) => {
+    console.log('Query: ' + e.query);
+    console.log('Params: ' + e.params);
+    console.log('Duration: ' + e.duration + 'ms');
+  });
+}
 
 // Explicit connection and table check
 async function checkDatabaseConnection() {
