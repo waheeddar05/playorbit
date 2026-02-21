@@ -106,6 +106,12 @@ const PITCH_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   TURF: { label: 'Cement Wicket', color: 'bg-amber-500' },
 };
 
+const BALL_TYPES = [
+  { value: 'LEATHER', label: 'Leather Ball', color: 'bg-red-500' },
+  { value: 'MACHINE', label: 'Machine Ball', color: 'bg-green-500' },
+  { value: 'TENNIS', label: 'Tennis Ball', color: 'bg-yellow-500' },
+];
+
 export default function SlotsPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>}>
@@ -318,13 +324,14 @@ function SlotsContent() {
       const slab = (slot.timeSlab as 'morning' | 'evening') || 'morning';
 
       let consecutivePriceFor2: number;
+      const pType = pitchType === 'TURF' ? 'CEMENT' : (pitchType || 'ASTRO');
+      const validPType = (pType === 'ASTRO' || pType === 'CEMENT' || pType === 'NATURAL') ? pType : 'ASTRO';
+
       if (isLeatherMachine) {
         const subType = ballType === 'LEATHER' ? 'leather' : 'machine';
-        consecutivePriceFor2 = pc.leatherMachine[subType as 'leather' | 'machine'][slab].consecutive;
-      } else if (pitchType === 'TURF' || pitchType === 'CEMENT') {
-        consecutivePriceFor2 = pc.cementWicket[slab].consecutive;
+        consecutivePriceFor2 = pc[subType as 'leather' | 'machine'][validPType as 'ASTRO' | 'CEMENT' | 'NATURAL'][slab].consecutive;
       } else {
-        consecutivePriceFor2 = pc.tennisMachine[slab].consecutive;
+        consecutivePriceFor2 = pc.tennis[validPType as 'ASTRO' | 'CEMENT' | 'NATURAL'][slab].consecutive;
       }
 
       const perSlotConsecutive = consecutivePriceFor2 / 2;
@@ -444,10 +451,6 @@ function SlotsContent() {
     }
   };
 
-  const machineSubTypes = [
-    { value: 'LEATHER', label: 'Leather Ball', color: 'bg-red-500' },
-    { value: 'MACHINE', label: 'Machine Ball', color: 'bg-green-500' },
-  ];
 
   const handleMachineSelect = (machineId: MachineId) => {
     const card = MACHINE_CARDS.find(m => m.id === machineId)!;
@@ -567,7 +570,7 @@ function SlotsContent() {
           <div>
             <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase tracking-wider">Ball Type</label>
             <div className="flex gap-2">
-              {machineSubTypes.map((type) => (
+              {BALL_TYPES.filter(t => isLeatherMachine ? (t.value !== 'TENNIS') : (t.value === 'TENNIS')).map((type) => (
                 <button
                   key={type.value}
                   onClick={() => { setBallType(type.value); setSelectedSlots([]); }}

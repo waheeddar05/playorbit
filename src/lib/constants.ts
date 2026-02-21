@@ -89,10 +89,10 @@ export const BALL_TYPES = {
 export type MachinePitchConfig = Record<MachineId, PitchType[]>;
 
 export const DEFAULT_MACHINE_PITCH_CONFIG: MachinePitchConfig = {
-  GRAVITY: ['ASTRO'],           // Cement & Natural disabled for now
-  YANTRA: ['ASTRO'],            // Cement & Natural disabled for now
-  LEVERAGE_INDOOR: ['ASTRO', 'CEMENT'],   // Natural disabled for now
-  LEVERAGE_OUTDOOR: ['ASTRO', 'CEMENT'],  // Natural disabled for now
+  GRAVITY: ['ASTRO', 'CEMENT', 'NATURAL'],
+  YANTRA: ['ASTRO', 'CEMENT', 'NATURAL'],
+  LEVERAGE_INDOOR: ['ASTRO', 'CEMENT', 'NATURAL'],
+  LEVERAGE_OUTDOOR: ['ASTRO', 'CEMENT', 'NATURAL'],
 };
 
 // ─── Helpers ───

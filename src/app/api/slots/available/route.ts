@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
     let slots = generateSlotsForDateDualWindow(dateUTC, timeSlabConfig, duration);
 
     // If today, only future slots
-    if (!isAdmin && isSameDay(dateUTC, todayUTC)) {
+    if (isSameDay(dateUTC, todayUTC)) {
       slots = filterPastSlots(slots);
     }
 

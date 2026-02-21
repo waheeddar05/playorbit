@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/adminAuth';
-import { DEFAULT_PRICING_CONFIG, DEFAULT_TIME_SLABS } from '@/lib/pricing';
+import { DEFAULT_PRICING_CONFIG, DEFAULT_TIME_SLABS, normalizePricingConfig } from '@/lib/pricing';
 import type { PricingConfig, TimeSlabConfig } from '@/lib/pricing';
 import { DEFAULT_MACHINE_PITCH_CONFIG, ALL_MACHINE_IDS, MACHINES } from '@/lib/constants';
 import type { MachinePitchConfig } from '@/lib/constants';
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     let pricingConfig: PricingConfig = DEFAULT_PRICING_CONFIG;
     if (config['PRICING_CONFIG']) {
       try {
-        pricingConfig = JSON.parse(config['PRICING_CONFIG']);
+        pricingConfig = normalizePricingConfig(JSON.parse(config['PRICING_CONFIG']));
       } catch { /* use default */ }
     }
 

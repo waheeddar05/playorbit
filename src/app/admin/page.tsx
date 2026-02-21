@@ -31,12 +31,21 @@ interface SlabPricing {
 }
 
 interface PricingConfig {
-  leatherMachine: {
-    leather: { morning: SlabPricing; evening: SlabPricing };
-    machine: { morning: SlabPricing; evening: SlabPricing };
+  leather: {
+    ASTRO: { morning: SlabPricing; evening: SlabPricing };
+    CEMENT: { morning: SlabPricing; evening: SlabPricing };
+    NATURAL: { morning: SlabPricing; evening: SlabPricing };
   };
-  tennisMachine: { morning: SlabPricing; evening: SlabPricing };
-  cementWicket: { morning: SlabPricing; evening: SlabPricing };
+  machine: {
+    ASTRO: { morning: SlabPricing; evening: SlabPricing };
+    CEMENT: { morning: SlabPricing; evening: SlabPricing };
+    NATURAL: { morning: SlabPricing; evening: SlabPricing };
+  };
+  tennis: {
+    ASTRO: { morning: SlabPricing; evening: SlabPricing };
+    CEMENT: { morning: SlabPricing; evening: SlabPricing };
+    NATURAL: { morning: SlabPricing; evening: SlabPricing };
+  };
 }
 
 interface TimeSlabConfig {
@@ -62,23 +71,47 @@ interface MachineConfig {
 }
 
 const DEFAULT_PRICING: PricingConfig = {
-  leatherMachine: {
-    leather: {
+  leather: {
+    ASTRO: {
       morning: { single: 600, consecutive: 1000 },
       evening: { single: 700, consecutive: 1200 },
     },
-    machine: {
+    CEMENT: {
+      morning: { single: 600, consecutive: 1000 },
+      evening: { single: 700, consecutive: 1200 },
+    },
+    NATURAL: {
+      morning: { single: 600, consecutive: 1000 },
+      evening: { single: 700, consecutive: 1200 },
+    },
+  },
+  machine: {
+    ASTRO: {
+      morning: { single: 500, consecutive: 800 },
+      evening: { single: 600, consecutive: 1000 },
+    },
+    CEMENT: {
+      morning: { single: 500, consecutive: 800 },
+      evening: { single: 600, consecutive: 1000 },
+    },
+    NATURAL: {
       morning: { single: 500, consecutive: 800 },
       evening: { single: 600, consecutive: 1000 },
     },
   },
-  tennisMachine: {
-    morning: { single: 500, consecutive: 800 },
-    evening: { single: 600, consecutive: 1000 },
-  },
-  cementWicket: {
-    morning: { single: 550, consecutive: 900 },
-    evening: { single: 650, consecutive: 1100 },
+  tennis: {
+    ASTRO: {
+      morning: { single: 500, consecutive: 800 },
+      evening: { single: 600, consecutive: 1000 },
+    },
+    CEMENT: {
+      morning: { single: 550, consecutive: 900 },
+      evening: { single: 650, consecutive: 1100 },
+    },
+    NATURAL: {
+      morning: { single: 550, consecutive: 900 },
+      evening: { single: 650, consecutive: 1100 },
+    },
   },
 };
 
@@ -501,49 +534,50 @@ export default function AdminDashboard() {
             <div className="pt-4 border-t border-white/[0.06]">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Slot Pricing Configuration</h3>
 
-              {/* Leather Ball Machine - Leather Balls */}
-              <div className="bg-white/[0.02] rounded-lg p-3 border border-white/[0.06] mb-3">
-                <p className="text-xs font-semibold text-slate-300 mb-2">Leather Ball Machine &mdash; Leather Balls</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <PriceField label="Morning / Slot" value={machineConfig.pricingConfig.leatherMachine.leather.morning.single} onChange={v => updatePricing(['leatherMachine', 'leather', 'morning', 'single'], v)} />
-                  <PriceField label="Morning / 2 Consec." value={machineConfig.pricingConfig.leatherMachine.leather.morning.consecutive} onChange={v => updatePricing(['leatherMachine', 'leather', 'morning', 'consecutive'], v)} />
-                  <PriceField label="Evening / Slot" value={machineConfig.pricingConfig.leatherMachine.leather.evening.single} onChange={v => updatePricing(['leatherMachine', 'leather', 'evening', 'single'], v)} />
-                  <PriceField label="Evening / 2 Consec." value={machineConfig.pricingConfig.leatherMachine.leather.evening.consecutive} onChange={v => updatePricing(['leatherMachine', 'leather', 'evening', 'consecutive'], v)} />
+              {(['leather', 'machine', 'tennis'] as const).map(category => (
+                <div key={category} className="mb-6">
+                  <h4 className="text-[11px] font-bold text-accent uppercase tracking-widest mb-3 px-1">
+                    {category === 'leather' ? 'Leather Ball Machine - Leather Balls' :
+                     category === 'machine' ? 'Leather Ball Machine - Machine Balls' :
+                     'Tennis Ball Machine'}
+                  </h4>
+                  
+                  {(['ASTRO', 'CEMENT', 'NATURAL'] as const).map(pitch => {
+                    const pitchPricing = machineConfig.pricingConfig?.[category]?.[pitch];
+                    if (!pitchPricing) return null;
+                    
+                    return (
+                      <div key={`${category}-${pitch}`} className="bg-white/[0.02] rounded-lg p-3 border border-white/[0.06] mb-3">
+                        <p className="text-xs font-semibold text-slate-300 mb-2">
+                          {pitch === 'ASTRO' ? 'Astro Turf' : pitch === 'CEMENT' ? 'Cement Wicket' : 'Natural Turf'}
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <PriceField 
+                            label="Morning / Slot" 
+                            value={pitchPricing.morning.single} 
+                            onChange={v => updatePricing([category, pitch, 'morning', 'single'], v)} 
+                          />
+                          <PriceField 
+                            label="Morning / 2 Consec." 
+                            value={pitchPricing.morning.consecutive} 
+                            onChange={v => updatePricing([category, pitch, 'morning', 'consecutive'], v)} 
+                          />
+                          <PriceField 
+                            label="Evening / Slot" 
+                            value={pitchPricing.evening.single} 
+                            onChange={v => updatePricing([category, pitch, 'evening', 'single'], v)} 
+                          />
+                          <PriceField 
+                            label="Evening / 2 Consec." 
+                            value={pitchPricing.evening.consecutive} 
+                            onChange={v => updatePricing([category, pitch, 'evening', 'consecutive'], v)} 
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-
-              {/* Leather Ball Machine - Machine Balls */}
-              <div className="bg-white/[0.02] rounded-lg p-3 border border-white/[0.06] mb-3">
-                <p className="text-xs font-semibold text-slate-300 mb-2">Leather Ball Machine &mdash; Machine Balls</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <PriceField label="Morning / Slot" value={machineConfig.pricingConfig.leatherMachine.machine.morning.single} onChange={v => updatePricing(['leatherMachine', 'machine', 'morning', 'single'], v)} />
-                  <PriceField label="Morning / 2 Consec." value={machineConfig.pricingConfig.leatherMachine.machine.morning.consecutive} onChange={v => updatePricing(['leatherMachine', 'machine', 'morning', 'consecutive'], v)} />
-                  <PriceField label="Evening / Slot" value={machineConfig.pricingConfig.leatherMachine.machine.evening.single} onChange={v => updatePricing(['leatherMachine', 'machine', 'evening', 'single'], v)} />
-                  <PriceField label="Evening / 2 Consec." value={machineConfig.pricingConfig.leatherMachine.machine.evening.consecutive} onChange={v => updatePricing(['leatherMachine', 'machine', 'evening', 'consecutive'], v)} />
-                </div>
-              </div>
-
-              {/* Tennis Ball Machine */}
-              <div className="bg-white/[0.02] rounded-lg p-3 border border-white/[0.06] mb-3">
-                <p className="text-xs font-semibold text-slate-300 mb-2">Tennis Ball Machine</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <PriceField label="Morning / Slot" value={machineConfig.pricingConfig.tennisMachine.morning.single} onChange={v => updatePricing(['tennisMachine', 'morning', 'single'], v)} />
-                  <PriceField label="Morning / 2 Consec." value={machineConfig.pricingConfig.tennisMachine.morning.consecutive} onChange={v => updatePricing(['tennisMachine', 'morning', 'consecutive'], v)} />
-                  <PriceField label="Evening / Slot" value={machineConfig.pricingConfig.tennisMachine.evening.single} onChange={v => updatePricing(['tennisMachine', 'evening', 'single'], v)} />
-                  <PriceField label="Evening / 2 Consec." value={machineConfig.pricingConfig.tennisMachine.evening.consecutive} onChange={v => updatePricing(['tennisMachine', 'evening', 'consecutive'], v)} />
-                </div>
-              </div>
-
-              {/* Cement Wicket */}
-              <div className="bg-white/[0.02] rounded-lg p-3 border border-white/[0.06]">
-                <p className="text-xs font-semibold text-slate-300 mb-2">Cement Wicket</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <PriceField label="Morning / Slot" value={machineConfig.pricingConfig.cementWicket.morning.single} onChange={v => updatePricing(['cementWicket', 'morning', 'single'], v)} />
-                  <PriceField label="Morning / 2 Consec." value={machineConfig.pricingConfig.cementWicket.morning.consecutive} onChange={v => updatePricing(['cementWicket', 'morning', 'consecutive'], v)} />
-                  <PriceField label="Evening / Slot" value={machineConfig.pricingConfig.cementWicket.evening.single} onChange={v => updatePricing(['cementWicket', 'evening', 'single'], v)} />
-                  <PriceField label="Evening / 2 Consec." value={machineConfig.pricingConfig.cementWicket.evening.consecutive} onChange={v => updatePricing(['cementWicket', 'evening', 'consecutive'], v)} />
-                </div>
-              </div>
+              ))}
             </div>
 
             <div className="flex items-center gap-3 pt-3">
