@@ -47,18 +47,15 @@ export default function Navbar() {
           {/* Logo */}
           <Link href={session ? '/slots' : '/'} className="flex items-center gap-2 group">
             <Image
-              src="/images/logo-v2.jpeg"
-              alt="Ankeet Bawane Cricket Academy Logo"
+              src="/images/strikezone-icon.svg"
+              alt="StrikeZone Logo"
               width={32}
               height={32}
               priority
               className="w-8 h-8 rounded-lg flex-shrink-0"
             />
-            <span className="text-sm md:text-base font-bold tracking-tight text-white hidden sm:inline">
-              Ankeet Bawane Cricket Academy
-            </span>
-            <span className="text-sm font-bold tracking-tight text-white sm:hidden">
-              ABCA
+            <span className="text-sm md:text-base font-bold tracking-tight text-white">
+              StrikeZone
             </span>
           </Link>
 

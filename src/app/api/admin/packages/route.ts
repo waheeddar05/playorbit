@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (ballType && !['MACHINE', 'LEATHER', 'BOTH'].includes(ballType)) {
       return NextResponse.json({ error: 'Invalid ballType' }, { status: 400 });
     }
-    if (wicketType && !['CEMENT', 'ASTRO', 'BOTH'].includes(wicketType)) {
+    if (wicketType && !['CEMENT', 'ASTRO', 'NATURAL', 'BOTH'].includes(wicketType)) {
       return NextResponse.json({ error: 'Invalid wicketType' }, { status: 400 });
     }
 

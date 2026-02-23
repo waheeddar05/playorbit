@@ -183,10 +183,10 @@ export default function BookingsPage() {
                 </div>
 
                 {/* Meta Row */}
-                <div className="flex items-center justify-between pt-3 border-t border-white/[0.06]">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/[0.06]">
+                  <div className="flex items-center gap-3 min-w-0 flex-wrap">
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                      <span className={`w-2 h-2 rounded-full ${ballInfo.color}`}></span>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${ballInfo.color}`}></span>
                       {ballInfo.label}
                     </div>
                     {booking.pitchType && (
@@ -196,7 +196,7 @@ export default function BookingsPage() {
                       </>
                     )}
                     <span className="text-white/10">|</span>
-                    <span className="text-xs text-slate-400">{booking.playerName}</span>
+                    <span className="text-xs text-slate-400 truncate">{booking.playerName}</span>
                     {booking.ballType === 'TENNIS' && (
                       <>
                         <span className="text-white/10">|</span>
@@ -209,7 +209,7 @@ export default function BookingsPage() {
 
                   {/* Price */}
                   {booking.price != null && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       <IndianRupee className="w-3 h-3 text-slate-500" />
                       <span className="text-sm font-semibold text-white">{booking.price}</span>
                       {hasDiscount && (

@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a1628"/>
+      <stop offset="100%" style="stop-color:#1a2d4a"/>
+    </linearGradient>
+    <!-- Accent gradient (electric green/cyan) -->
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ff88"/>
+      <stop offset="50%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#00ff88"/>
+    </linearGradient>
+    <!-- Lightning gradient -->
+    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+    <!-- Glow filter -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Strong glow -->
+    <filter id="glowStrong">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Drop shadow -->
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="250" fill="url(#bgGrad)" stroke="url(#accentGrad)" stroke-width="4"/>
+
+  <!-- Inner ring decoration -->
+  <circle cx="256" cy="256" r="230" fill="none" stroke="#22d3ee" stroke-width="1" opacity="0.3"/>
+  <circle cx="256" cy="256" r="235" fill="none" stroke="#00ff88" stroke-width="0.5" opacity="0.2"/>
+
+  <!-- Hexagonal tech pattern background -->
+  <g opacity="0.08" stroke="#22d3ee" stroke-width="0.8" fill="none">
+    <polygon points="256,80 310,110 310,170 256,200 202,170 202,110"/>
+    <polygon points="150,130 204,160 204,220 150,250 96,220 96,160"/>
+    <polygon points="362,130 416,160 416,220 362,250 308,220 308,160"/>
+    <polygon points="150,280 204,310 204,370 150,400 96,370 96,310"/>
+    <polygon points="362,280 416,310 416,370 362,400 308,370 308,310"/>
+  </g>
+
+  <!-- Cricket stumps (stylized, geometric gaming look) -->
+  <g filter="url(#shadow)">
+    <!-- Left stump -->
+    <rect x="155" y="145" width="8" height="200" rx="3" fill="#e2e8f0" opacity="0.9"/>
+    <!-- Middle stump -->
+    <rect x="175" y="140" width="8" height="210" rx="3" fill="#f8fafc" opacity="0.95"/>
+    <!-- Right stump -->
+    <rect x="195" y="145" width="8" height="200" rx="3" fill="#e2e8f0" opacity="0.9"/>
+    <!-- Bails -->
+    <rect x="152" y="138" width="25" height="5" rx="2" fill="#fbbf24"/>
+    <rect x="180" y="136" width="27" height="5" rx="2" fill="#fbbf24"/>
+  </g>
+
+  <!-- Lightning bolt striking through the stumps (the "Strike") -->
+  <g filter="url(#glowStrong)">
+    <polygon points="280,100 230,230 270,230 210,380 220,380 300,220 260,220 320,100"
+             fill="url(#boltGrad)" opacity="0.95"/>
+  </g>
+  <!-- Lightning bolt inner bright core -->
+  <polygon points="290,120 245,230 275,230 225,360 235,360 300,225 270,225 315,120"
+           fill="#fef3c7" opacity="0.4"/>
+
+  <!-- Cricket ball (flying from the strike) -->
+  <g transform="translate(370, 160)" filter="url(#glow)">
+    <circle cx="0" cy="0" r="30" fill="#dc2626"/>
+    <!-- Seam -->
+    <path d="M-20,-22 Q-5,-8 0,0 Q5,8 20,22" fill="none" stroke="#fef2f2" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M-22,-18 Q-8,-5 0,0 Q8,5 22,18" fill="none" stroke="#fef2f2" stroke-width="1" opacity="0.5" stroke-linecap="round"/>
+    <!-- Shine -->
+    <circle cx="-8" cy="-10" r="6" fill="white" opacity="0.25"/>
+  </g>
+
+  <!-- Speed lines behind the ball -->
+  <g stroke="#22d3ee" stroke-width="2" opacity="0.5" stroke-linecap="round">
+    <line x1="330" y1="150" x2="310" y2="145"/>
+    <line x1="335" y1="165" x2="308" y2="162"/>
+    <line x1="332" y1="178" x2="312" y2="180"/>
+  </g>
+
+  <!-- "SZ" text (main emblem) -->
+  <g filter="url(#glow)">
+    <text x="256" y="435" text-anchor="middle" font-family="'Arial Black', 'Impact', sans-serif"
+          font-size="72" font-weight="900" letter-spacing="8" fill="url(#accentGrad)"
+          style="text-transform: uppercase;">
+      STRIKEZONE
+    </text>
+  </g>
+
+  <!-- Subtitle line -->
+  <line x1="120" y1="448" x2="392" y2="448" stroke="url(#accentGrad)" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Small tagline -->
+  <text x="256" y="470" text-anchor="middle" font-family="'Arial', sans-serif"
+        font-size="16" font-weight="600" letter-spacing="6" fill="#94a3b8" opacity="0.8">
+    CRICKET
+  </text>
+</svg>

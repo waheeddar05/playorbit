@@ -48,7 +48,7 @@ export default function LoginPage() {
         <div className="text-center mb-8 animate-fade-in">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 rounded-full bg-accent/10 border border-accent/20">
             <Star className="w-3.5 h-3.5 text-accent" />
-            <span className="text-xs font-semibold text-accent tracking-wide uppercase">Ankeet Bawane Cricket Academy</span>
+            <span className="text-xs font-semibold text-accent tracking-wide uppercase">StrikeZone</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Welcome Back

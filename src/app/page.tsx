@@ -72,7 +72,7 @@ export default async function Home() {
           </h1>
 
           <p className="text-base md:text-lg text-slate-400 mb-8 max-w-md mx-auto leading-relaxed animate-fade-in delay-100">
-            Professional bowling machines and practice nets at Ankeet Bawane Cricket Academy. Book your session and elevate your game.
+            Professional bowling machines and practice nets at StrikeZone. Book your session and elevate your game.
           </p>
 
           <Link
@@ -318,7 +318,7 @@ export default async function Home() {
             &ldquo;Champions Train When Others Rest.&rdquo;
           </p>
           <div className="flex flex-col md:flex-row justify-between items-center gap-2 text-center">
-            <span className="text-[11px] text-slate-600">&copy; {new Date().getFullYear()} Ankeet Bawane Cricket Academy. All rights reserved.</span>
+            <span className="text-[11px] text-slate-600">&copy; {new Date().getFullYear()} StrikeZone. All rights reserved.</span>
             <span className="text-[11px] text-slate-600">Made by Waheed</span>
           </div>
         </div>
