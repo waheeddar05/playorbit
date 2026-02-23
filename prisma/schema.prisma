@@ -96,6 +96,7 @@ model BlockedSlot {
 model Package {
   id               String             @id @default(cuid())
   name             String
+  machineId        MachineId?
   machineType      MachineType
   ballType         PackageBallType?
   wicketType       PackageWicketType?

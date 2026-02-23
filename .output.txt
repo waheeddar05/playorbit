@@ -1,0 +1,657 @@
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index 2323087..4d99629 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -96,6 +96,7 @@ model BlockedSlot {
+ model Package {
+   id               String             @id @default(cuid())
+   name             String
++  machineId        MachineId?
+   machineType      MachineType
+   ballType         PackageBallType?
+   wicketType       PackageWicketType?
+diff --git a/src/app/admin/packages/page.tsx b/src/app/admin/packages/page.tsx
+index fc009ff..410297f 100644
+--- a/src/app/admin/packages/page.tsx
++++ b/src/app/admin/packages/page.tsx
+@@ -6,6 +6,7 @@ import { Package, Plus, Pencil, ToggleLeft, ToggleRight, Loader2, Users, BarChar
+ interface PackageData {
+   id: string;
+   name: string;
++  machineId: string | null;
+   machineType: string;
+   ballType: string;
+   wicketType: string;
+@@ -115,8 +116,7 @@ export default function AdminPackages() {
+     }
+     try {
+       const method = editingId ? 'PUT' : 'POST';
+-      const { machineId, ...formPayload } = form;
+-      const body = editingId ? { ...formPayload, price: Number(formPayload.price), id: editingId } : { ...formPayload, price: Number(formPayload.price) };
++      const body = editingId ? { ...form, price: Number(form.price), id: editingId } : { ...form, price: Number(form.price) };
+       const res = await fetch('/api/admin/packages', {
+         method,
+         headers: { 'Content-Type': 'application/json' },
+@@ -151,11 +151,10 @@ export default function AdminPackages() {
+   };
+
+   const startEdit = (pkg: PackageData) => {
+-    // Infer machineId from existing data if possible
+-    const inferredMachineId = (pkg as any).machineId || (pkg.machineType === 'LEATHER' ? 'GRAVITY' : 'LEVERAGE_INDOOR');
++    const storedMachineId = pkg.machineId || (pkg.machineType === 'LEATHER' ? 'GRAVITY' : 'LEVERAGE_INDOOR');
+     setForm({
+       name: pkg.name,
+-      machineId: inferredMachineId,
++      machineId: storedMachineId,
+       machineType: pkg.machineType,
+       ballType: pkg.ballType === 'BOTH' ? 'LEATHER' : pkg.ballType,
+       wicketType: pkg.wicketType,
+@@ -427,7 +426,7 @@ export default function AdminPackages() {
+                         </span>
+                       </div>
+                       <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-1">
+-                        <span className="bg-white/[0.06] px-2 py-0.5 rounded">{labelMap[pkg.machineType]} Machine</span>
++                        <span className="bg-white/[0.06] px-2 py-0.5 rounded">{pkg.machineId ? labelMap[pkg.machineId] : `${labelMap[pkg.machineType]} Machine`}</span>
+                         {pkg.machineType === 'LEATHER' && (
+                           <span className="bg-white/[0.06] px-2 py-0.5 rounded">Ball: {labelMap[pkg.ballType]}</span>
+                         )}
+diff --git a/src/app/api/admin/packages/route.ts b/src/app/api/admin/packages/route.ts
+index 24940fa..4b7d5ec 100644
+--- a/src/app/api/admin/packages/route.ts
++++ b/src/app/api/admin/packages/route.ts
+@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
+     const body = await req.json();
+     const {
+       name,
++      machineId,
+       machineType,
+       ballType,
+       wicketType,
+@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
+     const pkg = await prisma.package.create({
+       data: {
+         name,
++        machineId: machineId || null,
+         machineType,
+         ballType: ballType || null,
+         wicketType: wicketType || null,
+@@ -107,7 +109,7 @@ export async function PUT(req: NextRequest) {
+     }
+
+     // Only allow updating specific fields
+-    const allowedFields = ['name', 'machineType', 'ballType', 'wicketType', 'timingType', 'totalSessions', 'validityDays', 'price', 'extraChargeRules', 'isActive'];
++    const allowedFields = ['name', 'machineId', 'machineType', 'ballType', 'wicketType', 'timingType', 'totalSessions', 'validityDays', 'price', 'extraChargeRules', 'isActive'];
+     const data: any = {};
+     for (const field of allowedFields) {
+       if (updateData[field] !== undefined) {
+diff --git a/src/app/api/packages/route.ts b/src/app/api/packages/route.ts
+index 6c4ccac..e9c7f41 100644
+--- a/src/app/api/packages/route.ts
++++ b/src/app/api/packages/route.ts
+@@ -10,6 +10,7 @@ export async function GET() {
+       select: {
+         id: true,
+         name: true,
++        machineId: true,
+         machineType: true,
+         ballType: true,
+         wicketType: true,
+diff --git a/src/app/packages/page.tsx b/src/app/packages/page.tsx
+index 9f35692..0cd0f0c 100644
+--- a/src/app/packages/page.tsx
++++ b/src/app/packages/page.tsx
+@@ -2,13 +2,14 @@
+
+ import { useState, useEffect, useMemo } from 'react';
+ import { useSession } from 'next-auth/react';
+-import { Package, Loader2, ShoppingCart, Clock, X, ChevronRight } from 'lucide-react';
++import { Package, Loader2, ShoppingCart, Clock, X, ChevronRight, RotateCcw, Sun, Moon, Zap, Calendar } from 'lucide-react';
+ import Link from 'next/link';
+ import { differenceInDays, startOfDay } from 'date-fns';
+
+ interface PackageInfo {
+   id: string;
+   name: string;
++  machineId: string | null;
+   machineType: string;
+   ballType: string;
+   wicketType: string;
+@@ -44,16 +45,18 @@ interface MyPackage {
+ const labelMap: Record<string, string> = {
+   LEATHER: 'Leather Ball', TENNIS: 'Tennis', MACHINE: 'Machine Ball',
+   BOTH: 'Both', CEMENT: 'Cement', ASTRO: 'Astro',
+-  DAY: 'Day (7:00 AM – 5:00 PM)', EVENING: 'Evening/Night (7:00 PM – 10:30 PM)',
++  DAY: 'Day', EVENING: 'Evening/Night',
++  GRAVITY: 'Gravity', YANTRA: 'Yantra',
++  LEVERAGE_INDOOR: 'Leverage Tennis (Indoor)', LEVERAGE_OUTDOOR: 'Leverage Tennis (Outdoor)',
+ };
+
+ type MachineFilter = 'all' | 'GRAVITY' | 'YANTRA' | 'LEVERAGE_INDOOR' | 'LEVERAGE_OUTDOOR';
+
+-const MACHINE_CARDS = [
+-  { id: 'GRAVITY' as MachineFilter, label: 'Gravity', shortLabel: 'Leather', category: 'LEATHER', image: '/images/leathermachine.jpeg' },
+-  { id: 'YANTRA' as MachineFilter, label: 'Yantra', shortLabel: 'Premium Leather', category: 'LEATHER', image: '/images/yantra-machine.jpeg' },
+-  { id: 'LEVERAGE_INDOOR' as MachineFilter, label: 'Leverage Tennis', shortLabel: 'Indoor', category: 'TENNIS', image: '/images/tennismachine.jpeg' },
+-  { id: 'LEVERAGE_OUTDOOR' as MachineFilter, label: 'Leverage Tennis', shortLabel: 'Outdoor', category: 'TENNIS', image: '/images/tennismachine.jpeg' },
++const MACHINE_CARDS: { id: MachineFilter; label: string; sub: string; category: string; image: string; dot: string }[] = [
++  { id: 'GRAVITY', label: 'Gravity', sub: 'Leather Ball', category: 'LEATHER', image: '/images/leathermachine.jpeg', dot: 'bg-red-500' },
++  { id: 'YANTRA', label: 'Yantra', sub: 'Premium Leather', category: 'LEATHER', image: '/images/yantra-machine.jpeg', dot: 'bg-red-500' },
++  { id: 'LEVERAGE_INDOOR', label: 'Leverage Tennis', sub: 'Indoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
++  { id: 'LEVERAGE_OUTDOOR', label: 'Leverage Tennis', sub: 'Outdoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
+ ];
+
+ export default function PackagesPage() {
+@@ -134,17 +137,27 @@ export default function PackagesPage() {
+     }
+   };
+
+-  // Filtered packages based on machine card + timing selection
++  const hasActiveFilter = machineFilter !== 'all' || timingFilter !== '';
++
++  const clearFilters = () => {
++    setMachineFilter('all');
++    setTimingFilter('');
++  };
++
++  // Filtered packages based on machine card + timing
+   const filteredPackages = useMemo(() => {
+     let filtered = packages;
+     if (machineFilter !== 'all') {
+       const card = MACHINE_CARDS.find(c => c.id === machineFilter);
+       if (card) {
+-        filtered = filtered.filter(pkg => pkg.machineType === card.category);
++        // Filter by machineId if available, fallback to machineType category for older packages
++        filtered = filtered.filter(pkg =>
++          pkg.machineId ? pkg.machineId === machineFilter : pkg.machineType === card.category
++        );
+       }
+     }
+     if (timingFilter) {
+-      filtered = filtered.filter(pkg => pkg.timingType === timingFilter);
++      filtered = filtered.filter(pkg => pkg.timingType === timingFilter || pkg.timingType === 'BOTH');
+     }
+     return filtered;
+   }, [packages, machineFilter, timingFilter]);
+@@ -152,6 +165,13 @@ export default function PackagesPage() {
+   const leatherPackages = filteredPackages.filter(p => p.machineType === 'LEATHER');
+   const tennisPackages = filteredPackages.filter(p => p.machineType === 'TENNIS');
+
++  const getTimingLabel = (t: string) => {
++    if (t === 'DAY') return 'Day';
++    if (t === 'EVENING') return 'Evening/Night';
++    if (t === 'BOTH') return 'Day & Evening';
++    return t;
++  };
++
+   return (
+     <div className="min-h-[calc(100vh-56px)]">
+       <div className="fixed inset-0 -z-10 bg-gradient-to-br from-[#0a1628] via-[#132240] to-[#0d1f3c]"></div>
+@@ -205,7 +225,13 @@ export default function PackagesPage() {
+             ) : myPackages.length === 0 ? (
+               <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-8 text-center">
+                 <Package className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+-                <p className="text-sm text-slate-500">No active packages found</p>
++                <p className="text-sm text-slate-500 mb-3">No active packages found</p>
++                <button
++                  onClick={() => setTab('browse')}
++                  className="text-xs text-accent hover:text-accent-light transition-colors cursor-pointer"
++                >
++                  Browse available packages →
++                </button>
+               </div>
+             ) : (
+               <div className="space-y-4">
+@@ -278,223 +304,151 @@ export default function PackagesPage() {
+         {/* BROWSE PACKAGES TAB */}
+         {tab === 'browse' && (
+           <div>
+-            {/* Machine Selection - 4 boxes like /slots page */}
+-            <div className="mb-5">
+-              <label className="block text-xs font-bold text-white mb-2 uppercase tracking-wider">
+-                Select Machine
+-              </label>
+-              <div className="grid grid-cols-2 gap-2">
+-                {MACHINE_CARDS.map((card) => {
+-                  const isSelected = machineFilter === card.id;
+-                  return (
++            {/* ─── Filters Section ─── */}
++            <div className="bg-white/[0.03] rounded-xl border border-white/[0.06] p-4 mb-5">
++              {/* Machine Type Filter */}
++              <div className="mb-4">
++                <div className="flex items-center justify-between mb-2">
++                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
++                    Machine Type
++                  </label>
++                  {hasActiveFilter && (
+                     <button
+-                      key={card.id}
+-                      onClick={() => { setMachineFilter(isSelected ? 'all' : card.id); setTimingFilter(''); }}
+-                      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all cursor-pointer text-left ${
+-                        isSelected
+-                          ? 'bg-accent/15 ring-2 ring-accent/50 shadow-sm'
+-                          : 'bg-white/[0.04] border border-white/[0.08] hover:border-accent/30'
+-                      }`}
++                      onClick={clearFilters}
++                      className="inline-flex items-center gap-1 text-[10px] text-slate-500 hover:text-accent transition-colors cursor-pointer"
+                     >
+-                      {/* eslint-disable-next-line @next/next/no-img-element */}
+-                      <img
+-                        src={card.image}
+-                        alt={card.label}
+-                        className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+-                      />
+-                      <div className="min-w-0">
+-                        <span className={`text-[11px] font-bold truncate block ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
+-                          {card.label}
+-                        </span>
+-                        <p className={`text-[9px] ${isSelected ? 'text-accent/70' : 'text-slate-600'}`}>
+-                          {card.shortLabel}
+-                        </p>
+-                      </div>
++                      <RotateCcw className="w-3 h-3" />
++                      Clear filters
+                     </button>
+-                  );
+-                })}
++                  )}
++                </div>
++                <div className="grid grid-cols-2 gap-2">
++                  {MACHINE_CARDS.map((card) => {
++                    const isSelected = machineFilter === card.id;
++                    return (
++                      <button
++                        key={card.id}
++                        onClick={() => { setMachineFilter(isSelected ? 'all' : card.id); setTimingFilter(''); }}
++                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
++                          isSelected
++                            ? 'bg-accent/15 ring-2 ring-accent/50 shadow-sm'
++                            : 'bg-white/[0.04] border border-white/[0.08] hover:border-accent/30'
++                        }`}
++                      >
++                        {/* eslint-disable-next-line @next/next/no-img-element */}
++                        <img
++                          src={card.image}
++                          alt={card.label}
++                          className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
++                        />
++                        <div className="min-w-0">
++                          <span className={`text-[11px] font-bold truncate block ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
++                            {card.label}
++                          </span>
++                          <p className={`text-[9px] ${isSelected ? 'text-accent/70' : 'text-slate-500'}`}>
++                            {card.sub}
++                          </p>
++                        </div>
++                      </button>
++                    );
++                  })}
++                </div>
+               </div>
+-            </div>
+
+-            {/* Day / Evening Selector - shown when a machine is selected */}
+-            {machineFilter !== 'all' && (
+-              <div className="mb-5">
++              {/* Timing Filter */}
++              <div>
+                 <label className="block text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">
+                   Timing
+                 </label>
+-                <div className="flex gap-2">
++                <div className="grid grid-cols-2 gap-2">
+                   {([
+-                    { key: 'DAY' as const, label: 'Day', sub: '7:00 AM – 5:00 PM' },
+-                    { key: 'EVENING' as const, label: 'Evening', sub: '7:00 PM – 10:30 PM' },
+-                  ]).map(t => (
+-                    <button
+-                      key={t.key}
+-                      onClick={() => setTimingFilter(timingFilter === t.key ? '' : t.key)}
+-                      className={`flex-1 px-3 py-2.5 rounded-xl text-center transition-all cursor-pointer ${
+-                        timingFilter === t.key
+-                          ? 'bg-accent/15 ring-2 ring-accent/50 shadow-sm'
+-                          : 'bg-white/[0.04] border border-white/[0.08] hover:border-accent/30'
+-                      }`}
+-                    >
+-                      <span className={`text-xs font-bold block ${timingFilter === t.key ? 'text-accent' : 'text-slate-300'}`}>
+-                        {t.label}
+-                      </span>
+-                      <span className={`text-[9px] ${timingFilter === t.key ? 'text-accent/70' : 'text-slate-600'}`}>
+-                        {t.sub}
+-                      </span>
+-                    </button>
+-                  ))}
++                    { key: 'DAY' as const, label: 'Day', sub: '7:00 AM – 5:00 PM', Icon: Sun },
++                    { key: 'EVENING' as const, label: 'Evening / Night', sub: '7:00 PM – 10:30 PM', Icon: Moon },
++                  ]).map(t => {
++                    const isActive = timingFilter === t.key;
++                    return (
++                      <button
++                        key={t.key}
++                        onClick={() => setTimingFilter(isActive ? '' : t.key)}
++                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
++                          isActive
++                            ? 'bg-accent/15 ring-2 ring-accent/50 shadow-sm'
++                            : 'bg-white/[0.04] border border-white/[0.08] hover:border-accent/30'
++                        }`}
++                      >
++                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
++                          isActive ? 'bg-accent/20' : 'bg-white/[0.06]'
++                        }`}>
++                          <t.Icon className={`w-4 h-4 ${isActive ? 'text-accent' : 'text-slate-400'}`} />
++                        </div>
++                        <div className="min-w-0">
++                          <span className={`text-[11px] font-bold block ${isActive ? 'text-accent' : 'text-slate-300'}`}>
++                            {t.label}
++                          </span>
++                          <span className={`text-[9px] ${isActive ? 'text-accent/70' : 'text-slate-500'}`}>
++                            {t.sub}
++                          </span>
++                        </div>
++                      </button>
++                    );
++                  })}
+                 </div>
+               </div>
+-            )}
++            </div>
+
++            {/* ─── Package Results ─── */}
+             {loading ? (
+               <div className="flex items-center justify-center py-12 text-slate-400">
+                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                 <span className="text-sm">Loading available packages...</span>
+               </div>
+             ) : filteredPackages.length === 0 ? (
+-              <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-8 text-center">
+-                <Package className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+-                <p className="text-sm text-slate-500">No packages found for this filter</p>
++              <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-10 text-center">
++                <Package className="w-10 h-10 text-slate-600 mx-auto mb-3" />
++                <p className="text-sm font-medium text-slate-400 mb-1">No packages found</p>
++                <p className="text-xs text-slate-600 mb-4">
++                  {hasActiveFilter ? 'Try adjusting your filters to see more packages' : 'No packages are currently available'}
++                </p>
++                {hasActiveFilter && (
++                  <button
++                    onClick={clearFilters}
++                    className="inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent-light transition-colors cursor-pointer"
++                  >
++                    <RotateCcw className="w-3.5 h-3.5" />
++                    Clear all filters
++                  </button>
++                )}
+               </div>
+             ) : (
+-              <div className="space-y-6">
+-                {/* Leather Machines Section */}
+-                {(machineFilter === 'all' || MACHINE_CARDS.find(c => c.id === machineFilter)?.category === 'LEATHER') && leatherPackages.length > 0 && (
+-                  <div>
+-                    <div className="flex items-center gap-2 mb-3">
+-                      <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+-                      <h3 className="text-sm font-bold text-white">Leather Ball Machines</h3>
+-                      <span className="text-[10px] text-slate-500 bg-white/[0.04] px-2 py-0.5 rounded-full">{leatherPackages.length}</span>
+-                    </div>
+-                    <div className="bg-white/[0.03] rounded-xl border border-white/[0.06] overflow-hidden">
+-                      {/* Table Header */}
+-                      <div className="hidden sm:grid grid-cols-[1fr_100px_80px_80px_100px_90px] gap-2 px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06]">
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Package</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ball Type</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sessions</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Validity</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Price</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider"></span>
+-                      </div>
+-                      {leatherPackages.map((pkg, idx) => (
+-                        <div
+-                          key={pkg.id}
+-                          className={`sm:grid sm:grid-cols-[1fr_100px_80px_80px_100px_90px] gap-2 px-4 py-3.5 items-center hover:bg-white/[0.03] transition-colors ${
+-                            idx < leatherPackages.length - 1 ? 'border-b border-white/[0.04]' : ''
+-                          }`}
+-                        >
+-                          <div
+-                            className="cursor-pointer"
+-                            onClick={() => setSelectedPackage(pkg)}
+-                          >
+-                            <span className="text-sm font-semibold text-white hover:text-accent transition-colors">{pkg.name}</span>
+-                            <div className="text-[10px] text-slate-500 mt-0.5">
+-                              {pkg.timingType === 'DAY' ? 'Day' : 'Evening/Night'}
+-                            </div>
+-                          </div>
+-                          <div className="text-xs text-slate-400 mt-1 sm:mt-0">
+-                            <span className="sm:hidden text-[10px] text-slate-500">Ball: </span>
+-                            {labelMap[pkg.ballType] || pkg.ballType}
+-                          </div>
+-                          <div className="text-xs text-white font-medium mt-1 sm:mt-0">
+-                            <span className="sm:hidden text-[10px] text-slate-500">Sessions: </span>
+-                            {pkg.totalSessions}
+-                          </div>
+-                          <div className="text-xs text-slate-400 mt-1 sm:mt-0">
+-                            <span className="sm:hidden text-[10px] text-slate-500">Validity: </span>
+-                            {pkg.validityDays}d
+-                          </div>
+-                          <div className="text-sm text-accent font-bold mt-1 sm:mt-0">
+-                            <span className="sm:hidden text-[10px] text-slate-500">Price: </span>
+-                            ₹{pkg.price}
+-                          </div>
+-                          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+-                            <button
+-                              onClick={() => handlePurchase(pkg.id)}
+-                              disabled={purchasing === pkg.id}
+-                              className="bg-accent hover:bg-accent-light text-primary px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+-                            >
+-                              {purchasing === pkg.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Buy'}
+-                            </button>
+-                            <button
+-                              onClick={() => setSelectedPackage(pkg)}
+-                              className="p-1.5 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors cursor-pointer"
+-                            >
+-                              <ChevronRight className="w-4 h-4" />
+-                            </button>
+-                          </div>
+-                        </div>
+-                      ))}
+-                    </div>
+-                  </div>
++              <div className="space-y-5">
++                {/* Leather Packages */}
++                {leatherPackages.length > 0 && (
++                  <PackageSection
++                    title="Leather Ball Machines"
++                    dotColor="bg-red-500"
++                    count={leatherPackages.length}
++                    packages={leatherPackages}
++                    showBallType
++                    purchasing={purchasing}
++                    onPurchase={handlePurchase}
++                    onSelect={setSelectedPackage}
++                    getTimingLabel={getTimingLabel}
++                  />
+                 )}
+
+-                {/* Tennis Machines Section */}
+-                {(machineFilter === 'all' || MACHINE_CARDS.find(c => c.id === machineFilter)?.category === 'TENNIS') && tennisPackages.length > 0 && (
+-                  <div>
+-                    <div className="flex items-center gap-2 mb-3">
+-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+-                      <h3 className="text-sm font-bold text-white">Tennis Machines</h3>
+-                      <span className="text-[10px] text-slate-500 bg-white/[0.04] px-2 py-0.5 rounded-full">{tennisPackages.length}</span>
+-                    </div>
+-                    <div className="bg-white/[0.03] rounded-xl border border-white/[0.06] overflow-hidden">
+-                      {/* Table Header */}
+-                      <div className="hidden sm:grid grid-cols-[1fr_80px_80px_100px_90px] gap-2 px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06]">
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Package</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sessions</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Validity</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Price</span>
+-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider"></span>
+-                      </div>
+-                      {tennisPackages.map((pkg, idx) => (
+-                        <div
+-                          key={pkg.id}
+-                          className={`sm:grid sm:grid-cols-[1fr_80px_80px_100px_90px] gap-2 px-4 py-3.5 items-center hover:bg-white/[0.03] transition-colors ${
+-                            idx < tennisPackages.length - 1 ? 'border-b border-white/[0.04]' : ''
+-                          }`}
+-                        >
+-                          <div
+-                            className="cursor-pointer"
+-                            onClick={() => setSelectedPackage(pkg)}
+-                          >
+-                            <span className="text-sm font-semibold text-white hover:text-accent transition-colors">{pkg.name}</span>
+-                            <div className="text-[10px] text-slate-500 mt-0.5">
+-                              {pkg.timingType === 'DAY' ? 'Day' : 'Evening/Night'}
+-                            </div>
+-                          </div>
+-                          <div className="text-xs text-white font-medium mt-1 sm:mt-0">
+-                            <span className="sm:hidden text-[10px] text-slate-500">Sessions: </span>
+-                            {pkg.totalSessions}
+-                          </div>
+-                          <div className="text-xs text-slate-400 mt-1 sm:mt-0">
+-                            <span className="sm:hidden text-[10px] text-slate-500">Validity: </span>
+-                            {pkg.validityDays}d
+-                          </div>
+-                          <div className="text-sm text-accent font-bold mt-1 sm:mt-0">
+-                            <span className="sm:hidden text-[10px] text-slate-500">Price: </span>
+-                            ₹{pkg.price}
+-                          </div>
+-                          <div className="flex items-center gap-2 mt-2 sm:mt-0">
+-                            <button
+-                              onClick={() => handlePurchase(pkg.id)}
+-                              disabled={purchasing === pkg.id}
+-                              className="bg-accent hover:bg-accent-light text-primary px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+-                            >
+-                              {purchasing === pkg.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Buy'}
+-                            </button>
+-                            <button
+-                              onClick={() => setSelectedPackage(pkg)}
+-                              className="p-1.5 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors cursor-pointer"
+-                            >
+-                              <ChevronRight className="w-4 h-4" />
+-                            </button>
+-                          </div>
+-                        </div>
+-                      ))}
+-                    </div>
+-                  </div>
++                {/* Tennis Packages */}
++                {tennisPackages.length > 0 && (
++                  <PackageSection
++                    title="Tennis Machines"
++                    dotColor="bg-green-500"
++                    count={tennisPackages.length}
++                    packages={tennisPackages}
++                    showBallType={false}
++                    purchasing={purchasing}
++                    onPurchase={handlePurchase}
++                    onSelect={setSelectedPackage}
++                    getTimingLabel={getTimingLabel}
++                  />
+                 )}
+               </div>
+             )}
+@@ -520,7 +474,7 @@ export default function PackagesPage() {
+                     ? 'bg-red-500/15 text-red-400'
+                     : 'bg-green-500/15 text-green-400'
+                 }`}>
+-                  {selectedPackage.machineType === 'LEATHER' ? 'Leather Ball Machine' : 'Tennis Machine'}
++                  {selectedPackage.machineId ? labelMap[selectedPackage.machineId] : (selectedPackage.machineType === 'LEATHER' ? 'Leather Ball Machine' : 'Tennis Machine')}
+                 </span>
+               </div>
+               <button
+@@ -534,13 +488,13 @@ export default function PackagesPage() {
+             <div className="space-y-4">
+               {/* Details Grid */}
+               <div className="grid grid-cols-2 gap-3">
+-                <DetailItem label="Machine" value={selectedPackage.machineType === 'LEATHER' ? 'Leather Ball' : 'Tennis'} />
++                <DetailItem label="Machine" value={selectedPackage.machineId ? labelMap[selectedPackage.machineId] : (selectedPackage.machineType === 'LEATHER' ? 'Leather Ball' : 'Tennis')} />
+                 {selectedPackage.machineType === 'LEATHER' && (
+                   <DetailItem label="Ball Type" value={labelMap[selectedPackage.ballType] || selectedPackage.ballType} />
+                 )}
+                 <DetailItem
+                   label="Timing"
+-                  value={selectedPackage.timingType === 'DAY' ? 'Day' : selectedPackage.timingType === 'EVENING' ? 'Evening/Night' : 'Both'}
++                  value={getTimingLabel(selectedPackage.timingType)}
+                   subValue={selectedPackage.timingType === 'DAY' ? '7:00 AM – 5:00 PM' : selectedPackage.timingType === 'EVENING' ? '7:00 PM – 10:30 PM' : 'Any time'}
+                 />
+                 <DetailItem label="Sessions" value={`${selectedPackage.totalSessions} sessions`} />
+@@ -568,6 +522,81 @@ export default function PackagesPage() {
+   );
+ }
+
++// ─── Package Section (Leather or Tennis) ────────────────
++function PackageSection({
++  title, dotColor, count, packages, showBallType, purchasing, onPurchase, onSelect, getTimingLabel,
++}: {
++  title: string;
++  dotColor: string;
++  count: number;
++  packages: PackageInfo[];
++  showBallType: boolean;
++  purchasing: string | null;
++  onPurchase: (id: string) => void;
++  onSelect: (pkg: PackageInfo) => void;
++  getTimingLabel: (t: string) => string;
++}) {
++  return (
++    <div>
++      <div className="flex items-center gap-2 mb-3">
++        <span className={`w-2 h-2 rounded-full ${dotColor}`}></span>
++        <h3 className="text-sm font-bold text-white">{title}</h3>
++        <span className="text-[10px] text-slate-500 bg-white/[0.04] px-2 py-0.5 rounded-full">{count}</span>
++      </div>
++      <div className="space-y-2">
++        {packages.map((pkg) => (
++          <div
++            key={pkg.id}
++            className="bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.08] hover:border-white/[0.12] transition-colors"
++          >
++            {/* Mobile card layout */}
++            <div className="p-4">
++              <div className="flex items-start justify-between gap-3">
++                <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onSelect(pkg)}>
++                  <h4 className="text-sm font-semibold text-white hover:text-accent transition-colors truncate">{pkg.name}</h4>
++                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
++                    {pkg.machineId && (
++                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
++                        <Package className="w-3 h-3 text-slate-500" />
++                        {labelMap[pkg.machineId] || pkg.machineId}
++                      </span>
++                    )}
++                    {showBallType && pkg.ballType && (
++                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
++                        <Zap className="w-3 h-3 text-slate-500" />
++                        {labelMap[pkg.ballType] || pkg.ballType}
++                      </span>
++                    )}
++                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
++                      {pkg.timingType === 'DAY' ? <Sun className="w-3 h-3 text-slate-500" /> : pkg.timingType === 'EVENING' ? <Moon className="w-3 h-3 text-slate-500" /> : <Clock className="w-3 h-3 text-slate-500" />}
++                      {getTimingLabel(pkg.timingType)}
++                    </span>
++                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
++                      <Calendar className="w-3 h-3 text-slate-500" />
++                      {pkg.totalSessions} sessions · {pkg.validityDays}d
++                    </span>
++                  </div>
++                </div>
++                <div className="flex items-center gap-2 flex-shrink-0">
++                  <span className="text-sm font-bold text-accent">₹{pkg.price}</span>
++                  <button
++                    onClick={() => onPurchase(pkg.id)}
++                    disabled={purchasing === pkg.id}
++                    className="bg-accent hover:bg-accent-light text-primary px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50 cursor-pointer"
++                  >
++                    {purchasing === pkg.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Buy'}
++                  </button>
++                </div>
++              </div>
++            </div>
++          </div>
++        ))}
++      </div>
++    </div>
++  );
++}
++
++// ─── Detail Item for Modal ──────────────────────────────
+ function DetailItem({ label, value, subValue, highlight }: {
+   label: string;
+   value: string;

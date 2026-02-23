@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       name,
+      machineId,
       machineType,
       ballType,
       wicketType,
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
     const pkg = await prisma.package.create({
       data: {
         name,
+        machineId: machineId || null,
         machineType,
         ballType: ballType || null,
         wicketType: wicketType || null,
@@ -107,7 +109,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Only allow updating specific fields
-    const allowedFields = ['name', 'machineType', 'ballType', 'wicketType', 'timingType', 'totalSessions', 'validityDays', 'price', 'extraChargeRules', 'isActive'];
+    const allowedFields = ['name', 'machineId', 'machineType', 'ballType', 'wicketType', 'timingType', 'totalSessions', 'validityDays', 'price', 'extraChargeRules', 'isActive'];
     const data: any = {};
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {

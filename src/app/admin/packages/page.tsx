@@ -6,6 +6,7 @@ import { Package, Plus, Pencil, ToggleLeft, ToggleRight, Loader2, Users, BarChar
 interface PackageData {
   id: string;
   name: string;
+  machineId: string | null;
   machineType: string;
   ballType: string;
   wicketType: string;
@@ -115,8 +116,7 @@ export default function AdminPackages() {
     }
     try {
       const method = editingId ? 'PUT' : 'POST';
-      const { machineId, ...formPayload } = form;
-      const body = editingId ? { ...formPayload, price: Number(formPayload.price), id: editingId } : { ...formPayload, price: Number(formPayload.price) };
+      const body = editingId ? { ...form, price: Number(form.price), id: editingId } : { ...form, price: Number(form.price) };
       const res = await fetch('/api/admin/packages', {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -151,11 +151,10 @@ export default function AdminPackages() {
   };
 
   const startEdit = (pkg: PackageData) => {
-    // Infer machineId from existing data if possible
-    const inferredMachineId = (pkg as any).machineId || (pkg.machineType === 'LEATHER' ? 'GRAVITY' : 'LEVERAGE_INDOOR');
+    const storedMachineId = pkg.machineId || (pkg.machineType === 'LEATHER' ? 'GRAVITY' : 'LEVERAGE_INDOOR');
     setForm({
       name: pkg.name,
-      machineId: inferredMachineId,
+      machineId: storedMachineId,
       machineType: pkg.machineType,
       ballType: pkg.ballType === 'BOTH' ? 'LEATHER' : pkg.ballType,
       wicketType: pkg.wicketType,
@@ -427,7 +426,7 @@ export default function AdminPackages() {
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-1">
-                        <span className="bg-white/[0.06] px-2 py-0.5 rounded">{labelMap[pkg.machineType]} Machine</span>
+                        <span className="bg-white/[0.06] px-2 py-0.5 rounded">{pkg.machineId ? labelMap[pkg.machineId] : `${labelMap[pkg.machineType]} Machine`}</span>
                         {pkg.machineType === 'LEATHER' && (
                           <span className="bg-white/[0.06] px-2 py-0.5 rounded">Ball: {labelMap[pkg.ballType]}</span>
                         )}

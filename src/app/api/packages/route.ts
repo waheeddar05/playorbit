@@ -10,6 +10,7 @@ export async function GET() {
       select: {
         id: true,
         name: true,
+        machineId: true,
         machineType: true,
         ballType: true,
         wicketType: true,
