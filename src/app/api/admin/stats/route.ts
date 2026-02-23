@@ -20,10 +20,12 @@ export async function GET(req: NextRequest) {
       upcomingBookings,
       lastMonthBookings,
     ] = await Promise.all([
-      prisma.booking.count(),
+      prisma.booking.count({
+        where: { status: { not: 'CANCELLED' } },
+      }),
       prisma.user.count({ where: { role: 'ADMIN' } }),
       prisma.booking.count({
-        where: { date: todayUTC },
+        where: { date: todayUTC, status: { not: 'CANCELLED' } },
       }),
       prisma.booking.count({
         where: { date: { gt: todayUTC }, status: 'BOOKED' },
@@ -34,6 +36,7 @@ export async function GET(req: NextRequest) {
             gte: lastMonthRange.start,
             lte: lastMonthRange.end,
           },
+          status: { not: 'CANCELLED' },
         },
       }),
     ]);

@@ -207,13 +207,13 @@ export default function AdminUsers() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
             <Users className="w-5 h-5 text-accent" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">Manage Users</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-white truncate">Manage Users</h1>
             <p className="text-xs text-slate-400">{totalUsers} total users</p>
           </div>
         </div>

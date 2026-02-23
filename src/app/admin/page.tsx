@@ -636,7 +636,7 @@ export default function AdminDashboard() {
 
               {(['leather', 'yantra', 'machine', 'yantra_machine', 'tennis'] as const).map(category => (
                 <div key={category} className="mb-6">
-                  <h4 className="text-[11px] font-bold text-accent uppercase tracking-widest mb-3 px-1">
+                  <h4 className="text-[11px] font-bold text-accent uppercase tracking-widest mb-3 px-1 break-words">
                     {category === 'leather' ? 'Gravity (Leather) - Leather Balls' :
                      category === 'yantra' ? 'Yantra (Premium Leather) - Leather Balls' :
                      category === 'machine' ? 'Gravity (Leather) - Machine Balls' :

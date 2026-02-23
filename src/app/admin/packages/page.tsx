@@ -489,8 +489,8 @@ export default function AdminPackages() {
                           {pkg.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-1">
-                        <span className="bg-white/[0.06] px-2 py-0.5 rounded">{pkg.machineId ? labelMap[pkg.machineId] : `${labelMap[pkg.machineType]} Machine`}</span>
+                      <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-1 min-w-0">
+                        <span className="bg-white/[0.06] px-2 py-0.5 rounded break-words">{pkg.machineId ? labelMap[pkg.machineId] : `${labelMap[pkg.machineType]} Machine`}</span>
                         {pkg.machineType === 'LEATHER' && (
                           <span className="bg-white/[0.06] px-2 py-0.5 rounded">Ball: {labelMap[pkg.ballType]}</span>
                         )}

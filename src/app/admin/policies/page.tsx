@@ -85,7 +85,7 @@ export default function PolicyManagement() {
 
       {/* Help Panel */}
       {showHelp && (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-5 text-sm">
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-5 text-sm overflow-x-hidden">
           <h3 className="font-semibold text-blue-300 mb-2">Available Policy Keys</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-blue-300">
             <div>
@@ -169,10 +169,10 @@ export default function PolicyManagement() {
       ) : (
         <div className="space-y-2">
           {policies.map((policy) => (
-            <div key={policy.id} className="bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.08] p-4 flex items-center justify-between">
+            <div key={policy.id} className="bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.08] p-4 flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <code className="text-sm font-semibold text-white">{policy.key}</code>
+                  <code className="text-sm font-semibold text-white break-all">{policy.key}</code>
                 </div>
                 <p className="text-sm text-slate-400 truncate">{policy.value}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">

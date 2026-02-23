@@ -30,7 +30,7 @@ export default function AdminLayout({
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
 
   return (
-    <div className="min-h-[calc(100vh-56px)]">
+    <div className="min-h-[calc(100vh-56px)] overflow-x-hidden">
       {/* Background gradient */}
       <div className="fixed inset-0 -z-10 bg-gradient-to-br from-[#0a1628] via-[#132240] to-[#0d1f3c]"></div>
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(212,168,67,0.05),transparent_60%)]"></div>
@@ -80,8 +80,8 @@ export default function AdminLayout({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 md:p-6">
-          <div className="max-w-5xl mx-auto">
+        <main className="flex-1 min-w-0 p-4 md:p-6">
+          <div className="max-w-5xl mx-auto overflow-x-hidden">
             {children}
           </div>
         </main>
