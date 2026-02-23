@@ -222,6 +222,7 @@ enum PackageBallType {
 enum PackageWicketType {
   CEMENT
   ASTRO
+  NATURAL
   BOTH
 }
 

@@ -28,10 +28,18 @@ const MACHINE_OPTIONS = [
 ];
 const BALL_TYPES = ['MACHINE', 'LEATHER'];
 const TIMING_TYPES = ['DAY', 'EVENING'];
+const WICKET_TYPES = ['ASTRO', 'CEMENT', 'NATURAL'];
+
+// All possible pitch upgrade paths
+const ALL_WICKET_UPGRADE_PATHS = [
+  { from: 'ASTRO', to: 'CEMENT', label: 'Astro Turf → Cement' },
+  { from: 'ASTRO', to: 'NATURAL', label: 'Astro Turf → Natural Turf' },
+  { from: 'CEMENT', to: 'NATURAL', label: 'Cement → Natural Turf' },
+];
 
 const defaultExtraChargeRules = {
   ballTypeUpgrade: 100,
-  wicketTypeUpgrade: 50,
+  wicketTypeUpgrades: {} as Record<string, number>,
   timingUpgrade: 125,
 };
 
@@ -40,7 +48,7 @@ const emptyForm = {
   machineId: 'GRAVITY',
   machineType: 'LEATHER',
   ballType: 'LEATHER',
-  wicketType: 'BOTH',
+  wicketType: 'ASTRO',
   timingType: 'DAY',
   totalSessions: 4,
   validityDays: 30,
@@ -152,17 +160,25 @@ export default function AdminPackages() {
 
   const startEdit = (pkg: PackageData) => {
     const storedMachineId = pkg.machineId || (pkg.machineType === 'LEATHER' ? 'GRAVITY' : 'LEVERAGE_INDOOR');
+    const rules = pkg.extraChargeRules || defaultExtraChargeRules;
+    // Migrate old flat wicketTypeUpgrade to new wicketTypeUpgrades object
+    let wicketTypeUpgrades = rules.wicketTypeUpgrades || {};
+    if (!rules.wicketTypeUpgrades && rules.wicketTypeUpgrade) {
+      // Legacy: convert flat value to all upgrade paths
+      wicketTypeUpgrades = {};
+      ALL_WICKET_UPGRADE_PATHS.forEach(p => { wicketTypeUpgrades[`${p.from}_TO_${p.to}`] = rules.wicketTypeUpgrade; });
+    }
     setForm({
       name: pkg.name,
       machineId: storedMachineId,
       machineType: pkg.machineType,
       ballType: pkg.ballType === 'BOTH' ? 'LEATHER' : pkg.ballType,
-      wicketType: pkg.wicketType,
+      wicketType: pkg.wicketType || 'ASTRO',
       timingType: pkg.timingType === 'BOTH' ? 'DAY' : pkg.timingType,
       totalSessions: pkg.totalSessions,
       validityDays: pkg.validityDays,
       price: pkg.price,
-      extraChargeRules: pkg.extraChargeRules || defaultExtraChargeRules,
+      extraChargeRules: { ...rules, wicketTypeUpgrades },
       isActive: pkg.isActive,
     });
     setEditingId(pkg.id);
@@ -190,7 +206,7 @@ export default function AdminPackages() {
 
   const labelMap: Record<string, string> = {
     LEATHER: 'Leather', TENNIS: 'Tennis', MACHINE: 'Machine Ball',
-    BOTH: 'Both', CEMENT: 'Cement', ASTRO: 'Astro',
+    BOTH: 'Both', CEMENT: 'Cement', ASTRO: 'Astro Turf', NATURAL: 'Natural Turf',
     DAY: 'Day (7:00 AM – 5:00 PM)', EVENING: 'Evening/Night (7:00 PM – 10:30 PM)',
     GRAVITY: 'Gravity (Leather)', YANTRA: 'Yantra (Premium Leather)',
     LEVERAGE_INDOOR: 'Leverage High Speed Tennis (Indoor)', LEVERAGE_OUTDOOR: 'Leverage High Speed Tennis (Outdoor)',
@@ -294,6 +310,26 @@ export default function AdminPackages() {
                       </select>
                     </div>
                   )}
+                  {/* Base Wicket/Pitch Type */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-400 mb-1">Base Pitch Type</label>
+                    <div className="flex gap-2">
+                      {WICKET_TYPES.map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setForm({ ...form, wicketType: t })}
+                          className={`flex-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer text-center ${
+                            form.wicketType === t
+                              ? 'bg-accent text-primary shadow-sm'
+                              : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'
+                          }`}
+                        >
+                          {labelMap[t]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-[11px] font-medium text-slate-400 mb-1">Timing</label>
                     <div className="flex gap-2">
@@ -355,29 +391,22 @@ export default function AdminPackages() {
                 {/* Extra Charge Rules */}
                 <div>
                   <label className="block text-[11px] font-medium text-slate-400 mb-2">Extra Charge Rules (₹ per half-hour slot)</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Ball Type Upgrade - only for leather machines */}
+                    {isLeatherMachine(form.machineId) && (
+                      <div>
+                        <label className="block text-[10px] text-slate-500 mb-1">Ball Type Upgrade (Machine → Leather)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={form.extraChargeRules.ballTypeUpgrade}
+                          onChange={e => setForm({ ...form, extraChargeRules: { ...form.extraChargeRules, ballTypeUpgrade: parseFloat(e.target.value) || 0 } })}
+                          className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                        />
+                      </div>
+                    )}
                     <div>
-                      <label className="block text-[10px] text-slate-500 mb-1">Ball Type Upgrade</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={form.extraChargeRules.ballTypeUpgrade}
-                        onChange={e => setForm({ ...form, extraChargeRules: { ...form.extraChargeRules, ballTypeUpgrade: parseFloat(e.target.value) || 0 } })}
-                        className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-slate-500 mb-1">Wicket Type Upgrade</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={form.extraChargeRules.wicketTypeUpgrade}
-                        onChange={e => setForm({ ...form, extraChargeRules: { ...form.extraChargeRules, wicketTypeUpgrade: parseFloat(e.target.value) || 0 } })}
-                        className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-slate-500 mb-1">Timing Upgrade</label>
+                      <label className="block text-[10px] text-slate-500 mb-1">Timing Upgrade (Day → Evening)</label>
                       <input
                         type="number"
                         min={0}
@@ -385,6 +414,41 @@ export default function AdminPackages() {
                         onChange={e => setForm({ ...form, extraChargeRules: { ...form.extraChargeRules, timingUpgrade: parseFloat(e.target.value) || 0 } })}
                         className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent"
                       />
+                    </div>
+                  </div>
+
+                  {/* Wicket/Pitch Type Upgrade Paths */}
+                  <div className="mt-3">
+                    <label className="block text-[10px] text-slate-500 mb-2">Pitch Upgrade Options (₹ per half-hour slot)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {ALL_WICKET_UPGRADE_PATHS.map(path => {
+                        const key = `${path.from}_TO_${path.to}`;
+                        return (
+                          <div key={key} className="bg-white/[0.02] rounded-lg p-2.5 border border-white/[0.06]">
+                            <label className="block text-[10px] text-accent/80 font-medium mb-1">{path.label}</label>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500">₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                value={form.extraChargeRules.wicketTypeUpgrades?.[key] || 0}
+                                onChange={e => setForm({
+                                  ...form,
+                                  extraChargeRules: {
+                                    ...form.extraChargeRules,
+                                    wicketTypeUpgrades: {
+                                      ...form.extraChargeRules.wicketTypeUpgrades,
+                                      [key]: parseFloat(e.target.value) || 0,
+                                    },
+                                  },
+                                })}
+                                placeholder="0"
+                                className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -429,6 +493,9 @@ export default function AdminPackages() {
                         <span className="bg-white/[0.06] px-2 py-0.5 rounded">{pkg.machineId ? labelMap[pkg.machineId] : `${labelMap[pkg.machineType]} Machine`}</span>
                         {pkg.machineType === 'LEATHER' && (
                           <span className="bg-white/[0.06] px-2 py-0.5 rounded">Ball: {labelMap[pkg.ballType]}</span>
+                        )}
+                        {pkg.wicketType && pkg.wicketType !== 'BOTH' && (
+                          <span className="bg-white/[0.06] px-2 py-0.5 rounded">Pitch: {labelMap[pkg.wicketType]}</span>
                         )}
                         <span className="bg-white/[0.06] px-2 py-0.5 rounded">
                           {pkg.timingType === 'DAY' ? 'Day (7 AM – 5 PM)' : pkg.timingType === 'EVENING' ? 'Evening (7 PM – 10:30 PM)' : labelMap[pkg.timingType]}

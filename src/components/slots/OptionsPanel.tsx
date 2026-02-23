@@ -81,10 +81,10 @@ export function OptionsPanel({
             Pitch Type
           </label>
           <div className="flex gap-2">
-            <div className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-accent/15 text-accent border border-accent/20">
+            <div className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold bg-accent text-primary shadow-sm">
               <Check className="w-3.5 h-3.5" />
               {(PITCH_TYPE_LABELS[enabledPitchTypes[0]] || { label: enabledPitchTypes[0] }).label}
-              <span className="text-[10px] text-slate-500 font-normal ml-1">(Auto-selected)</span>
+              <span className="text-[10px] text-primary/60 font-normal ml-1">(Auto-selected)</span>
             </div>
           </div>
         </div>

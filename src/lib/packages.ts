@@ -4,7 +4,8 @@ import { getTimeSlab, getTimeSlabConfig, type TimeSlabConfig } from '@/lib/prici
 
 export interface ExtraChargeRules {
   ballTypeUpgrade?: number;   // e.g. 100 per half-hour for machine→leather upgrade
-  wicketTypeUpgrade?: number; // e.g. 50 per half-hour for astro→cement upgrade
+  wicketTypeUpgrade?: number; // Legacy: flat per half-hour for any wicket upgrade
+  wicketTypeUpgrades?: Record<string, number>; // Per-path: e.g. { ASTRO_TO_CEMENT: 50, ASTRO_TO_NATURAL: 75 }
   timingUpgrade?: number;     // e.g. 125 per half-hour for day→evening upgrade
 }
 
@@ -45,9 +46,20 @@ export function getBallTypeExtraCharge(
 }
 
 /**
- * Determine extra charge for wicket type upgrade (Tennis machine only).
- * Cement Package → can book Cement or Astro (no charge)
- * Astro Package → can book Astro (no charge) or Cement (extra charge)
+ * Map booking PitchType to package wicket type equivalent for comparison.
+ * PitchType TURF/CEMENT → CEMENT, ASTRO → ASTRO, NATURAL → NATURAL
+ */
+function pitchToWicket(pitchType: PitchType): string {
+  if (pitchType === 'TURF' || pitchType === 'CEMENT') return 'CEMENT';
+  return pitchType; // ASTRO or NATURAL
+}
+
+// Wicket type hierarchy: ASTRO (0) < CEMENT (1) < NATURAL (2)
+const WICKET_RANK: Record<string, number> = { ASTRO: 0, CEMENT: 1, NATURAL: 2 };
+
+/**
+ * Determine extra charge for wicket/pitch type upgrade.
+ * Supports both legacy flat pricing and per-path pricing.
  */
 export function getWicketTypeExtraCharge(
   packageWicketType: PackageWicketType | null,
@@ -55,17 +67,24 @@ export function getWicketTypeExtraCharge(
   extraChargeRules: ExtraChargeRules
 ): number {
   if (!packageWicketType || !bookingPitchType) return 0;
+  if (packageWicketType === 'BOTH') return 0;
 
-  // BOTH or CEMENT package → no extra
-  if (packageWicketType === 'BOTH' || packageWicketType === 'CEMENT') return 0;
+  const bookingWicket = pitchToWicket(bookingPitchType);
+  const pkgRank = WICKET_RANK[packageWicketType] ?? 0;
+  const bookingRank = WICKET_RANK[bookingWicket] ?? 0;
 
-  // ASTRO package booking TURF (cement) → extra charge
-  // Note: In the DB, PitchType TURF maps to "Cement Wicket" concept
-  if (packageWicketType === 'ASTRO' && bookingPitchType === 'TURF') {
-    return extraChargeRules.wicketTypeUpgrade || 50;
+  // No upgrade needed if booking same or lower tier
+  if (bookingRank <= pkgRank) return 0;
+
+  // New format: per-path upgrade pricing
+  if (extraChargeRules.wicketTypeUpgrades) {
+    const key = `${packageWicketType}_TO_${bookingWicket}`;
+    const pathPrice = extraChargeRules.wicketTypeUpgrades[key];
+    if (pathPrice !== undefined) return pathPrice;
   }
 
-  return 0;
+  // Legacy fallback: flat wicketTypeUpgrade
+  return extraChargeRules.wicketTypeUpgrade || 50;
 }
 
 /**

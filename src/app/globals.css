@@ -93,6 +93,25 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Prevent iOS zoom on input focus (font-size < 16px triggers zoom) */
+@media screen and (max-width: 640px) {
+  input[type="number"],
+  input[type="text"] {
+    font-size: 16px !important;
+  }
+}
+
+/* Hide number input spinners (prevents accidental scroll-to-change on mobile) */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Safe area for mobile */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .safe-bottom {

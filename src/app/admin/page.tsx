@@ -174,6 +174,27 @@ const PITCH_TYPE_LABELS: Record<PitchType, string> = {
 const ALL_MACHINE_IDS: MachineId[] = ['GRAVITY', 'YANTRA', 'LEVERAGE_INDOOR', 'LEVERAGE_OUTDOOR'];
 const ALL_PITCH_TYPES: PitchType[] = ['ASTRO', 'CEMENT', 'NATURAL'];
 
+const priceInputClass = "w-full bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-500 rounded-lg pl-7 pr-2 py-2 text-[16px] sm:text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20";
+
+function PriceField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="scroll-mt-24">
+      <label className="block text-[10px] font-medium text-slate-400 mb-1">{label}</label>
+      <div className="relative">
+        <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+        <input
+          type="number"
+          inputMode="decimal"
+          value={value}
+          onChange={e => onChange(Number(e.target.value))}
+          min="0"
+          className={priceInputClass}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { data: session } = useSession();
   const [stats, setStats] = useState<Stats | null>(null);
@@ -307,24 +328,6 @@ export default function AdminDashboard() {
   ];
 
   const inputClass = "w-full bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-500 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20";
-  const priceInputClass = "w-full bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-500 rounded-lg pl-7 pr-2 py-2 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20";
-
-  const PriceField = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
-    <div>
-      <label className="block text-[10px] font-medium text-slate-400 mb-1">{label}</label>
-      <div className="relative">
-        <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
-        <input
-          type="number"
-          value={value}
-          onChange={e => onChange(Number(e.target.value))}
-          min="0"
-          className={priceInputClass}
-        />
-      </div>
-    </div>
-  );
-
   return (
     <div>
       <h1 className="text-xl font-bold text-white mb-5">Dashboard</h1>
