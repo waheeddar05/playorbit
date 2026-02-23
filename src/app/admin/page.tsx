@@ -177,6 +177,16 @@ const ALL_PITCH_TYPES: PitchType[] = ['ASTRO', 'CEMENT', 'NATURAL'];
 const priceInputClass = "w-full bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-500 rounded-lg pl-7 pr-2 py-2 text-[16px] sm:text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20";
 
 function PriceField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  const [localValue, setLocalValue] = useState<string>(String(value));
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Sync from parent only when not actively editing
+  useEffect(() => {
+    if (!isFocused) {
+      setLocalValue(String(value));
+    }
+  }, [value, isFocused]);
+
   return (
     <div className="scroll-mt-24">
       <label className="block text-[10px] font-medium text-slate-400 mb-1">{label}</label>
@@ -185,8 +195,22 @@ function PriceField({ label, value, onChange }: { label: string; value: number; 
         <input
           type="number"
           inputMode="decimal"
-          value={value}
-          onChange={e => onChange(Number(e.target.value))}
+          value={localValue}
+          onFocus={() => setIsFocused(true)}
+          onChange={e => {
+            setLocalValue(e.target.value);
+            const num = Number(e.target.value);
+            if (e.target.value !== '' && !isNaN(num)) {
+              onChange(num);
+            }
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            if (localValue === '' || isNaN(Number(localValue))) {
+              setLocalValue('0');
+              onChange(0);
+            }
+          }}
           min="0"
           className={priceInputClass}
         />
