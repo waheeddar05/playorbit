@@ -322,7 +322,7 @@ export default function PackagesPage() {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-2">
                   {MACHINE_CARDS.map((card) => {
                     const isSelected = machineFilter === card.id;
                     return (
@@ -342,7 +342,7 @@ export default function PackagesPage() {
                           className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                         />
                         <div className="min-w-0">
-                          <span className={`text-[11px] font-bold truncate block ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
+                          <span className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
                             {card.label}
                           </span>
                           <p className={`text-[9px] ${isSelected ? 'text-accent/70' : 'text-slate-500'}`}>
@@ -553,7 +553,7 @@ function PackageSection({
             <div className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onSelect(pkg)}>
-                  <h4 className="text-sm font-semibold text-white hover:text-accent transition-colors truncate">{pkg.name}</h4>
+                  <h4 className="text-sm font-semibold text-white hover:text-accent transition-colors leading-tight">{pkg.name}</h4>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
                     {pkg.machineId && (
                       <span className="text-[10px] text-slate-400 flex items-center gap-1">

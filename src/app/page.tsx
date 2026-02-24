@@ -65,7 +65,7 @@ export default async function Home() {
           <img
             src="/images/playorbit-logo.jpeg"
             alt="PlayOrbit"
-            className="h-20 md:h-32 w-auto object-contain mx-auto mb-6 drop-shadow-[0_0_16px_rgba(100,140,255,0.4)] animate-fade-in"
+            className="h-40 md:h-64 w-auto object-contain mx-auto mb-6 drop-shadow-[0_0_16px_rgba(100,140,255,0.4)] animate-fade-in mix-blend-screen"
           />
 
           <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4 leading-[1.1] tracking-tight animate-fade-in">
@@ -157,10 +157,10 @@ export default async function Home() {
             <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-amber-500/30 transition-all hover:shadow-xl hover:shadow-amber-500/5">
               <div className="p-4 pb-2">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-base font-bold text-white">Yantra <span className="text-xs font-normal text-amber-400">(Premium)</span></h3>
-                  <span className="text-[10px] font-bold text-amber-400 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30">PREMIUM</span>
+                  <h3 className="text-base font-bold text-white">Yantra</h3>
+                  <span className="text-[10px] font-bold text-amber-400 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30">PREMIUM LEATHER</span>
                 </div>
-                <p className="text-xs text-slate-400 leading-relaxed">Premium leather ball experience with advanced speed control and variable swing settings.</p>
+                <p className="text-xs text-slate-400 leading-relaxed">Premium leather ball experience with advanced speed control, variable swing and spin settings.</p>
                 <div className="flex gap-2 mt-2">
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
@@ -188,7 +188,7 @@ export default async function Home() {
             <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-green-500/30 transition-all hover:shadow-xl hover:shadow-green-500/5">
               <div className="p-4 pb-2">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-base font-bold text-white">Leverage High Speed <span className="text-xs font-normal text-green-400">(Indoor)</span></h3>
+                  <h3 className="text-base font-bold text-white">Leverage High Speed</h3>
                   <span className="text-[10px] font-bold text-green-400 px-2 py-0.5 rounded-md bg-green-500/20 border border-green-500/30">INDOOR</span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">High-speed tennis ball machine in an enclosed indoor setup. Great for technique building.</p>
@@ -211,7 +211,7 @@ export default async function Home() {
             <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-emerald-500/30 transition-all hover:shadow-xl hover:shadow-emerald-500/5">
               <div className="p-4 pb-2">
                 <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-base font-bold text-white">Leverage High Speed <span className="text-xs font-normal text-emerald-400">(Outdoor)</span></h3>
+                  <h3 className="text-base font-bold text-white">Leverage High Speed</h3>
                   <span className="text-[10px] font-bold text-emerald-400 px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30">OUTDOOR</span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">Open-air high-speed tennis ball machine. Perfect for batting in natural conditions.</p>

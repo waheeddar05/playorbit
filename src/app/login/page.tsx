@@ -50,7 +50,7 @@ export default function LoginPage() {
           <img
             src="/images/playorbit-logo.jpeg"
             alt="PlayOrbit"
-            className="h-20 md:h-28 w-auto object-contain mx-auto mb-5 drop-shadow-[0_0_12px_rgba(100,140,255,0.35)]"
+            className="h-40 md:h-56 w-auto object-contain mx-auto mb-5 drop-shadow-[0_0_12px_rgba(100,140,255,0.35)] mix-blend-screen"
           />
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Welcome Back

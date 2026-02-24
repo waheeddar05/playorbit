@@ -49,10 +49,10 @@ export default function Navbar() {
             <Image
               src="/images/playorbit-logo.jpeg"
               alt="PlayOrbit"
-              width={160}
-              height={48}
+              width={320}
+              height={96}
               priority
-              className="h-10 md:h-12 w-auto object-contain flex-shrink-0 drop-shadow-[0_0_8px_rgba(100,140,255,0.3)]"
+              className="h-20 md:h-24 w-auto object-contain flex-shrink-0 drop-shadow-[0_0_8px_rgba(100,140,255,0.3)] mix-blend-screen"
             />
           </Link>
 

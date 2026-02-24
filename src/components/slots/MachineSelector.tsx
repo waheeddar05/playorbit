@@ -31,7 +31,7 @@ export function MachineSelector({ selectedMachineId, onSelect }: MachineSelector
       </div>
 
       {/* Tennis Machines */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-2">
         {tennisMachines.map((card) => (
           <MachineCardButton
             key={card.id}
@@ -74,7 +74,7 @@ function MachineCardButton({
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
             isSelected ? 'bg-accent' : card.category === 'LEATHER' ? 'bg-red-400' : 'bg-green-400'
           }`} />
-          <span className={`text-xs font-bold truncate block ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
+          <span className={`text-xs font-bold leading-tight ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
             {card.label}
           </span>
         </div>
