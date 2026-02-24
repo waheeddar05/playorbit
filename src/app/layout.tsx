@@ -18,23 +18,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StrikeZone - Book Cricket Practice Sessions",
+  title: "PlayOrbit - Book Cricket Practice Sessions",
   description: "Book professional cricket practice sessions with advanced bowling machines. 4 pro machines, 3 pitch types, flexible 30-min slots.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "StrikeZone",
+    title: "PlayOrbit",
   },
   openGraph: {
-    title: "StrikeZone",
+    title: "PlayOrbit",
     description: "Book professional cricket practice sessions. 4 bowling machines, 3 pitch types, morning & evening slots.",
     type: "website",
-    siteName: "StrikeZone",
+    siteName: "PlayOrbit",
   },
   twitter: {
     card: "summary",
-    title: "StrikeZone",
+    title: "PlayOrbit",
     description: "Book professional cricket practice sessions with advanced bowling machines.",
   },
   icons: {

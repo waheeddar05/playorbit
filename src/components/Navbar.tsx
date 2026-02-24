@@ -45,18 +45,15 @@ export default function Navbar() {
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex justify-between h-14 md:h-16 items-center">
           {/* Logo */}
-          <Link href={session ? '/slots' : '/'} className="flex items-center gap-2 group">
+          <Link href={session ? '/slots' : '/'} className="flex items-center group">
             <Image
-              src="/images/strikezone-icon.svg"
-              alt="StrikeZone Logo"
-              width={32}
-              height={32}
+              src="/images/playorbit-logo.jpeg"
+              alt="PlayOrbit"
+              width={160}
+              height={48}
               priority
-              className="w-8 h-8 rounded-lg flex-shrink-0"
+              className="h-10 md:h-12 w-auto object-contain flex-shrink-0 drop-shadow-[0_0_8px_rgba(100,140,255,0.3)]"
             />
-            <span className="text-sm md:text-base font-bold tracking-tight text-white">
-              StrikeZone
-            </span>
           </Link>
 
           {/* Desktop Menu */}

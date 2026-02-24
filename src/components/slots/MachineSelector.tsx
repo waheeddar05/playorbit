@@ -70,10 +70,15 @@ function MachineCardButton({
         className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
       />
       <div className="min-w-0">
-        <span className={`text-[11px] font-bold truncate block ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
-          {card.label}
-        </span>
-        <p className={`text-[9px] ${isSelected ? 'text-accent/70' : 'text-slate-600'}`}>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+            isSelected ? 'bg-accent' : card.category === 'LEATHER' ? 'bg-red-400' : 'bg-green-400'
+          }`} />
+          <span className={`text-xs font-bold truncate block ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
+            {card.label}
+          </span>
+        </div>
+        <p className={`text-[9px] ml-3.5 ${isSelected ? 'text-accent/70' : 'text-slate-600'}`}>
           {card.shortLabel}
         </p>
       </div>

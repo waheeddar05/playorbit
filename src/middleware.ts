@@ -18,7 +18,10 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/maintenance") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico" ||
-    pathname.startsWith("/images/");
+    pathname.startsWith("/images/") ||
+    pathname.startsWith("/icons/") ||
+    pathname === "/sw.js" ||
+    pathname === "/manifest.json";
 
   if (process.env.NODE_ENV !== 'production') {
     console.log(`Middleware: ${pathname}, isPublic: ${isPublicPath}`);
@@ -126,6 +129,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - images (public images)
      */
-    "/((?!api/auth|api/maintenance|login|otp|maintenance|_next/static|_next/image|favicon.ico|images).*)",
+    "/((?!api/auth|api/maintenance|login|otp|maintenance|_next/static|_next/image|favicon.ico|images|icons|sw\\.js|manifest\\.json).*)",
   ],
 };

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getToken } from "next-auth/jwt";
 import { headers, cookies } from "next/headers";
 import { verifyToken } from "@/lib/jwt";
-import { Calendar, Zap, Clock, ChevronRight, Star, Instagram, Phone, Target, Shield, Users } from "lucide-react";
+import { Calendar, Zap, Clock, ChevronRight, Instagram, Phone, Target, Shield, Users } from "lucide-react";
 
 export default async function Home() {
   const cookieStore = await cookies();
@@ -60,11 +60,13 @@ export default async function Home() {
         </div>
 
         <div className="relative z-10 max-w-2xl mx-auto text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full bg-accent/10 border border-accent/20 animate-fade-in">
-            <Star className="w-3.5 h-3.5 text-accent" />
-            <span className="text-xs font-semibold text-accent tracking-wide uppercase">Premium Practice Facility</span>
-          </div>
+          {/* Logo */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/playorbit-logo.jpeg"
+            alt="PlayOrbit"
+            className="h-20 md:h-32 w-auto object-contain mx-auto mb-6 drop-shadow-[0_0_16px_rgba(100,140,255,0.4)] animate-fade-in"
+          />
 
           <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4 leading-[1.1] tracking-tight animate-fade-in">
             Train Like a
@@ -72,7 +74,7 @@ export default async function Home() {
           </h1>
 
           <p className="text-base md:text-lg text-slate-400 mb-8 max-w-md mx-auto leading-relaxed animate-fade-in delay-100">
-            Professional bowling machines and practice nets at StrikeZone. Book your session and elevate your game.
+            Professional bowling machines and practice nets at PlayOrbit. Book your session and elevate your game.
           </p>
 
           <Link
@@ -129,6 +131,18 @@ export default async function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             {/* Gravity */}
             <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-red-500/30 transition-all hover:shadow-xl hover:shadow-red-500/5">
+              <div className="p-4 pb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-base font-bold text-white">Gravity</h3>
+                  <span className="text-[10px] font-bold text-red-400 px-2 py-0.5 rounded-md bg-red-500/20 border border-red-500/30">LEATHER</span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">Professional leather ball bowling machine. Real pace, real swing for match-level practice.</p>
+                <div className="flex gap-2 mt-2">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Natural</span>
+                </div>
+              </div>
               <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-red-950/40 via-[#1a2235] to-[#132240] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -136,23 +150,23 @@ export default async function Home() {
                   alt="Gravity Bowling Machine"
                   className="w-full h-full object-contain p-[8%] drop-shadow-2xl group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-red-500/20 border border-red-500/30">
-                  <span className="text-[10px] font-bold text-red-400">LEATHER</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <h3 className="text-base font-bold text-white mb-1">Gravity</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">Professional leather ball bowling machine. Real pace, real swing for match-level practice.</p>
-                <div className="flex gap-2 mt-2.5">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Natural</span>
-                </div>
               </div>
             </div>
 
             {/* Yantra */}
             <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-amber-500/30 transition-all hover:shadow-xl hover:shadow-amber-500/5">
+              <div className="p-4 pb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-base font-bold text-white">Yantra <span className="text-xs font-normal text-amber-400">(Premium)</span></h3>
+                  <span className="text-[10px] font-bold text-amber-400 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-500/30">PREMIUM</span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">Premium leather ball experience with advanced speed control and variable swing settings.</p>
+                <div className="flex gap-2 mt-2">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Natural</span>
+                </div>
+              </div>
               <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-amber-950/40 via-[#1a2235] to-[#132240] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -160,18 +174,6 @@ export default async function Home() {
                   alt="Yantra Premium Bowling Machine"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-amber-500/20 border border-amber-500/30">
-                  <span className="text-[10px] font-bold text-amber-400">PREMIUM</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <h3 className="text-base font-bold text-white mb-1">Yantra <span className="text-xs font-normal text-amber-400">(Premium)</span></h3>
-                <p className="text-xs text-slate-400 leading-relaxed">Premium leather ball experience with advanced speed control and variable swing settings.</p>
-                <div className="flex gap-2 mt-2.5">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Natural</span>
-                </div>
               </div>
             </div>
           </div>
@@ -184,6 +186,17 @@ export default async function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Leverage Indoor */}
             <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-green-500/30 transition-all hover:shadow-xl hover:shadow-green-500/5">
+              <div className="p-4 pb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-base font-bold text-white">Leverage High Speed <span className="text-xs font-normal text-green-400">(Indoor)</span></h3>
+                  <span className="text-[10px] font-bold text-green-400 px-2 py-0.5 rounded-md bg-green-500/20 border border-green-500/30">INDOOR</span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">High-speed tennis ball machine in an enclosed indoor setup. Great for technique building.</p>
+                <div className="flex gap-2 mt-2">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
+                </div>
+              </div>
               <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-green-950/40 via-[#1a2235] to-[#132240] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -191,22 +204,22 @@ export default async function Home() {
                   alt="Leverage Indoor Tennis Ball Machine"
                   className="w-full h-full object-contain p-[8%] drop-shadow-2xl group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-green-500/20 border border-green-500/30">
-                  <span className="text-[10px] font-bold text-green-400">INDOOR</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <h3 className="text-base font-bold text-white mb-1">Leverage High Speed <span className="text-xs font-normal text-green-400">(Indoor)</span></h3>
-                <p className="text-xs text-slate-400 leading-relaxed">High-speed tennis ball machine in an enclosed indoor setup. Great for technique building.</p>
-                <div className="flex gap-2 mt-2.5">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
-                </div>
               </div>
             </div>
 
             {/* Leverage Outdoor */}
             <div className="group rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] hover:border-emerald-500/30 transition-all hover:shadow-xl hover:shadow-emerald-500/5">
+              <div className="p-4 pb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-base font-bold text-white">Leverage High Speed <span className="text-xs font-normal text-emerald-400">(Outdoor)</span></h3>
+                  <span className="text-[10px] font-bold text-emerald-400 px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30">OUTDOOR</span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">Open-air high-speed tennis ball machine. Perfect for batting in natural conditions.</p>
+                <div className="flex gap-2 mt-2">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
+                </div>
+              </div>
               <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-emerald-950/40 via-[#1a2235] to-[#132240] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -214,17 +227,6 @@ export default async function Home() {
                   alt="Leverage Outdoor Tennis Ball Machine"
                   className="w-full h-full object-contain p-[8%] drop-shadow-2xl group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-emerald-500/20 border border-emerald-500/30">
-                  <span className="text-[10px] font-bold text-emerald-400">OUTDOOR</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <h3 className="text-base font-bold text-white mb-1">Leverage High Speed <span className="text-xs font-normal text-emerald-400">(Outdoor)</span></h3>
-                <p className="text-xs text-slate-400 leading-relaxed">Open-air high-speed tennis ball machine. Perfect for batting in natural conditions.</p>
-                <div className="flex gap-2 mt-2.5">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Astro</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 border border-white/[0.08]">Cement</span>
-                </div>
               </div>
             </div>
           </div>
@@ -318,7 +320,7 @@ export default async function Home() {
             &ldquo;Champions Train When Others Rest.&rdquo;
           </p>
           <div className="flex flex-col md:flex-row justify-between items-center gap-2 text-center">
-            <span className="text-[11px] text-slate-600">&copy; {new Date().getFullYear()} StrikeZone. All rights reserved.</span>
+            <span className="text-[11px] text-slate-600">&copy; {new Date().getFullYear()} PlayOrbit. All rights reserved.</span>
             <span className="text-[11px] text-slate-600">Made by Waheed</span>
           </div>
         </div>

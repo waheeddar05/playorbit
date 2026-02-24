@@ -40,6 +40,19 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Check if any booking has a package booking
+    const bookingIds = bookings.map((b: any) => b.id);
+    let packageBookings: any[] = [];
+    try {
+      packageBookings = await prisma.packageBooking.findMany({
+        where: { bookingId: { in: bookingIds } },
+        select: { bookingId: true },
+      });
+    } catch {
+      // ignore if table doesn't exist
+    }
+    const packageBookingSet = new Set(packageBookings.map((pb: any) => pb.bookingId));
+
     const mappedBookings = bookings.map((b: any) => ({
       id: b.id,
       date: b.date.toISOString(),
@@ -55,9 +68,12 @@ export async function GET(req: NextRequest) {
       pitchType: b.pitchType ?? null,
       extraCharge: b.extraCharge ?? null,
       operationMode: b.operationMode ?? 'WITH_OPERATOR',
+      machineId: b.machineId ?? null,
       createdBy: b.createdBy ?? null,
       cancelledBy: b.cancelledBy ?? null,
       cancellationReason: b.cancellationReason ?? null,
+      createdAt: b.createdAt ? b.createdAt.toISOString() : null,
+      isPackageBooking: packageBookingSet.has(b.id),
     }));
 
     return NextResponse.json(mappedBookings);

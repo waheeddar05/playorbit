@@ -109,7 +109,7 @@ function SlotCard({
   const statusLabel = isBlocked
     ? 'Not Available'
     : isOperatorUnavailable
-    ? 'No Machine Operator'
+    ? 'Not Available'
     : isBooked
     ? 'Booked'
     : isSelected
@@ -121,7 +121,7 @@ function SlotCard({
   const statusColor = isBlocked
     ? 'text-red-400'
     : isOperatorUnavailable
-    ? 'text-amber-400'
+    ? 'text-red-400'
     : isBooked
     ? 'text-red-400'
     : isSelected

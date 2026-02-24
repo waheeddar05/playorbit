@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { Star, Phone, Instagram } from 'lucide-react';
+import { Phone, Instagram } from 'lucide-react';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -46,10 +46,12 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 relative z-10">
         {/* Header */}
         <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 rounded-full bg-accent/10 border border-accent/20">
-            <Star className="w-3.5 h-3.5 text-accent" />
-            <span className="text-xs font-semibold text-accent tracking-wide uppercase">StrikeZone</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/playorbit-logo.jpeg"
+            alt="PlayOrbit"
+            className="h-20 md:h-28 w-auto object-contain mx-auto mb-5 drop-shadow-[0_0_12px_rgba(100,140,255,0.35)]"
+          />
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Welcome Back
           </h1>

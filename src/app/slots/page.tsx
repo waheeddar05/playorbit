@@ -248,7 +248,7 @@ function SlotsContent() {
           <Calendar className="w-4 h-4 text-accent" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-white">Book a Slot</h1>
+          <h1 className="text-lg font-bold text-white">Book Your Slot</h1>
           <p className="text-[11px] text-slate-400">Select date, machine & time</p>
         </div>
       </div>
@@ -309,7 +309,7 @@ function SlotsContent() {
         <div className="mt-4 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-amber-400">
-            Some slots show &ldquo;No Machine Operator&rdquo; because the machine operator is busy with another machine at that time.
+            Some slots show &ldquo;Not Available&rdquo; because the machine operator is busy with another machine at that time.
             Leather machine always requires a machine operator.
           </p>
         </div>

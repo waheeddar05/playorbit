@@ -1,16 +1,14 @@
-const CACHE_NAME = 'strikezone-v1';
+const CACHE_NAME = 'playorbit-v3';
 
-// Assets to cache on install (app shell)
+// Only precache truly static/public assets (no auth-protected pages)
 const PRECACHE_ASSETS = [
-  '/',
-  '/slots',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
-  '/images/strikezone-icon.svg',
-  '/images/strikezone-logo.svg',
+  '/images/playorbit-logo.jpeg',
+  '/manifest.json',
 ];
 
-// Install: cache app shell
+// Install: cache static assets only
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -32,7 +30,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API calls, cache-first for static assets
+// Fetch: network-first for API & pages, cache-first for static assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -57,21 +55,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets & pages: cache-first with network fallback
+  // Static assets (icons, images, fonts, JS/CSS): cache-first
+  if (url.pathname.startsWith('/icons/') ||
+      url.pathname.startsWith('/images/') ||
+      url.pathname.startsWith('/_next/static/') ||
+      url.pathname === '/manifest.json') {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Pages: network-first (don't cache redirects or auth pages)
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        // Return cached and update in background
-        fetch(request).then((response) => {
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, response));
-        }).catch(() => {});
-        return cached;
-      }
-      return fetch(request).then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+    fetch(request)
+      .then((response) => {
+        // Only cache successful, non-redirect responses
+        if (response.ok && !response.redirected) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });

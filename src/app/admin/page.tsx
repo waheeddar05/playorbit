@@ -390,9 +390,9 @@ export default function AdminDashboard() {
               <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0`}>
                 <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider truncate">{card.label}</p>
-                <p className={`text-xl font-bold ${card.isText ? card.color : 'text-white'} truncate`}>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate">{card.label}</p>
+                <p className={`text-base sm:text-xl font-bold ${card.isText ? card.color : 'text-white'} truncate`}>
                   {loading ? '...' : card.value}
                 </p>
               </div>
@@ -472,7 +472,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-sm font-medium text-slate-300">Enable Pitch Type Selection</p>
-                  <p className="text-xs text-slate-400">Users choose between Astro Turf and Cement Wicket</p>
+                  <p className="text-xs text-slate-400">Users can select between Astro Turf, Cement, and Natural Turf</p>
                 </div>
                 <button
                   onClick={() => setMachineConfig(prev => ({
@@ -496,7 +496,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-sm font-medium text-slate-300">Enable Pitch Type Selection</p>
-                  <p className="text-xs text-slate-400">Users choose between Astro Turf and Cement Wicket</p>
+                  <p className="text-xs text-slate-400">Users can select between Astro Turf, Cement, and Natural Turf</p>
                 </div>
                 <button
                   onClick={() => setMachineConfig(prev => ({

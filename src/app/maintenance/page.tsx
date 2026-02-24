@@ -71,7 +71,7 @@ export default function MaintenancePage() {
           </button>
         </div>
 
-        <p className="text-slate-600 text-xs mt-4">StrikeZone</p>
+        <p className="text-slate-600 text-xs mt-4">PlayOrbit</p>
       </div>
     </div>
   );

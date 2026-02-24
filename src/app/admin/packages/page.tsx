@@ -258,10 +258,10 @@ export default function AdminPackages() {
             </button>
           </div>
 
-          {showForm && (
+          {showForm && !editingId && (
             <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.08] p-5 mb-5">
               <h2 className="text-sm font-semibold text-white mb-3">
-                {editingId ? 'Edit Package' : 'New Package'}
+                New Package
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -478,51 +478,109 @@ export default function AdminPackages() {
           ) : (
             <div className="space-y-2">
               {packages.map(pkg => (
-                <div key={pkg.id} className="bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.08] p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-white">{pkg.name}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                          pkg.isActive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
-                        }`}>
-                          {pkg.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                <div key={pkg.id}>
+                  <div className={`bg-white/[0.04] backdrop-blur-sm rounded-xl border ${editingId === pkg.id ? 'border-accent/30' : 'border-white/[0.08]'} p-4`}>
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-white">{pkg.name}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            pkg.isActive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
+                          }`}>
+                            {pkg.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-1 min-w-0">
+                          <span className="bg-white/[0.06] px-2 py-0.5 rounded break-words">{pkg.machineId ? labelMap[pkg.machineId] : `${labelMap[pkg.machineType]} Machine`}</span>
+                          {pkg.machineType === 'LEATHER' && (
+                            <span className="bg-white/[0.06] px-2 py-0.5 rounded">Ball: {labelMap[pkg.ballType]}</span>
+                          )}
+                          {pkg.wicketType && pkg.wicketType !== 'BOTH' && (
+                            <span className="bg-white/[0.06] px-2 py-0.5 rounded">Pitch: {labelMap[pkg.wicketType]}</span>
+                          )}
+                          <span className="bg-white/[0.06] px-2 py-0.5 rounded">
+                            {pkg.timingType === 'DAY' ? 'Day (7 AM – 5 PM)' : pkg.timingType === 'EVENING' ? 'Evening (7 PM – 10:30 PM)' : labelMap[pkg.timingType]}
+                          </span>
+                        </div>
+                        <div className="flex gap-4 text-xs text-slate-400">
+                          <span>{pkg.totalSessions} sessions</span>
+                          <span>{pkg.validityDays} days</span>
+                          <span className="text-accent font-medium">₹{pkg.price}</span>
+                          {pkg._count && <span>{pkg._count.userPackages} purchased</span>}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-1 min-w-0">
-                        <span className="bg-white/[0.06] px-2 py-0.5 rounded break-words">{pkg.machineId ? labelMap[pkg.machineId] : `${labelMap[pkg.machineType]} Machine`}</span>
-                        {pkg.machineType === 'LEATHER' && (
-                          <span className="bg-white/[0.06] px-2 py-0.5 rounded">Ball: {labelMap[pkg.ballType]}</span>
-                        )}
-                        {pkg.wicketType && pkg.wicketType !== 'BOTH' && (
-                          <span className="bg-white/[0.06] px-2 py-0.5 rounded">Pitch: {labelMap[pkg.wicketType]}</span>
-                        )}
-                        <span className="bg-white/[0.06] px-2 py-0.5 rounded">
-                          {pkg.timingType === 'DAY' ? 'Day (7 AM – 5 PM)' : pkg.timingType === 'EVENING' ? 'Evening (7 PM – 10:30 PM)' : labelMap[pkg.timingType]}
-                        </span>
+                      <div className="flex items-center gap-1 ml-3">
+                        <button
+                          onClick={() => startEdit(pkg)}
+                          className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => toggleActive(pkg)}
+                          className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors cursor-pointer"
+                        >
+                          {pkg.isActive ? <ToggleRight className="w-5 h-5 text-green-400" /> : <ToggleLeft className="w-5 h-5 text-slate-500" />}
+                        </button>
                       </div>
-                      <div className="flex gap-4 text-xs text-slate-400">
-                        <span>{pkg.totalSessions} sessions</span>
-                        <span>{pkg.validityDays} days</span>
-                        <span className="text-accent font-medium">₹{pkg.price}</span>
-                        {pkg._count && <span>{pkg._count.userPackages} purchased</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 ml-3">
-                      <button
-                        onClick={() => startEdit(pkg)}
-                        className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => toggleActive(pkg)}
-                        className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors cursor-pointer"
-                      >
-                        {pkg.isActive ? <ToggleRight className="w-5 h-5 text-green-400" /> : <ToggleLeft className="w-5 h-5 text-slate-500" />}
-                      </button>
                     </div>
                   </div>
+                  {/* Inline edit form below the selected package */}
+                  {editingId === pkg.id && showForm && (
+                    <div className="mt-1 bg-white/[0.04] backdrop-blur-sm rounded-xl border border-accent/20 p-5">
+                      <h2 className="text-sm font-semibold text-white mb-3">Edit Package</h2>
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-400 mb-1">Package Name</label>
+                            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="e.g. Monthly 4 Sessions" className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 placeholder:text-slate-500" />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-400 mb-1">Machine</label>
+                            <select value={form.machineId} onChange={e => { const selected = MACHINE_OPTIONS.find(m => m.id === e.target.value); setForm({ ...form, machineId: e.target.value, machineType: selected?.type || 'LEATHER', ballType: selected?.type === 'TENNIS' ? 'BOTH' : form.ballType }); }} className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-accent">
+                              {MACHINE_OPTIONS.map(m => (<option key={m.id} value={m.id} className="bg-[#1a2a40]">{m.label}</option>))}
+                            </select>
+                          </div>
+                          {isLeatherMachine(form.machineId) && (
+                            <div>
+                              <label className="block text-[11px] font-medium text-slate-400 mb-1">Ball Type</label>
+                              <select value={form.ballType} onChange={e => setForm({ ...form, ballType: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-accent">
+                                {BALL_TYPES.map(t => <option key={t} value={t} className="bg-[#1a2a40]">{labelMap[t]}</option>)}
+                              </select>
+                            </div>
+                          )}
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-400 mb-1">Base Pitch Type</label>
+                            <div className="flex gap-2">
+                              {WICKET_TYPES.map(t => (<button key={t} type="button" onClick={() => setForm({ ...form, wicketType: t })} className={`flex-1 px-2 py-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer text-center ${form.wicketType === t ? 'bg-accent text-primary shadow-sm' : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'}`}>{labelMap[t]}</button>))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-400 mb-1">Timing</label>
+                            <div className="flex gap-2">
+                              {TIMING_TYPES.map(t => (<button key={t} type="button" onClick={() => setForm({ ...form, timingType: t })} className={`flex-1 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer text-center ${form.timingType === t ? 'bg-accent text-primary shadow-sm' : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'}`}><div>{t === 'DAY' ? 'Day' : 'Evening/Night'}</div></button>))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-400 mb-1">Total Sessions</label>
+                            <input type="number" min={1} value={form.totalSessions} onChange={e => setForm({ ...form, totalSessions: parseInt(e.target.value) || 1 })} className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-accent" />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-400 mb-1">Validity (days)</label>
+                            <input type="number" min={1} value={form.validityDays} onChange={e => setForm({ ...form, validityDays: parseInt(e.target.value) || 30 })} className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-accent" />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-slate-400 mb-1">Price (₹)</label>
+                            <input type="number" min={0} value={form.price === ('' as any) ? '' : form.price} placeholder="Enter price" onChange={e => { const val = e.target.value; setForm({ ...form, price: val === '' ? ('' as any) : parseFloat(val) }); }} className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-accent placeholder:text-slate-600" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button type="submit" className="inline-flex items-center gap-2 bg-accent hover:bg-accent-light text-primary px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">Update Package</button>
+                          <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setForm(emptyForm); }} className="px-4 py-2.5 text-sm text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.06] transition-colors cursor-pointer">Cancel</button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

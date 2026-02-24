@@ -119,7 +119,10 @@ export default function NotificationsPage() {
             >
               <div className="flex gap-3">
                 <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
-                  n.type === 'ALERT' ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'
+                  n.type === 'ALERT' ? 'bg-red-500/10 text-red-400' :
+                  n.type === 'BOOKING' ? 'bg-green-500/10 text-green-400' :
+                  n.type === 'CANCELLATION' ? 'bg-orange-500/10 text-orange-400' :
+                  'bg-blue-500/10 text-blue-400'
                 }`}>
                   {n.type === 'ALERT' ? <AlertCircle className="w-4 h-4" /> : <Info className="w-4 h-4" />}
                 </div>
@@ -133,9 +136,22 @@ export default function NotificationsPage() {
                       {format(new Date(n.createdAt), 'MMM d, h:mm a')}
                     </div>
                   </div>
-                  <p className={`text-xs leading-relaxed ${n.isRead ? 'text-slate-500' : 'text-slate-300'}`}>
+                  <p className={`text-xs leading-relaxed whitespace-pre-line ${n.isRead ? 'text-slate-500' : 'text-slate-300'}`}>
                     {n.message}
                   </p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                      n.type === 'ALERT' ? 'bg-red-500/10 text-red-400' :
+                      n.type === 'BOOKING' ? 'bg-green-500/10 text-green-400' :
+                      n.type === 'CANCELLATION' ? 'bg-orange-500/10 text-orange-400' :
+                      'bg-blue-500/10 text-blue-400'
+                    }`}>
+                      {n.type === 'ALERT' ? 'Alert' : n.type === 'BOOKING' ? 'Booking' : n.type === 'CANCELLATION' ? 'Cancellation' : 'Info'}
+                    </span>
+                    <span className="text-[10px] text-slate-600">
+                      {format(new Date(n.createdAt), 'EEEE, MMM d, yyyy')}
+                    </span>
+                  </div>
                 </div>
                 {!n.isRead && (
                   <div className="w-2 h-2 rounded-full bg-accent mt-1.5 flex-shrink-0"></div>

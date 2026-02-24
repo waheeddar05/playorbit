@@ -4,6 +4,8 @@ import { requireAdmin } from '@/lib/adminAuth';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { getISTTodayUTC, getISTLastMonthRange, dateStringToUTC } from '@/lib/time';
 
+type MachineIdFilter = 'GRAVITY' | 'YANTRA' | 'LEVERAGE_INDOOR' | 'LEVERAGE_OUTDOOR';
+
 const SAFE_BOOKING_SELECT = {
   id: true,
   userId: true,
@@ -33,6 +35,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const customer = searchParams.get('customer');
     const userId = searchParams.get('userId');
+    const machineId = searchParams.get('machineId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const sortBy = searchParams.get('sortBy') || 'date';
@@ -79,6 +82,10 @@ export async function GET(req: NextRequest) {
 
     if (userId) {
       where.userId = userId;
+    }
+
+    if (machineId) {
+      where.machineId = machineId as MachineIdFilter;
     }
 
     const orderBy: any = [];
@@ -163,6 +170,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Booking ID is required' }, { status: 400 });
     }
 
+    const authUser = await getAuthenticatedUser(req);
+    const adminName = authUser?.name || authUser?.id || 'Admin';
+
     const data: any = {};
 
     // Handle status update
@@ -171,6 +181,14 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid status. Use BOOKED or CANCELLED.' }, { status: 400 });
       }
       data.status = status;
+      if (status === 'CANCELLED') {
+        data.cancelledBy = adminName;
+        data.cancellationReason = `Cancelled by Admin (${adminName})`;
+      } else if (status === 'BOOKED') {
+        // Restoring a booking - clear cancellation info
+        data.cancelledBy = null;
+        data.cancellationReason = null;
+      }
     }
 
     // Handle price update

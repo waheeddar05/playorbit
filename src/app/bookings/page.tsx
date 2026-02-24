@@ -19,6 +19,9 @@ interface Booking {
   extraCharge: number | null;
   operationMode: 'WITH_OPERATOR' | 'SELF_OPERATE';
   cancelledBy: string | null;
+  machineId: string | null;
+  createdAt: string | null;
+  isPackageBooking: boolean;
 }
 
 export default function BookingsPage() {
@@ -81,6 +84,19 @@ export default function BookingsPage() {
     TENNIS: { color: 'bg-green-500', label: 'Tennis' },
     LEATHER: { color: 'bg-red-500', label: 'Leather' },
     MACHINE: { color: 'bg-blue-500', label: 'Machine' },
+  };
+
+  const machineLabels: Record<string, string> = {
+    GRAVITY: 'Gravity',
+    YANTRA: 'Yantra',
+    LEVERAGE_INDOOR: 'Leverage Indoor',
+    LEVERAGE_OUTDOOR: 'Leverage Outdoor',
+  };
+
+  const pitchLabels: Record<string, string> = {
+    ASTRO: 'Astro Turf',
+    CEMENT: 'Cement',
+    NATURAL: 'Natural Turf',
   };
 
   const getDisplayStatus = (booking: Booking): Booking['status'] => {
@@ -182,32 +198,40 @@ export default function BookingsPage() {
                   </span>
                 </div>
 
-                {/* Meta Row */}
-                <div className="flex items-center justify-between gap-3 pt-3 border-t border-white/[0.06]">
-                  <div className="flex items-center gap-3 min-w-0 flex-wrap">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${ballInfo.color}`}></span>
-                      {ballInfo.label}
-                    </div>
-                    {booking.pitchType && (
-                      <>
-                        <span className="text-white/10">|</span>
-                        <span className="text-xs text-slate-400">{booking.pitchType}</span>
-                      </>
-                    )}
-                    <span className="text-white/10">|</span>
-                    <span className="text-xs text-slate-400 truncate">{booking.playerName}</span>
-                    {booking.ballType === 'TENNIS' && (
-                      <>
-                        <span className="text-white/10">|</span>
-                        <span className={`text-xs ${booking.operationMode === 'SELF_OPERATE' ? 'text-orange-400' : 'text-blue-400'}`}>
-                          {booking.operationMode === 'SELF_OPERATE' ? 'Self' : 'Operator'}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                {/* Booking Details */}
+                <div className="flex flex-wrap gap-1.5 pt-3 border-t border-white/[0.06] mb-2">
+                  {booking.machineId && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 font-medium">
+                      {machineLabels[booking.machineId] || booking.machineId}
+                    </span>
+                  )}
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    booking.ballType === 'LEATHER' ? 'bg-red-500/10 text-red-400' :
+                    booking.ballType === 'TENNIS' ? 'bg-green-500/10 text-green-400' :
+                    'bg-blue-500/10 text-blue-400'
+                  }`}>
+                    {ballInfo.label}
+                  </span>
+                  {booking.pitchType && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-300 font-medium">
+                      {pitchLabels[booking.pitchType] || booking.pitchType}
+                    </span>
+                  )}
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    booking.operationMode === 'SELF_OPERATE' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'
+                  }`}>
+                    {booking.operationMode === 'SELF_OPERATE' ? 'Self Operate' : 'With Operator'}
+                  </span>
+                  {booking.isPackageBooking && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-medium">
+                      Package
+                    </span>
+                  )}
+                </div>
 
-                  {/* Price */}
+                {/* Player + Price Row */}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-slate-400 truncate">{booking.playerName}</span>
                   {booking.price != null && (
                     <div className="flex items-center gap-1 shrink-0">
                       <IndianRupee className="w-3 h-3 text-slate-500" />
@@ -215,9 +239,21 @@ export default function BookingsPage() {
                       {hasDiscount && (
                         <span className="text-[10px] text-green-400 line-through ml-1">₹{booking.originalPrice}</span>
                       )}
+                      {booking.extraCharge != null && booking.extraCharge > 0 && (
+                        <span className="text-[10px] text-amber-400 ml-1">+₹{booking.extraCharge}</span>
+                      )}
                     </div>
                   )}
                 </div>
+
+                {/* Booked on */}
+                {booking.createdAt && (
+                  <div className="mt-2 pt-2 border-t border-white/[0.04]">
+                    <span className="text-[10px] text-slate-500">
+                      Booked on {format(new Date(booking.createdAt), 'MMM d, yyyy')} at {new Date(booking.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}

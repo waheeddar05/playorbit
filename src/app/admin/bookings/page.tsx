@@ -39,6 +39,7 @@ function AdminBookingsContent() {
     date: '',
     from: '',
     to: '',
+    machineId: '',
   });
   const [showDateRange, setShowDateRange] = useState(false);
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
@@ -61,6 +62,7 @@ function AdminBookingsContent() {
         params.set('from', filters.from);
         params.set('to', filters.to);
       }
+      if (filters.machineId) params.set('machineId', filters.machineId);
       params.set('page', String(pagination.page));
       params.set('limit', '50');
       params.set('sortBy', sortBy);
@@ -398,7 +400,7 @@ function AdminBookingsContent() {
             {showDateRange ? 'Hide Date Range' : 'Date Range Filter'}
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
             <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">Status</label>
             <select
@@ -410,6 +412,21 @@ function AdminBookingsContent() {
               <option value="">All</option>
               <option value="BOOKED">Booked</option>
               <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">Machine</label>
+            <select
+              name="machineId"
+              value={filters.machineId}
+              onChange={handleFilterChange}
+              className="w-full bg-white/[0.06] border border-white/[0.15] text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 cursor-pointer"
+            >
+              <option value="">All Machines</option>
+              <option value="GRAVITY">Gravity</option>
+              <option value="YANTRA">Yantra</option>
+              <option value="LEVERAGE_INDOOR">Leverage Indoor</option>
+              <option value="LEVERAGE_OUTDOOR">Leverage Outdoor</option>
             </select>
           </div>
           <div>
@@ -547,12 +564,19 @@ function AdminBookingsContent() {
                   {/* Row 2: Date + Time + Price */}
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <span className="text-xs text-slate-400">{format(new Date(booking.date), 'MMM d')}</span>
-                      <span className="text-xs text-white ml-1.5">
-                        {new Date(booking.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
-                        {' - '}
-                        {new Date(booking.endTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      <div>
+                        <span className="text-xs text-slate-400">{format(new Date(booking.date), 'MMM d')}</span>
+                        <span className="text-xs text-white ml-1.5">
+                          {new Date(booking.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
+                          {' - '}
+                          {new Date(booking.endTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {booking.createdAt && (
+                        <div className="text-[9px] text-slate-500 mt-0.5">
+                          Created: {format(new Date(booking.createdAt), 'MMM d, h:mm a')}
+                        </div>
+                      )}
                     </div>
                     {isEditing ? (
                       <div className="flex items-center gap-1">
@@ -650,8 +674,8 @@ function AdminBookingsContent() {
               <thead className="bg-white/[0.02] border-b border-white/[0.06]">
                 <tr>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Customer</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Date</th>
-                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Time</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Date / Time</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Created</th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Type</th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Price</th>
                   <th className="px-5 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
@@ -678,13 +702,21 @@ function AdminBookingsContent() {
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="text-sm text-white">{format(new Date(booking.date), 'MMM d, yyyy')}</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="text-sm text-white">
+                        <div className="text-sm text-white mt-0.5">
                           {new Date(booking.startTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                           {' - '}
                           {new Date(booking.endTime).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                         </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {booking.createdAt ? (
+                          <>
+                            <div className="text-xs text-slate-300">{format(new Date(booking.createdAt), 'MMM d, yyyy')}</div>
+                            <div className="text-[10px] text-slate-500 mt-0.5">{new Date(booking.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}</div>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-slate-500">—</span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5">

@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "StrikeZone",
-  "short_name": "StrikeZone",
+  "name": "PlayOrbit",
+  "short_name": "PlayOrbit",
   "description": "Book professional cricket practice sessions with advanced bowling machines",
   "start_url": "/",
   "display": "standalone",
