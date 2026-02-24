@@ -150,6 +150,7 @@ export const UserPackageSchema = z.object({
   id: z.string(),
   packageName: z.string(),
   machineType: z.string(),
+  machineId: z.string().nullable().optional(),
   ballType: z.string().nullable().optional(),
   wicketType: z.string().nullable().optional(),
   timingType: z.string(),

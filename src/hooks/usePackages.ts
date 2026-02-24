@@ -9,12 +9,14 @@ interface RawAdminPackage {
   package?: {
     name?: string;
     machineType?: string;
+    machineId?: string | null;
     ballType?: string;
     wicketType?: string;
     timingType?: string;
   };
   packageName?: string;
   machineType?: string;
+  machineId?: string | null;
   ballType?: string;
   wicketType?: string;
   timingType?: string;
@@ -31,6 +33,7 @@ function normalizeAdminPackage(up: RawAdminPackage): UserPackage {
     id: up.id,
     packageName: up.package?.name || up.packageName || '',
     machineType: up.package?.machineType || up.machineType || '',
+    machineId: up.package?.machineId || up.machineId || null,
     ballType: up.package?.ballType || up.ballType || null,
     wicketType: up.package?.wicketType || up.wicketType || null,
     timingType: up.package?.timingType || up.timingType || '',
@@ -48,6 +51,7 @@ interface UsePackagesReturn {
   packages: UserPackage[];
   selectedPackageId: string;
   setSelectedPackageId: (id: string) => void;
+  userDeclinedPackage: boolean;
   validation: PackageValidationResponse | null;
   isValidating: boolean;
   fetchPackages: (isAdmin: boolean, userId?: string | null) => Promise<void>;
@@ -58,6 +62,7 @@ interface UsePackagesReturn {
     startTime: string;
     numberOfSlots: number;
     userId?: string | null;
+    machineId?: string;
   }) => Promise<void>;
   reset: () => void;
 }
@@ -65,6 +70,7 @@ interface UsePackagesReturn {
 export function usePackages(): UsePackagesReturn {
   const [packages, setPackages] = useState<UserPackage[]>([]);
   const [selectedPackageId, setSelectedPackageId] = useState('');
+  const [userDeclinedPackage, setUserDeclinedPackage] = useState(false);
   const [validation, setValidation] = useState<PackageValidationResponse | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
@@ -87,6 +93,12 @@ export function usePackages(): UsePackagesReturn {
     }
   }, []);
 
+  // Wraps setSelectedPackageId to track when user explicitly chose "Don't use package"
+  const handleSetSelectedPackageId = useCallback((id: string) => {
+    setSelectedPackageId(id);
+    setUserDeclinedPackage(id === '');
+  }, []);
+
   const validatePackage = useCallback(async (params: {
     userPackageId: string;
     ballType: string;
@@ -94,6 +106,7 @@ export function usePackages(): UsePackagesReturn {
     startTime: string;
     numberOfSlots: number;
     userId?: string | null;
+    machineId?: string;
   }) => {
     if (!params.userPackageId || params.numberOfSlots === 0) {
       setValidation(null);
@@ -109,6 +122,7 @@ export function usePackages(): UsePackagesReturn {
         startTime: params.startTime,
         numberOfSlots: params.numberOfSlots,
         ...(params.userId ? { userId: params.userId } : {}),
+        ...(params.machineId ? { machineId: params.machineId } : {}),
       };
       const data = await api.post<PackageValidationResponse>('/api/packages/validate-booking', body);
       setValidation(data);
@@ -122,12 +136,14 @@ export function usePackages(): UsePackagesReturn {
   const reset = useCallback(() => {
     setSelectedPackageId('');
     setValidation(null);
+    setUserDeclinedPackage(false);
   }, []);
 
   return {
     packages,
     selectedPackageId,
-    setSelectedPackageId,
+    setSelectedPackageId: handleSetSelectedPackageId,
+    userDeclinedPackage,
     validation,
     isValidating,
     fetchPackages,

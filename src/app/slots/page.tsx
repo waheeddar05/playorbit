@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense, useCallback } from 'react';
+import { useState, useEffect, useMemo, Suspense, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
@@ -54,6 +54,9 @@ function SlotsContent() {
   const showPitchSelection = enabledPitchTypes.length > 1;
   const showPitchIndicator = enabledPitchTypes.length === 1;
 
+  // ─── Refs ──────────────────────────────────────────────
+  const hasAutoSelectedMachineRef = useRef(false);
+
   // ─── Hooks ─────────────────────────────────────────────
   const { slots, loading, error, fetchSlots } = useSlots();
   const pkg = usePackages();
@@ -96,6 +99,7 @@ function SlotsContent() {
         startTime: selectedSlots[0].startTime,
         numberOfSlots: selectedSlots.length,
         userId: isBookingForOther ? userId : undefined,
+        machineId: selectedMachineId,
       });
     } else {
       // Reset validation
@@ -107,20 +111,31 @@ function SlotsContent() {
         numberOfSlots: 0,
       });
     }
-  }, [selectedSlots, pkg.selectedPackageId]);
+  }, [selectedSlots, pkg.selectedPackageId, selectedMachineId]);
 
   // ─── Auto-select compatible package ────────────────────
   useEffect(() => {
-    if (pkg.packages.length > 0 && selectedSlots.length > 0 && !pkg.selectedPackageId) {
-      const compatible = pkg.packages.find(up => {
-        const machineCompatible =
-          (up.machineType === 'LEATHER' && isLeatherMachine) ||
-          (up.machineType === 'TENNIS' && !isLeatherMachine);
-        return up.status === 'ACTIVE' && up.remainingSessions >= selectedSlots.length && machineCompatible;
-      });
-      if (compatible) pkg.setSelectedPackageId(compatible.id);
-    }
-  }, [pkg.packages, selectedSlots, pkg.selectedPackageId, isLeatherMachine]);
+    // Don't auto-select if user explicitly chose "Don't use package"
+    if (pkg.userDeclinedPackage) return;
+    if (pkg.packages.length === 0 || selectedSlots.length === 0 || pkg.selectedPackageId) return;
+
+    // Prefer exact machine match (package has specific machineId matching selected machine)
+    const exactMatch = pkg.packages.find(up =>
+      up.status === 'ACTIVE' && up.remainingSessions >= selectedSlots.length && up.machineId === selectedMachineId
+    );
+
+    // Fall back to category match, but only for packages without a specific machineId
+    const categoryMatch = !exactMatch ? pkg.packages.find(up => {
+      if (up.machineId) return false; // Skip packages tied to a different specific machine
+      const machineCompatible =
+        (up.machineType === 'LEATHER' && isLeatherMachine) ||
+        (up.machineType === 'TENNIS' && !isLeatherMachine);
+      return up.status === 'ACTIVE' && up.remainingSessions >= selectedSlots.length && machineCompatible;
+    }) : null;
+
+    const compatible = exactMatch || categoryMatch;
+    if (compatible) pkg.setSelectedPackageId(compatible.id);
+  }, [pkg.packages, selectedSlots, pkg.selectedPackageId, isLeatherMachine, selectedMachineId, pkg.userDeclinedPackage]);
 
   // ─── Auto-switch to SELF_OPERATE if needed ─────────────
   useEffect(() => {
@@ -153,6 +168,24 @@ function SlotsContent() {
     const info = machineConfig?.machines?.find(m => m.id === machineId);
     setPitchType(info?.enabledPitchTypes?.[0] || 'ASTRO');
   }, [machineConfig, pkg]);
+
+  // ─── Auto-select machine based on user's package ───────
+  useEffect(() => {
+    if (hasAutoSelectedMachineRef.current || pkg.packages.length === 0) return;
+
+    // Find first active package with a specific machineId
+    const packageWithMachine = pkg.packages.find(
+      up => up.status === 'ACTIVE' && up.remainingSessions > 0 && up.machineId
+    );
+
+    if (packageWithMachine?.machineId) {
+      const machineId = packageWithMachine.machineId as MachineId;
+      if (machineId !== selectedMachineId) {
+        handleMachineSelect(machineId);
+      }
+    }
+    hasAutoSelectedMachineRef.current = true;
+  }, [pkg.packages, handleMachineSelect, selectedMachineId]);
 
   const getSlotOperationMode = (slot: AvailableSlot): OperationMode => {
     if (isLeatherMachine) return 'WITH_OPERATOR';

@@ -74,6 +74,7 @@ function formatUserPackage(up: any) {
     id: up.id,
     packageName: up.package.name,
     machineType: up.package.machineType,
+    machineId: up.package.machineId || null,
     ballType: up.package.ballType,
     wicketType: up.package.wicketType,
     timingType: up.package.timingType,
