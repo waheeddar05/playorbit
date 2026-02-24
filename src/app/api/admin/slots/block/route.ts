@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { dateStringToUTC } from '@/lib/time';
-import { isValidMachineId, LEATHER_MACHINES } from '@/lib/constants';
+import { dateStringToUTC, formatIST } from '@/lib/time';
+import { isValidMachineId, LEATHER_MACHINES, MACHINES } from '@/lib/constants';
 import type { MachineId } from '@prisma/client';
 
 // GET /api/admin/slots/block - List blocked slots
@@ -158,16 +158,26 @@ export async function POST(req: NextRequest) {
             }
           })
         ),
-        ...bookingsToCancel.filter(b => b.userId).map(booking =>
-          prisma.notification.create({
+        ...bookingsToCancel.filter(b => b.userId).map(booking => {
+          const dateStr = formatIST(new Date(booking.date), 'EEE, dd MMM yyyy');
+          const timeStr = formatIST(new Date(booking.startTime), 'hh:mm a');
+          const endStr = formatIST(new Date(booking.endTime), 'hh:mm a');
+          const machineName = booking.machineId ? (MACHINES[booking.machineId]?.shortName || booking.machineId) : booking.ballType;
+          const lines = [
+            `${dateStr}`,
+            `${timeStr} – ${endStr}`,
+            `Machine: ${machineName}`,
+            `Reason: ${reason || 'Maintenance'}`,
+          ];
+          return prisma.notification.create({
             data: {
               userId: booking.userId as string,
               title: 'Booking Cancelled by Admin',
-              message: displayReason,
-              type: 'ALERT',
+              message: lines.join('\n'),
+              type: 'CANCELLATION',
             }
-          })
-        )
+          });
+        })
       ]);
 
       // Restore package sessions for cancelled bookings

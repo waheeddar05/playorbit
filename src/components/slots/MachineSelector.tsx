@@ -31,7 +31,7 @@ export function MachineSelector({ selectedMachineId, onSelect }: MachineSelector
       </div>
 
       {/* Tennis Machines */}
-      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         {tennisMachines.map((card) => (
           <MachineCardButton
             key={card.id}

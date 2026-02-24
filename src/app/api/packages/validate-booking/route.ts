@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { userPackageId, ballType, pitchType, startTime, numberOfSlots = 1, userId: targetUserId } = body;
+    const { userPackageId, ballType, pitchType, startTime, numberOfSlots = 1, userId: targetUserId, machineId } = body;
 
     if (!userPackageId || !ballType || !startTime) {
       return NextResponse.json({ error: 'userPackageId, ballType, and startTime are required' }, { status: 400 });
@@ -27,7 +27,9 @@ export async function POST(req: NextRequest) {
       ballType as BallType,
       (pitchType as PitchType) || null,
       new Date(startTime),
-      numberOfSlots
+      numberOfSlots,
+      undefined,
+      machineId || null
     );
 
     return NextResponse.json(result);

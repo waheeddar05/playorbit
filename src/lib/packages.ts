@@ -7,6 +7,7 @@ export interface ExtraChargeRules {
   wicketTypeUpgrade?: number; // Legacy: flat per half-hour for any wicket upgrade
   wicketTypeUpgrades?: Record<string, number>; // Per-path: e.g. { ASTRO_TO_CEMENT: 50, ASTRO_TO_NATURAL: 75 }
   timingUpgrade?: number;     // e.g. 125 per half-hour for day→evening upgrade
+  machineUpgrades?: Record<string, number>; // Per-path: e.g. { GRAVITY_TO_YANTRA: 200 }
 }
 
 /**
@@ -88,6 +89,27 @@ export function getWicketTypeExtraCharge(
 }
 
 /**
+ * Determine extra charge for machine upgrade.
+ * If the booking is on a different (higher-tier) machine than the package, apply the upgrade charge.
+ */
+export function getMachineExtraCharge(
+  packageMachineId: string | null,
+  bookingMachineId: string | null,
+  extraChargeRules: ExtraChargeRules
+): number {
+  if (!packageMachineId || !bookingMachineId) return 0;
+  if (packageMachineId === bookingMachineId) return 0;
+
+  if (extraChargeRules.machineUpgrades) {
+    const key = `${packageMachineId}_TO_${bookingMachineId}`;
+    const pathPrice = extraChargeRules.machineUpgrades[key];
+    if (pathPrice !== undefined && pathPrice > 0) return pathPrice;
+  }
+
+  return 0;
+}
+
+/**
  * Determine extra charge for timing upgrade.
  * Evening Package → can book Day or Evening (no charge)
  * Day Package → can book Day (no charge) or Evening (extra charge)
@@ -113,6 +135,7 @@ export function getTimingExtraCharge(
  */
 export function calculatePackageExtraCharge(
   pkg: {
+    machineId?: string | null;
     machineType: MachineType;
     ballType: PackageBallType | null;
     wicketType: PackageWicketType | null;
@@ -120,20 +143,22 @@ export function calculatePackageExtraCharge(
     extraChargeRules: ExtraChargeRules | null;
   },
   booking: {
+    machineId?: string | null;
     ballType: BallType;
     pitchType: PitchType | null;
     slotTimeSlab: 'morning' | 'evening';
   }
-): { totalExtra: number; breakdown: { ballTypeExtra: number; wicketTypeExtra: number; timingExtra: number } } {
+): { totalExtra: number; breakdown: { ballTypeExtra: number; wicketTypeExtra: number; timingExtra: number; machineExtra: number } } {
   const rules = pkg.extraChargeRules || {};
 
   const ballTypeExtra = getBallTypeExtraCharge(pkg.ballType, booking.ballType, rules);
   const wicketTypeExtra = getWicketTypeExtraCharge(pkg.wicketType, booking.pitchType, rules);
   const timingExtra = getTimingExtraCharge(pkg.timingType, booking.slotTimeSlab, rules);
+  const machineExtra = getMachineExtraCharge(pkg.machineId || null, booking.machineId || null, rules);
 
   return {
-    totalExtra: ballTypeExtra + wicketTypeExtra + timingExtra,
-    breakdown: { ballTypeExtra, wicketTypeExtra, timingExtra },
+    totalExtra: ballTypeExtra + wicketTypeExtra + timingExtra + machineExtra,
+    breakdown: { ballTypeExtra, wicketTypeExtra, timingExtra, machineExtra },
   };
 }
 
@@ -183,13 +208,14 @@ export async function validatePackageBooking(
   bookingPitchType: PitchType | null,
   slotStartTime: Date,
   numberOfSlots: number = 1,
-  timeSlabConfig?: TimeSlabConfig
+  timeSlabConfig?: TimeSlabConfig,
+  bookingMachineId?: string | null
 ): Promise<{
   valid: boolean;
   error?: string;
   extraCharge?: number;
   extraChargeType?: string;
-  breakdown?: { ballTypeExtra: number; wicketTypeExtra: number; timingExtra: number };
+  breakdown?: { ballTypeExtra: number; wicketTypeExtra: number; timingExtra: number; machineExtra: number };
 }> {
   const now = new Date();
 
@@ -240,6 +266,7 @@ export async function validatePackageBooking(
 
   const { totalExtra, breakdown } = calculatePackageExtraCharge(
     {
+      machineId: userPackage.package.machineId,
       machineType: userPackage.package.machineType,
       ballType: userPackage.package.ballType,
       wicketType: userPackage.package.wicketType,
@@ -247,6 +274,7 @@ export async function validatePackageBooking(
       extraChargeRules: userPackage.package.extraChargeRules as ExtraChargeRules | null,
     },
     {
+      machineId: bookingMachineId || null,
       ballType: bookingBallType,
       pitchType: bookingPitchType,
       slotTimeSlab,
@@ -255,7 +283,8 @@ export async function validatePackageBooking(
 
   // Determine extra charge type for record
   let extraChargeType: string | undefined;
-  if (breakdown.ballTypeExtra > 0) extraChargeType = 'BALL_TYPE';
+  if (breakdown.machineExtra > 0) extraChargeType = 'MACHINE';
+  else if (breakdown.ballTypeExtra > 0) extraChargeType = 'BALL_TYPE';
   else if (breakdown.wicketTypeExtra > 0) extraChargeType = 'WICKET_TYPE';
   else if (breakdown.timingExtra > 0) extraChargeType = 'TIMING';
 

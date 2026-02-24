@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/adminAuth';
 import { getAuthenticatedUser } from '@/lib/auth';
-import { getISTTodayUTC, getISTLastMonthRange, dateStringToUTC } from '@/lib/time';
+import { getISTTodayUTC, getISTLastMonthRange, dateStringToUTC, formatIST } from '@/lib/time';
+import { MACHINES } from '@/lib/constants';
 
 type MachineIdFilter = 'GRAVITY' | 'YANTRA' | 'LEVERAGE_INDOOR' | 'LEVERAGE_OUTDOOR';
 
@@ -207,10 +208,36 @@ export async function PATCH(req: NextRequest) {
     const booking = await prisma.booking.update({
       where: { id: bookingId },
       data,
-      select: { id: true, status: true, price: true },
+      include: { user: { select: { id: true } } },
     });
 
-    return NextResponse.json(booking);
+    // Send notification when booking is cancelled by admin
+    if (status === 'CANCELLED' && booking.userId) {
+      try {
+        const dateStr = formatIST(new Date(booking.date), 'EEE, dd MMM yyyy');
+        const timeStr = formatIST(new Date(booking.startTime), 'hh:mm a');
+        const endStr = formatIST(new Date(booking.endTime), 'hh:mm a');
+        const machineName = booking.machineId ? (MACHINES[booking.machineId as keyof typeof MACHINES]?.shortName || booking.machineId) : booking.ballType;
+        const lines = [
+          `${dateStr}`,
+          `${timeStr} – ${endStr}`,
+          `Machine: ${machineName}`,
+          `Cancelled by: ${adminName}`,
+        ];
+        await prisma.notification.create({
+          data: {
+            userId: booking.userId,
+            title: 'Booking Cancelled',
+            message: lines.join('\n'),
+            type: 'CANCELLATION',
+          },
+        });
+      } catch (notifErr) {
+        console.error('Failed to create cancellation notification:', notifErr);
+      }
+    }
+
+    return NextResponse.json({ id: booking.id, status: booking.status, price: booking.price });
   } catch (error: any) {
     console.error('Admin booking update error:', error);
     return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 });

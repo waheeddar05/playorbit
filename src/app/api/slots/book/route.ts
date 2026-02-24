@@ -5,9 +5,9 @@ import { isAfter, isValid } from 'date-fns';
 import { getAuthenticatedUser } from '@/lib/auth';
 import {
   getRelevantBallTypes, isValidBallType, MACHINE_A_BALLS,
-  isValidMachineId, getBallTypeForMachine, getMachineCategory, LEATHER_MACHINES,
+  isValidMachineId, getBallTypeForMachine, getMachineCategory, LEATHER_MACHINES, MACHINES,
 } from '@/lib/constants';
-import { dateStringToUTC } from '@/lib/time';
+import { dateStringToUTC, formatIST } from '@/lib/time';
 import { getPricingConfig, getTimeSlabConfig, calculateNewPricing } from '@/lib/pricing';
 import { validatePackageBooking } from '@/lib/packages';
 
@@ -303,7 +303,8 @@ export async function POST(req: NextRequest) {
         firstSlot.pitchType,
         firstSlot.startTime,
         validatedSlots.length,
-        timeSlabConfig
+        timeSlabConfig,
+        firstSlot.machineId
       );
 
       if (!packageValidation.valid) {
@@ -522,6 +523,37 @@ export async function POST(req: NextRequest) {
           usedSessions: { increment: validatedSlots.length },
         },
       });
+    }
+
+    // Create booking confirmation notification
+    try {
+      const firstSlot = validatedSlots[0];
+      const machineName = firstSlot.machineId ? MACHINES[firstSlot.machineId]?.shortName : (firstBallType === 'TENNIS' ? 'Tennis' : 'Leather');
+      const dateStr = formatIST(firstSlot.date, 'EEE, dd MMM yyyy');
+      const timeStr = formatIST(firstSlot.startTime, 'hh:mm a');
+      const endTimeStr = formatIST(validatedSlots[validatedSlots.length - 1].endTime, 'hh:mm a');
+      const totalPrice = pricing.reduce((sum, p) => sum + p.price, 0);
+      const slotCount = validatedSlots.length;
+
+      const lines = [
+        `${dateStr}`,
+        `${timeStr} – ${endTimeStr} (${slotCount} slot${slotCount > 1 ? 's' : ''})`,
+        `Machine: ${machineName}`,
+      ];
+      if (firstSlot.pitchType) lines.push(`Pitch: ${firstSlot.pitchType}`);
+      if (!userPackageId) lines.push(`Price: ₹${totalPrice}`);
+      if (userPackageId) lines.push('Booked via package');
+
+      await prisma.notification.create({
+        data: {
+          userId: userId!,
+          title: 'Booking Confirmed',
+          message: lines.join('\n'),
+          type: 'BOOKING',
+        },
+      });
+    } catch (notifErr) {
+      console.error('Failed to create booking notification:', notifErr);
     }
 
     return NextResponse.json(Array.isArray(body) ? results : results[0]);

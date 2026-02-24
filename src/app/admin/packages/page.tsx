@@ -37,9 +37,18 @@ const ALL_WICKET_UPGRADE_PATHS = [
   { from: 'CEMENT', to: 'NATURAL', label: 'Cement → Natural Turf' },
 ];
 
+// All possible machine upgrade paths
+const ALL_MACHINE_UPGRADE_PATHS = [
+  { from: 'GRAVITY', to: 'YANTRA', label: 'Gravity → Yantra' },
+  { from: 'YANTRA', to: 'GRAVITY', label: 'Yantra → Gravity' },
+  { from: 'LEVERAGE_INDOOR', to: 'LEVERAGE_OUTDOOR', label: 'Leverage Indoor → Outdoor' },
+  { from: 'LEVERAGE_OUTDOOR', to: 'LEVERAGE_INDOOR', label: 'Leverage Outdoor → Indoor' },
+];
+
 const defaultExtraChargeRules = {
   ballTypeUpgrade: 100,
   wicketTypeUpgrades: {} as Record<string, number>,
+  machineUpgrades: {} as Record<string, number>,
   timingUpgrade: 125,
 };
 
@@ -168,6 +177,7 @@ export default function AdminPackages() {
       wicketTypeUpgrades = {};
       ALL_WICKET_UPGRADE_PATHS.forEach(p => { wicketTypeUpgrades[`${p.from}_TO_${p.to}`] = rules.wicketTypeUpgrade; });
     }
+    const machineUpgrades = rules.machineUpgrades || {};
     setForm({
       name: pkg.name,
       machineId: storedMachineId,
@@ -178,7 +188,7 @@ export default function AdminPackages() {
       totalSessions: pkg.totalSessions,
       validityDays: pkg.validityDays,
       price: pkg.price,
-      extraChargeRules: { ...rules, wicketTypeUpgrades },
+      extraChargeRules: { ...rules, wicketTypeUpgrades, machineUpgrades },
       isActive: pkg.isActive,
     });
     setEditingId(pkg.id);
@@ -451,6 +461,41 @@ export default function AdminPackages() {
                       })}
                     </div>
                   </div>
+
+                  {/* Machine Upgrade Options */}
+                  <div className="mt-3">
+                    <label className="block text-[10px] text-slate-500 mb-2">Machine Upgrade Options (₹ per half-hour slot)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ALL_MACHINE_UPGRADE_PATHS.map(path => {
+                        const key = `${path.from}_TO_${path.to}`;
+                        return (
+                          <div key={key} className="bg-white/[0.02] rounded-lg p-2.5 border border-white/[0.06]">
+                            <label className="block text-[10px] text-accent/80 font-medium mb-1">{path.label}</label>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500">₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                value={form.extraChargeRules.machineUpgrades?.[key] || 0}
+                                onChange={e => setForm({
+                                  ...form,
+                                  extraChargeRules: {
+                                    ...form.extraChargeRules,
+                                    machineUpgrades: {
+                                      ...form.extraChargeRules.machineUpgrades,
+                                      [key]: parseFloat(e.target.value) || 0,
+                                    },
+                                  },
+                                })}
+                                placeholder="0"
+                                className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 <button
@@ -574,6 +619,106 @@ export default function AdminPackages() {
                             <input type="number" min={0} value={form.price === ('' as any) ? '' : form.price} placeholder="Enter price" onChange={e => { const val = e.target.value; setForm({ ...form, price: val === '' ? ('' as any) : parseFloat(val) }); }} className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2.5 text-sm text-white outline-none focus:border-accent placeholder:text-slate-600" />
                           </div>
                         </div>
+
+                        {/* Extra Charge Rules */}
+                        <div>
+                          <label className="block text-[11px] font-medium text-slate-400 mb-2">Extra Charge Rules (₹ per half-hour slot)</label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {isLeatherMachine(form.machineId) && (
+                              <div>
+                                <label className="block text-[10px] text-slate-500 mb-1">Ball Type Upgrade (Machine → Leather)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={form.extraChargeRules.ballTypeUpgrade}
+                                  onChange={e => setForm({ ...form, extraChargeRules: { ...form.extraChargeRules, ballTypeUpgrade: parseFloat(e.target.value) || 0 } })}
+                                  className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                                />
+                              </div>
+                            )}
+                            <div>
+                              <label className="block text-[10px] text-slate-500 mb-1">Timing Upgrade (Day → Evening)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={form.extraChargeRules.timingUpgrade}
+                                onChange={e => setForm({ ...form, extraChargeRules: { ...form.extraChargeRules, timingUpgrade: parseFloat(e.target.value) || 0 } })}
+                                className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Pitch Upgrade Options */}
+                          <div className="mt-3">
+                            <label className="block text-[10px] text-slate-500 mb-2">Pitch Upgrade Options (₹ per half-hour slot)</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              {ALL_WICKET_UPGRADE_PATHS.map(path => {
+                                const key = `${path.from}_TO_${path.to}`;
+                                return (
+                                  <div key={key} className="bg-white/[0.02] rounded-lg p-2.5 border border-white/[0.06]">
+                                    <label className="block text-[10px] text-accent/80 font-medium mb-1">{path.label}</label>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] text-slate-500">₹</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={form.extraChargeRules.wicketTypeUpgrades?.[key] || 0}
+                                        onChange={e => setForm({
+                                          ...form,
+                                          extraChargeRules: {
+                                            ...form.extraChargeRules,
+                                            wicketTypeUpgrades: {
+                                              ...form.extraChargeRules.wicketTypeUpgrades,
+                                              [key]: parseFloat(e.target.value) || 0,
+                                            },
+                                          },
+                                        })}
+                                        placeholder="0"
+                                        className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Machine Upgrade Options */}
+                          <div className="mt-3">
+                            <label className="block text-[10px] text-slate-500 mb-2">Machine Upgrade Options (₹ per half-hour slot)</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {ALL_MACHINE_UPGRADE_PATHS.map(path => {
+                                const key = `${path.from}_TO_${path.to}`;
+                                return (
+                                  <div key={key} className="bg-white/[0.02] rounded-lg p-2.5 border border-white/[0.06]">
+                                    <label className="block text-[10px] text-accent/80 font-medium mb-1">{path.label}</label>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] text-slate-500">₹</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={form.extraChargeRules.machineUpgrades?.[key] || 0}
+                                        onChange={e => setForm({
+                                          ...form,
+                                          extraChargeRules: {
+                                            ...form.extraChargeRules,
+                                            machineUpgrades: {
+                                              ...form.extraChargeRules.machineUpgrades,
+                                              [key]: parseFloat(e.target.value) || 0,
+                                            },
+                                          },
+                                        })}
+                                        placeholder="0"
+                                        className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent"
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="flex gap-2">
                           <button type="submit" className="inline-flex items-center gap-2 bg-accent hover:bg-accent-light text-primary px-5 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">Update Package</button>
                           <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setForm(emptyForm); }} className="px-4 py-2.5 text-sm text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.06] transition-colors cursor-pointer">Cancel</button>
