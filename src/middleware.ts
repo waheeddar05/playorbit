@@ -23,10 +23,6 @@ export async function middleware(req: NextRequest) {
     pathname === "/sw.js" ||
     pathname === "/manifest.json";
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`Middleware: ${pathname}, isPublic: ${isPublicPath}`);
-  }
-
   if (isPublicPath) {
     // If the user is logged in and tries to access login or otp page, redirect to slots
     if (pathname === "/login" || pathname === "/otp") {
@@ -35,7 +31,6 @@ export async function middleware(req: NextRequest) {
       const otpToken = otpTokenStr ? verifyToken(otpTokenStr) as any : null;
 
       if (token || otpToken) {
-        console.log(`Middleware: Authenticated user on ${pathname}, redirecting to /slots`);
         return NextResponse.redirect(new URL("/slots", req.url));
       }
     }
@@ -48,10 +43,6 @@ export async function middleware(req: NextRequest) {
   // Check for custom OTP token in cookies
   const otpTokenStr = req.cookies.get("token")?.value;
   const otpToken = otpTokenStr ? verifyToken(otpTokenStr) as any : null;
-
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`Middleware: ${pathname}, token: ${!!token}, otpToken: ${!!otpToken}`);
-  }
 
   if (!token && !otpToken) {
     const loginUrl = new URL("/login", req.url);

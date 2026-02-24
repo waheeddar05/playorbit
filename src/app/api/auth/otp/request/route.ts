@@ -49,16 +49,7 @@ export async function POST_DISABLED(req: NextRequest) {
     // Send OTP via SMS
     const smsResult = await sendSMS(mobileNumber, otp);
     
-    const message = `[DEBUG] OTP for ${mobileNumber}: ${otp}`;
-    console.log(message);
-    if (!smsResult.success) {
-      console.warn('SMS sending failed, but continuing for debug purposes in console.');
-    }
-
-    return NextResponse.json({ 
-      message: 'OTP sent successfully',
-      debugMessage: process.env.NODE_ENV === 'development' ? message : undefined 
-    });
+    return NextResponse.json({ message: 'OTP sent successfully' });
   } catch (error) {
     console.error('OTP request error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
