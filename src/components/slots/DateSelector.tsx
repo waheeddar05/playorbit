@@ -25,11 +25,10 @@ export function DateSelector({ selectedDate, onSelect, daysAhead = 7 }: DateSele
             <button
               key={days}
               onClick={() => onSelect(date)}
-              className={`flex-shrink-0 w-16 py-3 rounded-xl text-center transition-all cursor-pointer ${
-                isSelected
+              className={`flex-shrink-0 w-16 py-3 rounded-xl text-center transition-all cursor-pointer ${isSelected
                   ? 'bg-accent text-primary shadow-md shadow-accent/20'
                   : 'bg-white/[0.04] text-slate-300 border border-white/[0.08] hover:border-accent/30'
-              }`}
+                }`}
             >
               <div className={`text-[10px] uppercase font-medium ${isSelected ? 'text-primary/70' : 'text-slate-500'}`}>
                 {isToday ? 'Today' : format(date, 'EEE')}

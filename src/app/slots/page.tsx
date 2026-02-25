@@ -17,6 +17,8 @@ import { useSlots } from '@/hooks/useSlots';
 import { usePackages } from '@/hooks/usePackages';
 import { usePricing } from '@/hooks/usePricing';
 import { api } from '@/lib/api-client';
+import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { MACHINE_CARDS, PITCH_TYPE_LABELS, getMachineCard } from '@/lib/client-constants';
 import type { MachineId, MachineConfig, AvailableSlot, OperationMode } from '@/lib/schemas';
 
@@ -37,6 +39,8 @@ function SlotsContent() {
   const [operationMode, setOperationMode] = useState<OperationMode>('WITH_OPERATOR');
   const [selectedSlots, setSelectedSlots] = useState<AvailableSlot[]>([]);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [machineConfig, setMachineConfig] = useState<MachineConfig | null>(null);
 
   const { data: session } = useSession();
@@ -73,7 +77,7 @@ function SlotsContent() {
   useEffect(() => {
     api.get<MachineConfig>('/api/machine-config')
       .then(setMachineConfig)
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // ─── Fetch packages when session is ready ──────────────
@@ -198,7 +202,7 @@ function SlotsContent() {
   const handleBook = async () => {
     if (selectedSlots.length === 0) return;
     if (pkg.selectedPackageId && pkg.validation && !pkg.validation.valid) {
-      alert(pkg.validation.error || 'Selected package is not valid for this booking');
+      toast.error('Invalid Package', pkg.validation.error || 'Selected package is not valid for this booking');
       return;
     }
 
@@ -210,14 +214,20 @@ function SlotsContent() {
     let confirmMessage = isBookingForOther
       ? `Book ${selectedSlots.length} slot(s) for ${userName}?`
       : pkg.selectedPackageId
-        ? `Book ${selectedSlots.length} slot(s) using package? ${total > 0 ? `Extra charge: ₹${total}` : ''}`
+        ? `Book ${selectedSlots.length} slot(s) using package?${total > 0 ? ` Extra charge: ₹${total}` : ''}`
         : `Book ${selectedSlots.length} slot(s) for ₹${total.toLocaleString()}?`;
 
     if (selfOperateSlots > 0) {
-      confirmMessage += `\n\n⚠️ WARNING: ${selfOperateSlots} slot(s) will be Self Operate (no machine operator provided). You must operate the machine yourself.`;
+      confirmMessage += `\n\n⚠️ ${selfOperateSlots} slot(s) will be Self Operate — you must operate the machine yourself.`;
     }
 
-    if (!window.confirm(confirmMessage)) return;
+    const confirmed = await confirm({
+      title: 'Confirm Booking',
+      message: confirmMessage,
+      confirmLabel: 'Book Now',
+      variant: selfOperateSlots > 0 ? 'warning' : 'default',
+    });
+    if (!confirmed) return;
 
     setBookingLoading(true);
     try {
@@ -234,13 +244,13 @@ function SlotsContent() {
         ...(pitchType ? { pitchType } : {}),
       })));
 
-      alert('Booking successful!');
+      toast.success('Booking Successful!', `${selectedSlots.length} slot(s) booked successfully.`);
       setSelectedSlots([]);
       pkg.reset();
       fetchSlots(selectedDate, selectedMachineId, ballType, pitchType);
       pkg.fetchPackages(isBookingForOther, userId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Booking failed');
+      toast.error('Booking Failed', err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setBookingLoading(false);
     }

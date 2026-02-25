@@ -141,11 +141,10 @@ function ToggleButton({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-        isActive
+      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${isActive
           ? 'bg-accent text-primary shadow-sm'
           : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'
-      }`}
+        }`}
     >
       {label}
     </button>

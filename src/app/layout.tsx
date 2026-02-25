@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import { Providers } from "@/components/Providers";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 import PWARegister from "@/components/PWARegister";
 import "./globals.css";
 
@@ -63,16 +64,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0a1628] min-h-screen`}
       >
         <Providers>
           <ToastProvider>
-            <ErrorBoundary>
-              <Navbar />
-              <main className="safe-bottom">{children}</main>
-            </ErrorBoundary>
+            <ConfirmProvider>
+              <ErrorBoundary>
+                <Navbar />
+                <main className="safe-bottom animate-page-enter">{children}</main>
+              </ErrorBoundary>
+            </ConfirmProvider>
           </ToastProvider>
           <PWARegister />
         </Providers>

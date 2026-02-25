@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ClipboardList, Loader2, X, Calendar, Clock, IndianRupee, Phone, Instagram } from 'lucide-react';
+import { BookingSkeleton } from '@/components/ui/LoadingState';
+import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import Link from 'next/link';
 
 interface Booking {
   id: string;
@@ -24,11 +28,16 @@ interface Booking {
   isPackageBooking: boolean;
 }
 
+type TabFilter = 'ALL' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabFilter>('ALL');
+  const toast = useToast();
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     fetchBookings();
@@ -50,7 +59,14 @@ export default function BookingsPage() {
   };
 
   const handleCancel = async (bookingId: string) => {
-    if (!confirm('Are you sure you want to cancel this booking?')) return;
+    const confirmed = await confirm({
+      title: 'Cancel Booking',
+      message: 'Are you sure you want to cancel this booking? This action cannot be undone.',
+      confirmLabel: 'Yes, Cancel',
+      cancelLabel: 'Keep Booking',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     setCancellingId(bookingId);
     try {
@@ -65,19 +81,19 @@ export default function BookingsPage() {
         throw new Error(data.error || 'Cancellation failed');
       }
 
-      alert('Booking cancelled successfully');
+      toast.success('Booking Cancelled', 'Your booking has been cancelled successfully.');
       fetchBookings();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      toast.error('Cancellation Failed', err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setCancellingId(null);
     }
   };
 
   const statusConfig = {
-    BOOKED: { label: 'Upcoming', bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-500' },
-    DONE: { label: 'Completed', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-500' },
-    CANCELLED: { label: 'Cancelled', bg: 'bg-white/[0.04]', text: 'text-slate-400', dot: 'bg-slate-500' },
+    BOOKED: { label: 'Upcoming', bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-500', border: 'border-l-green-500' },
+    DONE: { label: 'Completed', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-500', border: 'border-l-blue-500' },
+    CANCELLED: { label: 'Cancelled', bg: 'bg-white/[0.04]', text: 'text-slate-400', dot: 'bg-slate-500', border: 'border-l-slate-500' },
   };
 
   const ballTypeConfig: Record<string, { color: string; label: string }> = {
@@ -104,6 +120,24 @@ export default function BookingsPage() {
     return new Date(booking.endTime).getTime() <= Date.now() ? 'DONE' : 'BOOKED';
   };
 
+  // ─── Filter bookings by tab ────────────────────────────
+  const filteredBookings = bookings.filter(booking => {
+    const displayStatus = getDisplayStatus(booking);
+    switch (activeTab) {
+      case 'UPCOMING': return displayStatus === 'BOOKED';
+      case 'COMPLETED': return displayStatus === 'DONE';
+      case 'CANCELLED': return displayStatus === 'CANCELLED';
+      default: return true;
+    }
+  });
+
+  const tabs: { key: TabFilter; label: string; count: number }[] = [
+    { key: 'ALL', label: 'All', count: bookings.length },
+    { key: 'UPCOMING', label: 'Upcoming', count: bookings.filter(b => getDisplayStatus(b) === 'BOOKED').length },
+    { key: 'COMPLETED', label: 'Completed', count: bookings.filter(b => getDisplayStatus(b) === 'DONE').length },
+    { key: 'CANCELLED', label: 'Cancelled', count: bookings.filter(b => getDisplayStatus(b) === 'CANCELLED').length },
+  ];
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-5">
       {/* Background gradient */}
@@ -111,7 +145,7 @@ export default function BookingsPage() {
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(212,168,67,0.05),transparent_60%)]"></div>
 
       {/* Page Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
           <ClipboardList className="w-5 h-5 text-accent" />
         </div>
@@ -121,23 +155,56 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <Loader2 className="w-6 h-6 animate-spin mb-2" />
-          <span className="text-sm">Loading bookings...</span>
+      {/* Tab Filters */}
+      {!loading && bookings.length > 0 && (
+        <div className="flex gap-1 mb-5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-shrink-0 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${activeTab === tab.key
+                  ? 'bg-accent text-primary shadow-sm shadow-accent/20'
+                  : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:border-accent/20'
+                }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`ml-1.5 text-[10px] ${activeTab === tab.key ? 'text-primary/70' : 'text-slate-500'
+                  }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
+      )}
+
+      {loading ? (
+        <BookingSkeleton />
       ) : error ? (
         <div className="text-center py-20">
           <p className="text-red-400 text-sm">{error}</p>
           <button onClick={fetchBookings} className="mt-3 text-sm text-accent font-medium cursor-pointer">Try again</button>
         </div>
-      ) : bookings.length === 0 ? (
+      ) : filteredBookings.length === 0 ? (
         <div className="text-center py-20">
           <div className="w-14 h-14 rounded-2xl bg-white/[0.04] flex items-center justify-center mx-auto mb-4">
             <ClipboardList className="w-6 h-6 text-slate-500" />
           </div>
-          <p className="text-sm font-medium text-slate-300 mb-1">No bookings yet</p>
-          <p className="text-xs text-slate-500">Book your first practice session to get started</p>
+          {activeTab === 'ALL' && bookings.length === 0 ? (
+            <>
+              <p className="text-sm font-medium text-slate-300 mb-1">No bookings yet</p>
+              <p className="text-xs text-slate-500 mb-4">Book your first practice session to get started</p>
+              <Link
+                href="/slots"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-primary rounded-xl font-semibold text-sm hover:bg-accent-light transition-all"
+              >
+                Book Your First Session →
+              </Link>
+            </>
+          ) : (
+            <p className="text-sm font-medium text-slate-300">No {activeTab.toLowerCase()} bookings</p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -148,7 +215,7 @@ export default function BookingsPage() {
             </p>
           </div>
 
-          {bookings.map((booking) => {
+          {filteredBookings.map((booking) => {
             const displayStatus = getDisplayStatus(booking);
             const status = statusConfig[displayStatus];
             const ballInfo = ballTypeConfig[booking.ballType] || { color: 'bg-gray-400', label: booking.ballType };
@@ -156,7 +223,10 @@ export default function BookingsPage() {
             const hasDiscount = booking.discountAmount && booking.discountAmount > 0;
 
             return (
-              <div key={booking.id} className="bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.08] p-4 transition-all hover:bg-white/[0.06]">
+              <div
+                key={booking.id}
+                className={`bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.08] border-l-[3px] ${status.border} p-4 transition-all hover:bg-white/[0.06]`}
+              >
                 {/* Top Row: Status + Cancel */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -205,11 +275,10 @@ export default function BookingsPage() {
                       {machineLabels[booking.machineId] || booking.machineId}
                     </span>
                   )}
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    booking.ballType === 'LEATHER' ? 'bg-red-500/10 text-red-400' :
-                    booking.ballType === 'TENNIS' ? 'bg-green-500/10 text-green-400' :
-                    'bg-blue-500/10 text-blue-400'
-                  }`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${booking.ballType === 'LEATHER' ? 'bg-red-500/10 text-red-400' :
+                      booking.ballType === 'TENNIS' ? 'bg-green-500/10 text-green-400' :
+                        'bg-blue-500/10 text-blue-400'
+                    }`}>
                     {ballInfo.label}
                   </span>
                   {booking.pitchType && (
@@ -217,9 +286,8 @@ export default function BookingsPage() {
                       {pitchLabels[booking.pitchType] || booking.pitchType}
                     </span>
                   )}
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    booking.operationMode === 'SELF_OPERATE' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'
-                  }`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${booking.operationMode === 'SELF_OPERATE' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'
+                    }`}>
                     {booking.operationMode === 'SELF_OPERATE' ? 'Self Operate' : 'With Operator'}
                   </span>
                   {booking.isPackageBooking && (
