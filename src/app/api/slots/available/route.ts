@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
 
     if (machineIdParam && isValidMachineId(machineIdParam)) {
       machineId = machineIdParam as MachineId;
-      ballType = getBallTypeForMachine(machineId);
+      // Use explicit ballType from query if valid, otherwise fall back to machine's default
+      ballType = (isValidBallType(ballTypeParam)) ? ballTypeParam as BallType : getBallTypeForMachine(machineId);
       category = getMachineCategory(machineId) === 'LEATHER' ? 'MACHINE' : 'TENNIS';
     } else {
       // Legacy: use ballType param
@@ -239,7 +240,7 @@ export async function GET(req: NextRequest) {
 
       // Calculate price using pricing config (per-machine/ball-type/time-slab)
       const timeSlab = getTimeSlab(slot.startTime, timeSlabConfig);
-      const finalPrice = getSlotPrice(category, ballType, validatedPitchType, timeSlab, pricingConfig);
+      const finalPrice = getSlotPrice(category, ballType, validatedPitchType, timeSlab, pricingConfig, machineId);
 
       // Determine slot status
       let status: string;
