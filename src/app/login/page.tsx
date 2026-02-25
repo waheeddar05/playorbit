@@ -9,37 +9,37 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#0a1628] relative overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-[#030712] relative overflow-hidden">
       {/* Background layers */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0a1628] via-[#132240] to-[#0d1f3c]"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,168,67,0.10),transparent_60%)]"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-[#030712] via-[#0f172a] to-[#1e1b4b]"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.15),transparent_60%)]"></div>
 
       {/* Cricket ball SVG - top right */}
-      <div className="absolute top-16 right-6 md:right-20 opacity-[0.06] animate-spin-slow pointer-events-none">
+      <div className="absolute top-16 right-6 md:right-20 opacity-[0.1] animate-spin-slow pointer-events-none">
         <svg width="100" height="100" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="60" cy="60" r="55" stroke="#d4a843" strokeWidth="2" fill="none"/>
-          <path d="M25 60 C35 30, 85 30, 95 60" stroke="#d4a843" strokeWidth="1.5" fill="none" strokeDasharray="4 3"/>
-          <path d="M25 60 C35 90, 85 90, 95 60" stroke="#d4a843" strokeWidth="1.5" fill="none" strokeDasharray="4 3"/>
+          <circle cx="60" cy="60" r="55" stroke="#38bdf8" strokeWidth="2" fill="none" />
+          <path d="M25 60 C35 30, 85 30, 95 60" stroke="#38bdf8" strokeWidth="1.5" fill="none" strokeDasharray="4 3" />
+          <path d="M25 60 C35 90, 85 90, 95 60" stroke="#38bdf8" strokeWidth="1.5" fill="none" strokeDasharray="4 3" />
         </svg>
       </div>
 
       {/* Stumps SVG - bottom left */}
-      <div className="absolute bottom-20 left-6 md:left-20 opacity-[0.05] pointer-events-none">
+      <div className="absolute bottom-20 left-6 md:left-20 opacity-[0.08] pointer-events-none">
         <svg width="60" height="100" viewBox="0 0 80 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="15" y="20" width="4" height="120" fill="#d4a843" rx="2"/>
-          <rect x="38" y="20" width="4" height="120" fill="#d4a843" rx="2"/>
-          <rect x="61" y="20" width="4" height="120" fill="#d4a843" rx="2"/>
-          <rect x="10" y="18" width="26" height="4" fill="#d4a843" rx="1"/>
-          <rect x="44" y="18" width="26" height="4" fill="#d4a843" rx="1"/>
+          <rect x="15" y="20" width="4" height="120" fill="#38bdf8" rx="2" />
+          <rect x="38" y="20" width="4" height="120" fill="#38bdf8" rx="2" />
+          <rect x="61" y="20" width="4" height="120" fill="#38bdf8" rx="2" />
+          <rect x="10" y="18" width="26" height="4" fill="#38bdf8" rx="1" />
+          <rect x="44" y="18" width="26" height="4" fill="#38bdf8" rx="1" />
         </svg>
       </div>
 
       {/* Another cricket ball - bottom right, smaller */}
       <div className="absolute bottom-32 right-10 opacity-[0.04] pointer-events-none">
         <svg width="50" height="50" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="60" cy="60" r="55" stroke="#fff" strokeWidth="2" fill="none"/>
-          <path d="M25 60 C35 30, 85 30, 95 60" stroke="#fff" strokeWidth="1.5" fill="none" strokeDasharray="4 3"/>
-          <path d="M25 60 C35 90, 85 90, 95 60" stroke="#fff" strokeWidth="1.5" fill="none" strokeDasharray="4 3"/>
+          <circle cx="60" cy="60" r="55" stroke="#fff" strokeWidth="2" fill="none" />
+          <path d="M25 60 C35 30, 85 30, 95 60" stroke="#fff" strokeWidth="1.5" fill="none" strokeDasharray="4 3" />
+          <path d="M25 60 C35 90, 85 90, 95 60" stroke="#fff" strokeWidth="1.5" fill="none" strokeDasharray="4 3" />
         </svg>
       </div>
 

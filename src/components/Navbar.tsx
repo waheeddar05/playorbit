@@ -38,10 +38,11 @@ export default function Navbar() {
   const userName = session?.user?.name;
   const userInitial = userName ? userName.charAt(0).toUpperCase() : (session?.user?.email?.charAt(0).toUpperCase() || '?');
 
+  if (pathname === '/') return null;
+
   return (
-    <nav className={`sticky top-0 z-50 transition-all duration-300 ${
-      scrolled ? 'bg-[#0f1d2f]/95 backdrop-blur-md shadow-lg shadow-black/20' : 'bg-transparent'
-    }`}>
+    <nav className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[#030712]/95 backdrop-blur-md shadow-lg shadow-black/20' : 'bg-transparent'
+      }`}>
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex justify-between h-14 md:h-16 items-center">
           {/* Logo */}
@@ -62,11 +63,10 @@ export default function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive(href)
-                    ? 'bg-white/15 text-accent'
-                    : 'text-white/70 hover:text-white hover:bg-white/10'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive(href)
+                  ? 'bg-white/15 text-accent'
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 {label}
@@ -124,10 +124,9 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Menu - Slide down */}
-      <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-        isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-      }`}>
-        <div className="px-4 pb-4 pt-1 space-y-1 bg-[#0f1d2f]/98 backdrop-blur-md">
+      <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+        }`}>
+        <div className="px-4 pb-4 pt-1 space-y-1 bg-[#030712]/98 backdrop-blur-md">
           {session && (
             <div className="flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg text-sm font-medium bg-white/5 text-white/80">
               {userImage ? (
@@ -152,11 +151,10 @@ export default function Navbar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
-                isActive(href)
-                  ? 'bg-accent/15 text-accent'
-                  : 'text-white/70 hover:bg-white/5'
-              }`}
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${isActive(href)
+                ? 'bg-accent/15 text-accent'
+                : 'text-white/70 hover:bg-white/5'
+                }`}
             >
               <Icon className="w-5 h-5" />
               {label}
