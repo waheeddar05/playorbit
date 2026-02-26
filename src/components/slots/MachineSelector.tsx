@@ -13,7 +13,7 @@ export function MachineSelector({ selectedMachineId, onSelect }: MachineSelector
   const tennisMachines = MACHINE_CARDS.filter(c => c.category === 'TENNIS');
 
   return (
-    <div className="mb-4">
+    <div className="mb-4" role="radiogroup" aria-label="Machine Type">
       <label className="block text-[10px] font-medium text-accent mb-2 uppercase tracking-wider">
         Machine Type
       </label>
@@ -56,6 +56,9 @@ function MachineCardButton({
 }) {
   return (
     <button
+      role="radio"
+      aria-checked={isSelected}
+      aria-label={`${card.label} – ${card.shortLabel}`}
       onClick={() => onSelect(card.id)}
       className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all cursor-pointer text-left ${
         isSelected
@@ -78,7 +81,7 @@ function MachineCardButton({
             {card.label}
           </span>
         </div>
-        <p className={`text-[9px] ml-3.5 ${isSelected ? 'text-accent/70' : 'text-slate-600'}`}>
+        <p className={`text-[9px] ml-3.5 ${isSelected ? 'text-accent/70' : 'text-slate-400'}`}>
           {card.shortLabel}
         </p>
       </div>

@@ -19,6 +19,8 @@ import { usePricing } from '@/hooks/usePricing';
 import { api } from '@/lib/api-client';
 import { MACHINE_CARDS, PITCH_TYPE_LABELS, getMachineCard } from '@/lib/client-constants';
 import { useRazorpay, usePaymentConfig } from '@/lib/useRazorpay';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
 import type { MachineId, MachineConfig, AvailableSlot, OperationMode } from '@/lib/schemas';
 
 export default function SlotsPage() {
@@ -39,8 +41,10 @@ function SlotsContent() {
   const [selectedSlots, setSelectedSlots] = useState<AvailableSlot[]>([]);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [machineConfig, setMachineConfig] = useState<MachineConfig | null>(null);
+  const [showBookingConfirm, setShowBookingConfirm] = useState(false);
 
   const { data: session } = useSession();
+  const toast = useToast();
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
   const userName = searchParams.get('userName');
@@ -55,7 +59,7 @@ function SlotsContent() {
   const { config: paymentConfig } = usePaymentConfig();
   const { initiatePayment, processing: paymentProcessing } = useRazorpay({
     onFailure: (error) => {
-      alert(error || 'Payment failed');
+      toast.error(error || 'Payment failed');
     },
   });
 
@@ -208,43 +212,62 @@ function SlotsContent() {
 
   const hasSelectedSlotsWithoutOperator = !isLeatherMachine && selectedSlots.some(s => !s.operatorAvailable);
 
-  const handleBook = async () => {
-    if (selectedSlots.length === 0) return;
-    if (pkg.selectedPackageId && pkg.validation && !pkg.validation.valid) {
-      alert(pkg.validation.error || 'Selected package is not valid for this booking');
-      return;
-    }
-
+  // Build booking details for confirm dialog
+  const getBookingConfirmDetails = () => {
     const total = pkg.selectedPackageId && pkg.validation ? (pkg.validation.extraCharge || 0) : pricing.totalPrice;
     const selfOperateSlots = !isLeatherMachine
       ? selectedSlots.filter(s => getSlotOperationMode(s) === 'SELF_OPERATE').length
       : 0;
-
     const isPackageBooking = !!pkg.selectedPackageId;
-    const requiresPayment = paymentConfig?.paymentEnabled
-      && paymentConfig?.slotPaymentRequired
-      && !isPackageBooking // Package bookings don't need separate slot payment
-      && !isBookingForOther // Admin bookings for others skip payment
-      && !isFreeBooking // Free users and superadmin bookings are always free
-      && total > 0;
 
-    let confirmMessage = isFreeBooking
+    const message = isFreeBooking
       ? `Book ${selectedSlots.length} slot(s) for FREE?${isBookingForOther ? ` For: ${userName}` : ''}`
       : isBookingForOther
         ? `Book ${selectedSlots.length} slot(s) for ${userName}?`
         : isPackageBooking
-          ? `Book ${selectedSlots.length} slot(s) using package? ${total > 0 ? `Extra charge: ₹${total}` : ''}`
+          ? `Book ${selectedSlots.length} slot(s) using package?${total > 0 ? ` Extra charge: ₹${total}` : ''}`
           : `Book ${selectedSlots.length} slot(s) for ₹${total.toLocaleString()}?`;
 
+    let warning = '';
     if (selfOperateSlots > 0) {
-      confirmMessage += `\n\n⚠️ WARNING: ${selfOperateSlots} slot(s) will be Self Operate (no machine operator provided). You must operate the machine yourself.`;
+      warning = `${selfOperateSlots} slot(s) will be Self Operate — no machine operator provided. You must operate the machine yourself.`;
     }
 
-    if (requiresPayment) {
-      confirmMessage += '\n\nYou will be redirected to payment.';
+    const requiresPayment = paymentConfig?.paymentEnabled
+      && paymentConfig?.slotPaymentRequired
+      && !isPackageBooking
+      && !isBookingForOther
+      && !isFreeBooking
+      && total > 0;
+
+    const confirmLabel = requiresPayment ? `Pay ₹${total.toLocaleString()}` : 'Confirm Booking';
+
+    return { message, warning, confirmLabel };
+  };
+
+  const handleBook = async () => {
+    if (selectedSlots.length === 0) return;
+    if (pkg.selectedPackageId && pkg.validation && !pkg.validation.valid) {
+      toast.error(pkg.validation.error || 'Selected package is not valid for this booking');
+      return;
     }
 
-    if (!window.confirm(confirmMessage)) return;
+    // Show confirm dialog instead of window.confirm
+    setShowBookingConfirm(true);
+  };
+
+  const handleBookConfirm = async () => {
+    setShowBookingConfirm(false);
+
+    const total = pkg.selectedPackageId && pkg.validation ? (pkg.validation.extraCharge || 0) : pricing.totalPrice;
+
+    const isPackageBooking = !!pkg.selectedPackageId;
+    const requiresPayment = paymentConfig?.paymentEnabled
+      && paymentConfig?.slotPaymentRequired
+      && !isPackageBooking
+      && !isBookingForOther
+      && !isFreeBooking
+      && total > 0;
 
     const bookingPayload = selectedSlots.map(slot => ({
       date: format(selectedDate, 'yyyy-MM-dd'),
@@ -301,13 +324,13 @@ function SlotsContent() {
           }),
         }).catch(() => {}); // Non-critical, don't fail the booking
 
-        alert('Payment successful! Booking confirmed.');
+        toast.success('Payment successful! Booking confirmed.');
         setSelectedSlots([]);
         pkg.reset();
         fetchSlots(selectedDate, selectedMachineId, ballType, pitchType);
         pkg.fetchPackages(isBookingForOther, userId);
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'Booking failed after payment. Please contact admin.');
+        toast.error(err instanceof Error ? err.message : 'Booking failed after payment. Please contact admin.');
       } finally {
         setBookingLoading(false);
       }
@@ -319,13 +342,13 @@ function SlotsContent() {
     try {
       await api.post('/api/slots/book', bookingPayload);
 
-      alert('Booking successful!');
+      toast.success('Booking confirmed! Check My Bookings for details.');
       setSelectedSlots([]);
       pkg.reset();
       fetchSlots(selectedDate, selectedMachineId, ballType, pitchType);
       pkg.fetchPackages(isBookingForOther, userId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Booking failed');
+      toast.error(err instanceof Error ? err.message : 'Booking failed. Please try again.');
     } finally {
       setBookingLoading(false);
     }
@@ -447,6 +470,24 @@ function SlotsContent() {
       )}
 
       <ContactFooter />
+
+      {/* Booking Confirm Dialog */}
+      {(() => {
+        const details = getBookingConfirmDetails();
+        return (
+          <ConfirmDialog
+            open={showBookingConfirm}
+            title="Confirm Booking"
+            message={details.message}
+            warning={details.warning || undefined}
+            confirmLabel={details.confirmLabel}
+            cancelLabel="Go Back"
+            loading={bookingLoading || paymentProcessing}
+            onConfirm={handleBookConfirm}
+            onCancel={() => setShowBookingConfirm(false)}
+          />
+        );
+      })()}
 
       <BookingBar
         selectedSlots={selectedSlots}

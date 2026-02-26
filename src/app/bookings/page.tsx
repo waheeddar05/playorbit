@@ -1,8 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { ClipboardList, Loader2, X, Calendar, Clock, IndianRupee, Phone, Instagram } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/components/ui/Toast';
+import {
+  BOOKING_STATUS_CONFIG,
+  BALL_TYPE_CONFIG,
+  MACHINE_LABELS,
+  PITCH_LABELS,
+} from '@/lib/client-constants';
 
 interface Booking {
   id: string;
@@ -29,6 +37,8 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchBookings();
@@ -49,9 +59,14 @@ export default function BookingsPage() {
     }
   };
 
-  const handleCancel = async (bookingId: string) => {
-    if (!confirm('Are you sure you want to cancel this booking?')) return;
+  const handleCancelRequest = useCallback((bookingId: string) => {
+    setConfirmCancelId(bookingId);
+  }, []);
 
+  const handleCancelConfirm = async () => {
+    if (!confirmCancelId) return;
+    const bookingId = confirmCancelId;
+    setConfirmCancelId(null);
     setCancellingId(bookingId);
     try {
       const res = await fetch('/api/slots/cancel', {
@@ -65,39 +80,19 @@ export default function BookingsPage() {
         throw new Error(data.error || 'Cancellation failed');
       }
 
-      alert('Booking cancelled successfully');
+      toast.success('Booking cancelled successfully');
       fetchBookings();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'An error occurred');
+      toast.error(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setCancellingId(null);
     }
   };
 
-  const statusConfig = {
-    BOOKED: { label: 'Upcoming', bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-500' },
-    DONE: { label: 'Completed', bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-500' },
-    CANCELLED: { label: 'Cancelled', bg: 'bg-white/[0.04]', text: 'text-slate-400', dot: 'bg-slate-500' },
-  };
-
-  const ballTypeConfig: Record<string, { color: string; label: string }> = {
-    TENNIS: { color: 'bg-green-500', label: 'Tennis' },
-    LEATHER: { color: 'bg-red-500', label: 'Leather' },
-    MACHINE: { color: 'bg-blue-500', label: 'Machine' },
-  };
-
-  const machineLabels: Record<string, string> = {
-    GRAVITY: 'Gravity',
-    YANTRA: 'Yantra',
-    LEVERAGE_INDOOR: 'Leverage Indoor',
-    LEVERAGE_OUTDOOR: 'Leverage Outdoor',
-  };
-
-  const pitchLabels: Record<string, string> = {
-    ASTRO: 'Astro Turf',
-    CEMENT: 'Cement',
-    NATURAL: 'Natural Turf',
-  };
+  const statusConfig = BOOKING_STATUS_CONFIG;
+  const ballTypeConfig = BALL_TYPE_CONFIG;
+  const machineLabels = MACHINE_LABELS;
+  const pitchLabels = PITCH_LABELS;
 
   const getDisplayStatus = (booking: Booking): Booking['status'] => {
     if (booking.status !== 'BOOKED') return booking.status;
@@ -137,7 +132,7 @@ export default function BookingsPage() {
             <ClipboardList className="w-6 h-6 text-slate-500" />
           </div>
           <p className="text-sm font-medium text-slate-300 mb-1">No bookings yet</p>
-          <p className="text-xs text-slate-500">Book your first practice session to get started</p>
+          <p className="text-xs text-slate-400">Book your first practice session to get started</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -171,7 +166,7 @@ export default function BookingsPage() {
                   {canCancel && (
                     <button
                       disabled={!!cancellingId}
-                      onClick={() => handleCancel(booking.id)}
+                      onClick={() => handleCancelRequest(booking.id)}
                       className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       <X className="w-3 h-3" />
@@ -249,7 +244,7 @@ export default function BookingsPage() {
                 {/* Booked on */}
                 {booking.createdAt && (
                   <div className="mt-2 pt-2 border-t border-white/[0.04]">
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-[10px] text-slate-400">
                       Booked on {format(new Date(booking.createdAt), 'MMM d, yyyy')} at {new Date(booking.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -260,9 +255,21 @@ export default function BookingsPage() {
         </div>
       )}
 
+      {/* Cancel Confirm Dialog */}
+      <ConfirmDialog
+        open={!!confirmCancelId}
+        title="Cancel This Booking?"
+        message="This action cannot be undone. Your slot will be released and available for others to book."
+        confirmLabel="Cancel Booking"
+        cancelLabel="Keep Booking"
+        variant="danger"
+        onConfirm={handleCancelConfirm}
+        onCancel={() => setConfirmCancelId(null)}
+      />
+
       {/* Contact Section */}
       <div className="mt-8 pt-6 border-t border-white/[0.06]">
-        <p className="text-center text-xs text-slate-500 mb-4 italic">&ldquo;Champions Train When Others Rest.&rdquo;</p>
+        <p className="text-center text-xs text-slate-400 mb-4 italic">&ldquo;Champions Train When Others Rest.&rdquo;</p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-slate-400">
           <a href="tel:7058683664" className="flex items-center gap-1.5 hover:text-accent transition-colors">
             <Phone className="w-3.5 h-3.5" />

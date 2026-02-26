@@ -87,6 +87,35 @@ export const BALL_TYPE_CONFIG: Record<string, { color: string; label: string }> 
   MACHINE: { color: 'bg-blue-500', label: 'Machine' },
 };
 
+// ─── Machine Labels (display names by ID) ───────────────
+export const MACHINE_LABELS: Record<string, string> = {
+  GRAVITY: 'Gravity',
+  YANTRA: 'Yantra',
+  LEVERAGE_INDOOR: 'Leverage Tennis (Indoor)',
+  LEVERAGE_OUTDOOR: 'Leverage Tennis (Outdoor)',
+};
+
+// ─── Pitch Labels (display names) ────────────────────────
+export const PITCH_LABELS: Record<string, string> = {
+  ASTRO: 'Astro Turf',
+  CEMENT: 'Cement',
+  NATURAL: 'Natural Turf',
+  TURF: 'Cement Wicket',
+};
+
+// ─── Generic Label Map (for packages page etc.) ──────────
+export const LABEL_MAP: Record<string, string> = {
+  LEATHER: 'Leather Ball',
+  TENNIS: 'Tennis',
+  MACHINE: 'Machine Ball',
+  BOTH: 'Both',
+  CEMENT: 'Cement',
+  ASTRO: 'Astro',
+  DAY: 'Day',
+  EVENING: 'Evening/Night',
+  ...Object.fromEntries(Object.entries(MACHINE_LABELS)),
+};
+
 // ─── Contact ─────────────────────────────────────────────
 export const CONTACT_NUMBERS = [
   { name: 'Pratyush', number: '7058683664' },

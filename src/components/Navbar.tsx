@@ -48,12 +48,12 @@ export default function Navbar() {
           {/* Logo */}
           <Link href={session ? '/slots' : '/'} className="flex items-center group">
             <Image
-              src="/images/playorbit-logo.jpeg"
+              src="/images/playorbit-logo.png"
               alt="PlayOrbit"
               width={320}
               height={96}
               priority
-              className="h-20 md:h-24 w-auto object-contain flex-shrink-0 drop-shadow-[0_0_8px_rgba(100,140,255,0.3)] mix-blend-screen"
+              className="h-28 md:h-32 w-auto object-contain flex-shrink-0 drop-shadow-[0_0_8px_rgba(100,140,255,0.3)]"
             />
           </Link>
 
@@ -90,7 +90,7 @@ export default function Navbar() {
                       {userInitial}
                     </div>
                   )}
-                  <span className="text-xs font-medium max-w-[120px] truncate text-white/60">
+                  <span className="text-xs font-medium max-w-[120px] truncate text-white/70">
                     {session.user?.name || session.user?.email}
                   </span>
                 </div>
@@ -117,6 +117,9 @@ export default function Navbar() {
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="md:hidden p-2 rounded-lg transition-colors cursor-pointer text-white/80 hover:bg-white/10"
+            aria-expanded={isMenuOpen}
+            aria-controls="mobile-nav-menu"
+            aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
           >
             {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -124,8 +127,11 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Menu - Slide down */}
-      <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-        }`}>
+      <div
+        id="mobile-nav-menu"
+        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
         <div className="px-4 pb-4 pt-1 space-y-1 bg-[#030712]/98 backdrop-blur-md">
           {session && (
             <div className="flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg text-sm font-medium bg-white/5 text-white/80">

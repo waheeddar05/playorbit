@@ -48,9 +48,9 @@ export default function LoginPage() {
         <div className="text-center mb-8 animate-fade-in">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/playorbit-logo.jpeg"
+            src="/images/playorbit-logo.png"
             alt="PlayOrbit"
-            className="h-40 md:h-56 w-auto object-contain mx-auto mb-5 drop-shadow-[0_0_12px_rgba(100,140,255,0.35)] mix-blend-screen"
+            className="h-56 md:h-80 w-auto object-contain mx-auto mb-5 drop-shadow-[0_0_12px_rgba(100,140,255,0.35)]"
           />
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Welcome Back
