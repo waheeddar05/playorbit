@@ -17,10 +17,12 @@ model User {
   role          UserRole       @default(USER)
   image         String?
   isBlacklisted Boolean        @default(false)
+  isFreeUser    Boolean        @default(false)
   bookings      Booking[]
   notifications Notification[]
   otps          Otp[]
   userPackages  UserPackage[]
+  payments      Payment[]
 }
 
 model Policy {
@@ -73,6 +75,7 @@ model Booking {
   cancelledBy        String?
   createdBy          String?
   machineId          MachineId?
+  isSuperAdminBooking Boolean        @default(false)
   user               User?           @relation(fields: [userId], references: [id])
   packageBooking     PackageBooking?
 
@@ -236,4 +239,54 @@ enum UserPackageStatus {
   ACTIVE
   EXPIRED
   CANCELLED
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentType {
+  SLOT_BOOKING
+  PACKAGE_PURCHASE
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  userId            String
+  amount            Float
+  currency          String        @default("INR")
+  status            PaymentStatus @default(CREATED)
+  paymentType       PaymentType
+
+  // Razorpay fields
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+
+  // Reference to what was paid for
+  bookingIds        String[]      // Array of booking IDs for slot bookings
+  userPackageId     String?       // For package purchases
+
+  // Refund tracking
+  refundId          String?
+  refundAmount      Float?
+  refundedAt        DateTime?
+
+  // Metadata
+  metadata          Json?         // Store any extra info (slot details, package info, etc.)
+  failureReason     String?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user              User          @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([razorpayOrderId])
+  @@index([status])
 }

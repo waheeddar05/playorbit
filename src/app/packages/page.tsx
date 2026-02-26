@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { Package, Loader2, ShoppingCart, Clock, X, ChevronRight, RotateCcw, Sun, Moon, Zap, Calendar } from 'lucide-react';
+import { Package, Loader2, ShoppingCart, Clock, X, ChevronRight, RotateCcw, Sun, Moon, Zap, Calendar, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { differenceInDays, startOfDay } from 'date-fns';
+import { useRazorpay, usePaymentConfig } from '@/lib/useRazorpay';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { LABEL_MAP } from '@/lib/client-constants';
 
 interface PackageInfo {
   id: string;
@@ -42,17 +45,11 @@ interface MyPackage {
   }>;
 }
 
-const labelMap: Record<string, string> = {
-  LEATHER: 'Leather Ball', TENNIS: 'Tennis', MACHINE: 'Machine Ball',
-  BOTH: 'Both', CEMENT: 'Cement', ASTRO: 'Astro',
-  DAY: 'Day', EVENING: 'Evening/Night',
-  GRAVITY: 'Gravity', YANTRA: 'Yantra',
-  LEVERAGE_INDOOR: 'Leverage Tennis (Indoor)', LEVERAGE_OUTDOOR: 'Leverage Tennis (Outdoor)',
-};
+const labelMap = LABEL_MAP;
 
 type MachineFilter = 'all' | 'GRAVITY' | 'YANTRA' | 'LEVERAGE_INDOOR' | 'LEVERAGE_OUTDOOR';
 
-const MACHINE_CARDS: { id: MachineFilter; label: string; sub: string; category: string; image: string; dot: string }[] = [
+const PACKAGE_MACHINE_CARDS: { id: MachineFilter; label: string; sub: string; category: string; image: string; dot: string }[] = [
   { id: 'GRAVITY', label: 'Gravity', sub: 'Leather Ball', category: 'LEATHER', image: '/images/leathermachine.jpeg', dot: 'bg-red-500' },
   { id: 'YANTRA', label: 'Yantra', sub: 'Premium Leather', category: 'LEATHER', image: '/images/yantra-machine.jpeg', dot: 'bg-red-500' },
   { id: 'LEVERAGE_INDOOR', label: 'Leverage Tennis', sub: 'Indoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
@@ -70,6 +67,19 @@ export default function PackagesPage() {
   const [machineFilter, setMachineFilter] = useState<MachineFilter>('all');
   const [timingFilter, setTimingFilter] = useState<'DAY' | 'EVENING' | ''>('');
   const [selectedPackage, setSelectedPackage] = useState<PackageInfo | null>(null);
+  const [confirmPurchaseId, setConfirmPurchaseId] = useState<string | null>(null);
+
+  const { config: paymentConfig } = usePaymentConfig();
+  const { initiatePayment, processing: paymentProcessing } = useRazorpay({
+    onSuccess: () => {
+      setMessage({ text: 'Package purchased successfully!', type: 'success' });
+      setTab('my');
+      fetchMyPackages();
+    },
+    onFailure: (error) => {
+      setMessage({ text: error || 'Payment failed', type: 'error' });
+    },
+  });
 
   const fetchPackages = async () => {
     setLoading(true);
@@ -114,7 +124,39 @@ export default function PackagesPage() {
       setMessage({ text: 'Please login to purchase a package', type: 'error' });
       return;
     }
-    if (!confirm('Confirm package purchase?')) return;
+
+    const pkg = packages.find(p => p.id === packageId);
+    if (!pkg) return;
+
+    // If payment is enabled and required for packages, use Razorpay
+    if (paymentConfig?.paymentEnabled && paymentConfig?.packagePaymentRequired) {
+      setPurchasing(packageId);
+      setMessage({ text: '', type: '' });
+
+      await initiatePayment({
+        type: 'PACKAGE_PURCHASE',
+        amount: pkg.price,
+        packageId,
+        description: `Package: ${pkg.name} (${pkg.totalSessions} sessions)`,
+        prefill: {
+          name: session.user?.name || undefined,
+          email: session.user?.email || undefined,
+        },
+      });
+
+      setPurchasing(null);
+      return;
+    }
+
+    // Fallback: free/offline purchase — show confirm dialog
+    setConfirmPurchaseId(packageId);
+    return;
+  };
+
+  const handleConfirmPurchase = async () => {
+    const packageId = confirmPurchaseId;
+    if (!packageId) return;
+    setConfirmPurchaseId(null);
     setPurchasing(packageId);
     setMessage({ text: '', type: '' });
     try {
@@ -126,6 +168,7 @@ export default function PackagesPage() {
       if (res.ok) {
         setMessage({ text: 'Package purchased successfully!', type: 'success' });
         setTab('my');
+        fetchMyPackages();
       } else {
         const data = await res.json();
         setMessage({ text: data.error || 'Purchase failed', type: 'error' });
@@ -148,7 +191,7 @@ export default function PackagesPage() {
   const filteredPackages = useMemo(() => {
     let filtered = packages;
     if (machineFilter !== 'all') {
-      const card = MACHINE_CARDS.find(c => c.id === machineFilter);
+      const card = PACKAGE_MACHINE_CARDS.find(c => c.id === machineFilter);
       if (card) {
         // Filter by machineId if available, fallback to machineType category for older packages
         filtered = filtered.filter(pkg =>
@@ -225,7 +268,7 @@ export default function PackagesPage() {
             ) : myPackages.length === 0 ? (
               <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-8 text-center">
                 <Package className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-                <p className="text-sm text-slate-500 mb-3">No active packages found</p>
+                <p className="text-sm text-slate-400 mb-3">No active packages found</p>
                 <button
                   onClick={() => setTab('browse')}
                   className="text-xs text-accent hover:text-accent-light transition-colors cursor-pointer"
@@ -324,7 +367,7 @@ export default function PackagesPage() {
                 </div>
                 {/* Leather Machines */}
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                  {MACHINE_CARDS.filter(c => c.category === 'LEATHER').map((card) => {
+                  {PACKAGE_MACHINE_CARDS.filter(c => c.category === 'LEATHER').map((card) => {
                     const isSelected = machineFilter === card.id;
                     return (
                       <button
@@ -356,7 +399,7 @@ export default function PackagesPage() {
                 </div>
                 {/* Tennis Machines */}
                 <div className="grid grid-cols-2 gap-2">
-                  {MACHINE_CARDS.filter(c => c.category === 'TENNIS').map((card) => {
+                  {PACKAGE_MACHINE_CARDS.filter(c => c.category === 'TENNIS').map((card) => {
                     const isSelected = machineFilter === card.id;
                     return (
                       <button
@@ -489,6 +532,18 @@ export default function PackagesPage() {
         )}
       </div>
 
+      {/* Confirm Purchase Dialog */}
+      <ConfirmDialog
+        open={!!confirmPurchaseId}
+        title="Confirm Purchase"
+        message={`Purchase ${packages.find(p => p.id === confirmPurchaseId)?.name || 'this package'}?`}
+        confirmLabel="Purchase"
+        cancelLabel="Cancel"
+        loading={!!purchasing}
+        onConfirm={handleConfirmPurchase}
+        onCancel={() => setConfirmPurchaseId(null)}
+      />
+
       {/* Package Detail Modal */}
       {selectedPackage && (
         <div
@@ -538,13 +593,21 @@ export default function PackagesPage() {
               {/* Purchase Button */}
               <button
                 onClick={() => { handlePurchase(selectedPackage.id); setSelectedPackage(null); }}
-                disabled={purchasing === selectedPackage.id}
-                className="w-full bg-accent hover:bg-accent-light text-primary py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 cursor-pointer mt-2"
+                disabled={purchasing === selectedPackage.id || paymentProcessing}
+                className="w-full bg-accent hover:bg-accent-light text-primary py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 cursor-pointer mt-2 flex items-center justify-center gap-2"
               >
-                {purchasing === selectedPackage.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                {purchasing === selectedPackage.id || paymentProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  `Purchase for ₹${selectedPackage.price}`
+                  <>
+                    {paymentConfig?.paymentEnabled && paymentConfig?.packagePaymentRequired && (
+                      <CreditCard className="w-4 h-4" />
+                    )}
+                    {paymentConfig?.paymentEnabled && paymentConfig?.packagePaymentRequired
+                      ? `Pay ₹${selectedPackage.price}`
+                      : `Purchase for ₹${selectedPackage.price}`
+                    }
+                  </>
                 )}
               </button>
             </div>

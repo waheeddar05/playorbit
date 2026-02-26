@@ -4,10 +4,14 @@ import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/jwt';
 import { authOptions } from '@/lib/authOptions';
 
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || process.env.INITIAL_ADMIN_EMAIL || '';
+
 export async function getAuthenticatedUser(req: NextRequest) {
   let userId: string | undefined;
   let userName: string | undefined;
   let userRole: string | undefined;
+  let userEmail: string | undefined;
+  let isFreeUser = false;
 
   // Check for NextAuth session
   const session = await getServerSession(authOptions);
@@ -18,6 +22,8 @@ export async function getAuthenticatedUser(req: NextRequest) {
     userId = dbUser?.id;
     userName = dbUser?.name || undefined;
     userRole = dbUser?.role;
+    userEmail = dbUser?.email || undefined;
+    isFreeUser = dbUser?.isFreeUser || false;
   }
 
   // Check for JWT token if no NextAuth session
@@ -31,10 +37,14 @@ export async function getAuthenticatedUser(req: NextRequest) {
       });
       userName = dbUser?.name || undefined;
       userRole = dbUser?.role;
+      userEmail = dbUser?.email || undefined;
+      isFreeUser = dbUser?.isFreeUser || false;
     }
   }
 
   if (!userId) return null;
 
-  return { id: userId, name: userName, role: userRole };
+  const isSuperAdmin = !!(userEmail && SUPER_ADMIN_EMAIL && userEmail === SUPER_ADMIN_EMAIL);
+
+  return { id: userId, name: userName, role: userRole, email: userEmail, isSuperAdmin, isFreeUser };
 }

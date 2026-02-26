@@ -15,6 +15,7 @@ interface UserData {
   authProvider: string;
   role: string;
   isBlacklisted: boolean;
+  isFreeUser: boolean;
   createdAt: string;
   _count: { bookings: number };
 }
@@ -201,6 +202,28 @@ export default function AdminUsers() {
     }
   };
 
+  const handleToggleFreeUser = async (user: UserData) => {
+    const newStatus = !user.isFreeUser;
+    if (!confirm(`Are you sure you want to ${newStatus ? 'grant FREE lifetime booking' : 'remove free booking'} for ${user.name || user.email}?`)) return;
+    setMessage({ text: '', type: '' });
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id, isFreeUser: newStatus }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage({ text: `${user.name || user.email} ${newStatus ? 'now has free lifetime booking' : 'no longer has free booking'}`, type: 'success' });
+        fetchUsers();
+      } else {
+        setMessage({ text: data.error || 'Failed to update user', type: 'error' });
+      }
+    } catch {
+      setMessage({ text: 'Internal server error', type: 'error' });
+    }
+  };
+
   const totalUsers = users.length;
   const adminCount = users.filter(u => u.role === 'ADMIN').length;
   const userCount = users.filter(u => u.role === 'USER').length;
@@ -374,6 +397,11 @@ export default function AdminUsers() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-white truncate">{user.name || 'Unnamed'}</p>
+                      {user.isFreeUser && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-green-500/10 text-green-400">
+                          Free
+                        </span>
+                      )}
                       {user.isBlacklisted && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-red-500/10 text-red-400">
                           Blocked
@@ -463,7 +491,22 @@ export default function AdminUsers() {
                           )}
                         </button>
                         {isSuperAdmin && (
-                          <div className="grid grid-cols-2 gap-2">
+                          <>
+                            <button
+                              onClick={() => handleToggleFreeUser(user)}
+                              className={`flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                                user.isFreeUser
+                                  ? 'text-orange-400 bg-orange-500/10 hover:bg-orange-500/20'
+                                  : 'text-green-400 bg-green-500/10 hover:bg-green-500/20'
+                              }`}
+                            >
+                              {user.isFreeUser ? (
+                                <span className="truncate">Remove Free Booking</span>
+                              ) : (
+                                <span className="truncate">Grant Free Lifetime Booking</span>
+                              )}
+                            </button>
+                            <div className="grid grid-cols-2 gap-2">
                               <button
                                 onClick={() => handleToggleRole(user)}
                                 className={`flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
@@ -491,7 +534,8 @@ export default function AdminUsers() {
                                 <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
                                 <span className="truncate">Delete</span>
                               </button>
-                          </div>
+                            </div>
+                          </>
                         )}
                       </div>
                     )}

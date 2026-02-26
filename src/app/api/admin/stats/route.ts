@@ -50,12 +50,13 @@ export async function GET(req: NextRequest) {
         prisma.slot.count(),
         prisma.booking.aggregate({
           _sum: { price: true },
-          where: { status: { in: ['BOOKED', 'DONE'] } },
+          where: { status: { in: ['BOOKED', 'DONE'] }, isSuperAdminBooking: false },
         }).then(r => r._sum.price || 0),
         prisma.booking.aggregate({
           _sum: { discountAmount: true },
           where: {
             status: { in: ['BOOKED', 'DONE'] },
+            isSuperAdminBooking: false,
             discountAmount: { gt: 0 },
           },
         }).then(r => r._sum.discountAmount || 0),

@@ -2,6 +2,8 @@ import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || process.env.INITIAL_ADMIN_EMAIL || '';
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -16,13 +18,18 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as any).role;
         token.image = (user as any).image;
+        token.isFreeUser = (user as any).isFreeUser || false;
       }
+      // Always compute from token email so existing sessions pick it up
+      token.isSuperAdmin = !!(token.email && SUPER_ADMIN_EMAIL && token.email === SUPER_ADMIN_EMAIL);
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
+        (session.user as any).isSuperAdmin = token.isSuperAdmin || false;
+        (session.user as any).isFreeUser = token.isFreeUser || false;
         if (token.image) {
           session.user.image = token.image as string;
         }
@@ -63,6 +70,7 @@ export const authOptions: NextAuthOptions = {
         user.id = dbUser.id;
         (user as any).role = dbUser.role;
         (user as any).image = dbUser.image;
+        (user as any).isFreeUser = dbUser.isFreeUser;
         return true;
       }
       return true;

@@ -17,6 +17,7 @@ interface BookingBarProps {
   selectedPackageId: string;
   packageValidation: PackageValidationResponse | null;
   bookingLoading: boolean;
+  isSuperAdmin?: boolean;
   onBook: () => void;
 }
 
@@ -33,6 +34,7 @@ export function BookingBar({
   selectedPackageId,
   packageValidation,
   bookingLoading,
+  isSuperAdmin,
   onBook,
 }: BookingBarProps) {
   if (selectedSlots.length === 0) return null;
@@ -61,33 +63,39 @@ export function BookingBar({
           </p>
 
           <div className="flex items-center gap-1 mt-0.5">
-            <IndianRupee className="w-3 h-3 text-accent" />
-            {selectedPackageId && packageValidation ? (
-              <>
-                <span className="text-sm font-bold text-accent">
-                  {packageValidation.extraCharge && packageValidation.extraCharge > 0
-                    ? `Extra: ₹${packageValidation.extraCharge}`
-                    : 'Included in Package'}
-                </span>
-                {packageValidation.extraCharge && packageValidation.extraCharge > 0 && (
-                  <span className="text-[10px] text-slate-500 line-through ml-1">
-                    ₹{totalPrice.toLocaleString()}
-                  </span>
-                )}
-              </>
+            {isSuperAdmin ? (
+              <span className="text-sm font-bold text-green-400">FREE</span>
             ) : (
               <>
-                <span className="text-sm font-bold text-accent">
-                  {totalPrice.toLocaleString()}
-                </span>
-                {hasSavings && (
+                <IndianRupee className="w-3 h-3 text-accent" />
+                {selectedPackageId && packageValidation ? (
                   <>
-                    <span className="text-[10px] text-slate-500 line-through ml-1">
-                      ₹{originalTotal.toLocaleString()}
+                    <span className="text-sm font-bold text-accent">
+                      {packageValidation.extraCharge && packageValidation.extraCharge > 0
+                        ? `Extra: ₹${packageValidation.extraCharge}`
+                        : 'Included in Package'}
                     </span>
-                    <span className="text-[10px] text-green-400 ml-1">
-                      Save ₹{savings.toLocaleString()}
+                    {packageValidation.extraCharge && packageValidation.extraCharge > 0 && (
+                      <span className="text-[10px] text-slate-500 line-through ml-1">
+                        ₹{totalPrice.toLocaleString()}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm font-bold text-accent">
+                      {totalPrice.toLocaleString()}
                     </span>
+                    {hasSavings && (
+                      <>
+                        <span className="text-[10px] text-slate-500 line-through ml-1">
+                          ₹{originalTotal.toLocaleString()}
+                        </span>
+                        <span className="text-[10px] text-green-400 ml-1">
+                          Save ₹{savings.toLocaleString()}
+                        </span>
+                      </>
+                    )}
                   </>
                 )}
               </>

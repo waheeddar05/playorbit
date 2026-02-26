@@ -87,13 +87,45 @@ export const BALL_TYPE_CONFIG: Record<string, { color: string; label: string }> 
   MACHINE: { color: 'bg-blue-500', label: 'Machine' },
 };
 
+// ─── Machine Labels (display names by ID) ───────────────
+export const MACHINE_LABELS: Record<string, string> = {
+  GRAVITY: 'Gravity',
+  YANTRA: 'Yantra',
+  LEVERAGE_INDOOR: 'Leverage Tennis (Indoor)',
+  LEVERAGE_OUTDOOR: 'Leverage Tennis (Outdoor)',
+};
+
+// ─── Pitch Labels (display names) ────────────────────────
+export const PITCH_LABELS: Record<string, string> = {
+  ASTRO: 'Astro Turf',
+  CEMENT: 'Cement',
+  NATURAL: 'Natural Turf',
+  TURF: 'Cement Wicket',
+};
+
+// ─── Generic Label Map (for packages page etc.) ──────────
+export const LABEL_MAP: Record<string, string> = {
+  LEATHER: 'Leather Ball',
+  TENNIS: 'Tennis',
+  MACHINE: 'Machine Ball',
+  BOTH: 'Both',
+  CEMENT: 'Cement',
+  ASTRO: 'Astro',
+  DAY: 'Day',
+  EVENING: 'Evening/Night',
+  ...Object.fromEntries(Object.entries(MACHINE_LABELS)),
+};
+
 // ─── Contact ─────────────────────────────────────────────
 export const CONTACT_NUMBERS = [
   { name: 'Pratyush', number: '7058683664' },
   { name: 'Rahul', number: '7774077995' },
+  { name: 'Raj', number: '9975011081' },
 ] as const;
 
-export const INSTAGRAM_URL = 'https://www.instagram.com/ankeetbawanecricketacademy?igsh=MWFvd2p0MzlrOWQ1Mg%3D%3D';
+export const INSTAGRAM_URL = 'https://www.instagram.com/playorbit.in/';
+
+export const LOCATION_URL = 'https://maps.app.goo.gl/iy8f6nRLmkZAqztF9?g_st=awb';
 
 // ─── Helpers ─────────────────────────────────────────────
 export function getMachineCard(id: MachineId): MachineCard {

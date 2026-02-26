@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     await prisma.booking.update({
       where: { id: bookingId },
-      data: { 
+      data: {
         status: 'CANCELLED',
         cancelledBy: user.name || user.id,
         cancellationReason: user.role === 'ADMIN' ? `Cancelled by Admin (${user.name || user.id})` : `Cancelled by User (${user.name || user.id})`,
@@ -63,7 +63,47 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ message: 'Booking cancelled' });
+    // Auto-refund if payment was made via Razorpay
+    let refundResult = null;
+    try {
+      const payment = await prisma.payment.findFirst({
+        where: {
+          bookingIds: { has: bookingId },
+          status: 'CAPTURED',
+        },
+      });
+
+      if (payment?.razorpayPaymentId) {
+        const { initiateRefund } = await import('@/lib/razorpay');
+        // Calculate refund amount (proportional if multiple bookings in same payment)
+        const refundAmount = payment.bookingIds.length > 1
+          ? payment.amount / payment.bookingIds.length
+          : payment.amount;
+
+        const refund = await initiateRefund({
+          paymentId: payment.razorpayPaymentId,
+          amount: refundAmount,
+          notes: { bookingId, cancelledBy: user.name || user.id },
+        });
+
+        const isFullRefund = payment.bookingIds.length === 1;
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: isFullRefund ? 'REFUNDED' : 'PARTIALLY_REFUNDED',
+            refundId: refund.id,
+            refundAmount: { increment: refundAmount },
+            refundedAt: new Date(),
+          },
+        });
+
+        refundResult = { refundId: refund.id, refundAmount };
+      }
+    } catch (refundErr) {
+      console.error('Auto-refund failed (booking still cancelled):', refundErr);
+    }
+
+    return NextResponse.json({ message: 'Booking cancelled', refund: refundResult });
   } catch (error) {
     console.error('Cancel booking error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
