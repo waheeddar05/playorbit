@@ -18,6 +18,7 @@ import { usePackages } from '@/hooks/usePackages';
 import { usePricing } from '@/hooks/usePricing';
 import { api } from '@/lib/api-client';
 import { MACHINE_CARDS, PITCH_TYPE_LABELS, getMachineCard } from '@/lib/client-constants';
+import { useRazorpay, usePaymentConfig } from '@/lib/useRazorpay';
 import type { MachineId, MachineConfig, AvailableSlot, OperationMode } from '@/lib/schemas';
 
 export default function SlotsPage() {
@@ -44,7 +45,19 @@ function SlotsContent() {
   const userId = searchParams.get('userId');
   const userName = searchParams.get('userName');
   const isAdmin = session?.user?.role === 'ADMIN';
+  const isSuperAdmin = !!session?.user?.isSuperAdmin;
+  const isFreeUser = !!session?.user?.isFreeUser;
   const isBookingForOther = useMemo(() => !!(isAdmin && userId), [isAdmin, userId]);
+  // Free booking: superadmin always free, or current user is free user (self-booking)
+  const isFreeBooking = isSuperAdmin || (isFreeUser && !isBookingForOther);
+
+  // Payment integration
+  const { config: paymentConfig } = usePaymentConfig();
+  const { initiatePayment, processing: paymentProcessing } = useRazorpay({
+    onFailure: (error) => {
+      alert(error || 'Payment failed');
+    },
+  });
 
   // ─── Derived State ─────────────────────────────────────
   const selectedCard = getMachineCard(selectedMachineId);
@@ -207,32 +220,104 @@ function SlotsContent() {
       ? selectedSlots.filter(s => getSlotOperationMode(s) === 'SELF_OPERATE').length
       : 0;
 
-    let confirmMessage = isBookingForOther
-      ? `Book ${selectedSlots.length} slot(s) for ${userName}?`
-      : pkg.selectedPackageId
-        ? `Book ${selectedSlots.length} slot(s) using package? ${total > 0 ? `Extra charge: ₹${total}` : ''}`
-        : `Book ${selectedSlots.length} slot(s) for ₹${total.toLocaleString()}?`;
+    const isPackageBooking = !!pkg.selectedPackageId;
+    const requiresPayment = paymentConfig?.paymentEnabled
+      && paymentConfig?.slotPaymentRequired
+      && !isPackageBooking // Package bookings don't need separate slot payment
+      && !isBookingForOther // Admin bookings for others skip payment
+      && !isFreeBooking // Free users and superadmin bookings are always free
+      && total > 0;
+
+    let confirmMessage = isFreeBooking
+      ? `Book ${selectedSlots.length} slot(s) for FREE?${isBookingForOther ? ` For: ${userName}` : ''}`
+      : isBookingForOther
+        ? `Book ${selectedSlots.length} slot(s) for ${userName}?`
+        : isPackageBooking
+          ? `Book ${selectedSlots.length} slot(s) using package? ${total > 0 ? `Extra charge: ₹${total}` : ''}`
+          : `Book ${selectedSlots.length} slot(s) for ₹${total.toLocaleString()}?`;
 
     if (selfOperateSlots > 0) {
       confirmMessage += `\n\n⚠️ WARNING: ${selfOperateSlots} slot(s) will be Self Operate (no machine operator provided). You must operate the machine yourself.`;
     }
 
+    if (requiresPayment) {
+      confirmMessage += '\n\nYou will be redirected to payment.';
+    }
+
     if (!window.confirm(confirmMessage)) return;
 
+    const bookingPayload = selectedSlots.map(slot => ({
+      date: format(selectedDate, 'yyyy-MM-dd'),
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      ballType,
+      machineId: selectedMachineId,
+      operationMode: getSlotOperationMode(slot),
+      userPackageId: pkg.selectedPackageId || undefined,
+      userId: isBookingForOther ? userId : undefined,
+      playerName: isBookingForOther ? userName : undefined,
+      ...(pitchType ? { pitchType } : {}),
+    }));
+
+    // If payment is required, go through Razorpay first
+    if (requiresPayment) {
+      setBookingLoading(true);
+      try {
+        const paymentResult = await initiatePayment({
+          type: 'SLOT_BOOKING',
+          amount: total,
+          slots: selectedSlots.map(s => ({
+            date: format(selectedDate, 'yyyy-MM-dd'),
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
+          description: `${selectedSlots.length} slot(s) - ${selectedCard.label} - ${format(selectedDate, 'MMM d')}`,
+          prefill: {
+            name: session?.user?.name || undefined,
+            email: session?.user?.email || undefined,
+          },
+        });
+
+        if (!paymentResult) {
+          // User cancelled or payment failed (error already shown by hook)
+          setBookingLoading(false);
+          return;
+        }
+
+        // Payment succeeded — now create the actual booking
+        const bookingResult = await api.post<Array<{ id: string }>>('/api/slots/book', bookingPayload);
+
+        // Link payment to booking IDs
+        const bookingIds = Array.isArray(bookingResult)
+          ? bookingResult.map(b => b.id)
+          : [(bookingResult as { id: string }).id];
+
+        await fetch('/api/payments/link-bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentId: paymentResult.paymentId,
+            bookingIds,
+          }),
+        }).catch(() => {}); // Non-critical, don't fail the booking
+
+        alert('Payment successful! Booking confirmed.');
+        setSelectedSlots([]);
+        pkg.reset();
+        fetchSlots(selectedDate, selectedMachineId, ballType, pitchType);
+        pkg.fetchPackages(isBookingForOther, userId);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Booking failed after payment. Please contact admin.');
+      } finally {
+        setBookingLoading(false);
+      }
+      return;
+    }
+
+    // No payment required — direct booking (original flow)
     setBookingLoading(true);
     try {
-      await api.post('/api/slots/book', selectedSlots.map(slot => ({
-        date: format(selectedDate, 'yyyy-MM-dd'),
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        ballType,
-        machineId: selectedMachineId,
-        operationMode: getSlotOperationMode(slot),
-        userPackageId: pkg.selectedPackageId || undefined,
-        userId: isBookingForOther ? userId : undefined,
-        playerName: isBookingForOther ? userName : undefined,
-        ...(pitchType ? { pitchType } : {}),
-      })));
+      await api.post('/api/slots/book', bookingPayload);
 
       alert('Booking successful!');
       setSelectedSlots([]);
@@ -375,7 +460,8 @@ function SlotsContent() {
         hasSavings={pricing.hasSavings}
         selectedPackageId={pkg.selectedPackageId}
         packageValidation={pkg.validation}
-        bookingLoading={bookingLoading}
+        bookingLoading={bookingLoading || paymentProcessing}
+        isSuperAdmin={!!isFreeBooking}
         onBook={handleBook}
       />
     </div>

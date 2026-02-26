@@ -94,6 +94,7 @@ type BookingColumnSupport = {
   discountType: boolean;
   pitchType: boolean;
   extraCharge: boolean;
+  isSuperAdminBooking: boolean;
 };
 
 async function getBookingColumnSupport(): Promise<BookingColumnSupport> {
@@ -113,6 +114,7 @@ async function getBookingColumnSupport(): Promise<BookingColumnSupport> {
       discountType: columnSet.has('discountType'),
       pitchType: columnSet.has('pitchType'),
       extraCharge: columnSet.has('extraCharge'),
+      isSuperAdminBooking: columnSet.has('isSuperAdminBooking'),
     };
   } catch {
     return {
@@ -123,6 +125,7 @@ async function getBookingColumnSupport(): Promise<BookingColumnSupport> {
       discountType: false,
       pitchType: false,
       extraCharge: false,
+      isSuperAdminBooking: false,
     };
   }
 }
@@ -143,6 +146,7 @@ export async function POST(req: NextRequest) {
     }
 
     const isAdmin = user.role === 'ADMIN';
+    const isSuperAdmin = !!user.isSuperAdmin;
     const createdBy = user.name || user.id;
     const userId = (isAdmin && slotsToBook[0]?.userId) || user.id;
 
@@ -151,6 +155,9 @@ export async function POST(req: NextRequest) {
     if (!targetUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    // Free booking: superadmin bookings OR target user is marked as free user
+    const isFreeBooking = isSuperAdmin || targetUser.isFreeUser;
 
     if (targetUser.isBlacklisted) {
       return NextResponse.json({ error: 'Your account is blocked. Please contact admin.' }, { status: 403 });
@@ -426,25 +433,33 @@ export async function POST(req: NextRequest) {
               playerName: slot.playerName,
             };
 
+            // Free bookings: superadmin or free user
+            const effectivePrice = isFreeBooking ? 0 : priceInfo.price;
+            const effectiveOriginalPrice = isFreeBooking ? 0 : priceInfo.originalPrice;
+            const effectiveDiscountAmount = isFreeBooking ? null : (priceInfo.discountAmount || null);
+            const effectiveDiscountType = isFreeBooking ? null : (priceInfo.discountAmount > 0 ? 'FIXED' as const : null);
+
             const fullBookingData: Prisma.BookingUncheckedCreateInput = {
               ...baseBookingData,
               createdBy,
+              ...(bookingColumns.isSuperAdminBooking ? { isSuperAdminBooking: isFreeBooking } : {}),
               ...(slot.machineId ? { machineId: slot.machineId } : {}),
-              ...(bookingColumns.price ? { price: priceInfo.price } : {}),
-              ...(bookingColumns.originalPrice ? { originalPrice: priceInfo.originalPrice } : {}),
-              ...(bookingColumns.discountAmount ? { discountAmount: priceInfo.discountAmount || null } : {}),
-              ...(bookingColumns.discountType ? { discountType: priceInfo.discountAmount > 0 ? 'FIXED' : null } : {}),
+              ...(bookingColumns.price ? { price: effectivePrice } : {}),
+              ...(bookingColumns.originalPrice ? { originalPrice: effectiveOriginalPrice } : {}),
+              ...(bookingColumns.discountAmount ? { discountAmount: effectiveDiscountAmount } : {}),
+              ...(bookingColumns.discountType ? { discountType: effectiveDiscountType } : {}),
               ...(bookingColumns.operationMode ? { operationMode: slot.operationMode } : {}),
             };
 
             const fullUpdateData: Prisma.BookingUncheckedUpdateInput = {
               ...baseUpdateData,
               createdBy,
+              ...(bookingColumns.isSuperAdminBooking ? { isSuperAdminBooking: isFreeBooking } : {}),
               ...(slot.machineId ? { machineId: slot.machineId } : {}),
-              ...(bookingColumns.price ? { price: priceInfo.price } : {}),
-              ...(bookingColumns.originalPrice ? { originalPrice: priceInfo.originalPrice } : {}),
-              ...(bookingColumns.discountAmount ? { discountAmount: priceInfo.discountAmount || null } : {}),
-              ...(bookingColumns.discountType ? { discountType: priceInfo.discountAmount > 0 ? 'FIXED' : null } : {}),
+              ...(bookingColumns.price ? { price: effectivePrice } : {}),
+              ...(bookingColumns.originalPrice ? { originalPrice: effectiveOriginalPrice } : {}),
+              ...(bookingColumns.discountAmount ? { discountAmount: effectiveDiscountAmount } : {}),
+              ...(bookingColumns.discountType ? { discountType: effectiveDiscountType } : {}),
               ...(bookingColumns.operationMode ? { operationMode: slot.operationMode } : {}),
             };
 
@@ -541,7 +556,11 @@ export async function POST(req: NextRequest) {
         `Machine: ${machineName}`,
       ];
       if (firstSlot.pitchType) lines.push(`Pitch: ${firstSlot.pitchType}`);
-      if (!userPackageId) lines.push(`Price: ₹${totalPrice}`);
+      if (isFreeBooking) {
+        lines.push('Price: FREE');
+      } else if (!userPackageId) {
+        lines.push(`Price: ₹${totalPrice}`);
+      }
       if (userPackageId) lines.push('Booked via package');
 
       await prisma.notification.create({
@@ -556,7 +575,8 @@ export async function POST(req: NextRequest) {
       console.error('Failed to create booking notification:', notifErr);
     }
 
-    return NextResponse.json(Array.isArray(body) ? results : results[0]);
+    const response = Array.isArray(body) ? results : results[0];
+    return NextResponse.json(response);
   } catch (error: unknown) {
     if (error instanceof BookingConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });

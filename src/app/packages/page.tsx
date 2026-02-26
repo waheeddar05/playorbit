@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { Package, Loader2, ShoppingCart, Clock, X, ChevronRight, RotateCcw, Sun, Moon, Zap, Calendar } from 'lucide-react';
+import { Package, Loader2, ShoppingCart, Clock, X, ChevronRight, RotateCcw, Sun, Moon, Zap, Calendar, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { differenceInDays, startOfDay } from 'date-fns';
+import { useRazorpay, usePaymentConfig } from '@/lib/useRazorpay';
 
 interface PackageInfo {
   id: string;
@@ -71,6 +72,18 @@ export default function PackagesPage() {
   const [timingFilter, setTimingFilter] = useState<'DAY' | 'EVENING' | ''>('');
   const [selectedPackage, setSelectedPackage] = useState<PackageInfo | null>(null);
 
+  const { config: paymentConfig } = usePaymentConfig();
+  const { initiatePayment, processing: paymentProcessing } = useRazorpay({
+    onSuccess: () => {
+      setMessage({ text: 'Package purchased successfully!', type: 'success' });
+      setTab('my');
+      fetchMyPackages();
+    },
+    onFailure: (error) => {
+      setMessage({ text: error || 'Payment failed', type: 'error' });
+    },
+  });
+
   const fetchPackages = async () => {
     setLoading(true);
     try {
@@ -114,6 +127,31 @@ export default function PackagesPage() {
       setMessage({ text: 'Please login to purchase a package', type: 'error' });
       return;
     }
+
+    const pkg = packages.find(p => p.id === packageId);
+    if (!pkg) return;
+
+    // If payment is enabled and required for packages, use Razorpay
+    if (paymentConfig?.paymentEnabled && paymentConfig?.packagePaymentRequired) {
+      setPurchasing(packageId);
+      setMessage({ text: '', type: '' });
+
+      await initiatePayment({
+        type: 'PACKAGE_PURCHASE',
+        amount: pkg.price,
+        packageId,
+        description: `Package: ${pkg.name} (${pkg.totalSessions} sessions)`,
+        prefill: {
+          name: session.user?.name || undefined,
+          email: session.user?.email || undefined,
+        },
+      });
+
+      setPurchasing(null);
+      return;
+    }
+
+    // Fallback: free/offline purchase (original flow)
     if (!confirm('Confirm package purchase?')) return;
     setPurchasing(packageId);
     setMessage({ text: '', type: '' });
@@ -126,6 +164,7 @@ export default function PackagesPage() {
       if (res.ok) {
         setMessage({ text: 'Package purchased successfully!', type: 'success' });
         setTab('my');
+        fetchMyPackages();
       } else {
         const data = await res.json();
         setMessage({ text: data.error || 'Purchase failed', type: 'error' });
@@ -538,13 +577,21 @@ export default function PackagesPage() {
               {/* Purchase Button */}
               <button
                 onClick={() => { handlePurchase(selectedPackage.id); setSelectedPackage(null); }}
-                disabled={purchasing === selectedPackage.id}
-                className="w-full bg-accent hover:bg-accent-light text-primary py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 cursor-pointer mt-2"
+                disabled={purchasing === selectedPackage.id || paymentProcessing}
+                className="w-full bg-accent hover:bg-accent-light text-primary py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 cursor-pointer mt-2 flex items-center justify-center gap-2"
               >
-                {purchasing === selectedPackage.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                {purchasing === selectedPackage.id || paymentProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  `Purchase for ₹${selectedPackage.price}`
+                  <>
+                    {paymentConfig?.paymentEnabled && paymentConfig?.packagePaymentRequired && (
+                      <CreditCard className="w-4 h-4" />
+                    )}
+                    {paymentConfig?.paymentEnabled && paymentConfig?.packagePaymentRequired
+                      ? `Pay ₹${selectedPackage.price}`
+                      : `Purchase for ₹${selectedPackage.price}`
+                    }
+                  </>
                 )}
               </button>
             </div>
