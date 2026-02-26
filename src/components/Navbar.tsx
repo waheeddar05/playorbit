@@ -53,7 +53,7 @@ export default function Navbar() {
               width={320}
               height={96}
               priority
-              className="h-28 md:h-32 w-auto object-contain flex-shrink-0 drop-shadow-[0_0_8px_rgba(100,140,255,0.3)]"
+              className="h-20 md:h-28 w-auto object-contain flex-shrink-0 drop-shadow-[0_0_8px_rgba(100,140,255,0.3)]"
             />
           </Link>
 

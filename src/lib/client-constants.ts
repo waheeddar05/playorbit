@@ -120,9 +120,12 @@ export const LABEL_MAP: Record<string, string> = {
 export const CONTACT_NUMBERS = [
   { name: 'Pratyush', number: '7058683664' },
   { name: 'Rahul', number: '7774077995' },
+  { name: 'Raj', number: '9975011081' },
 ] as const;
 
-export const INSTAGRAM_URL = 'https://www.instagram.com/ankeetbawanecricketacademy?igsh=MWFvd2p0MzlrOWQ1Mg%3D%3D';
+export const INSTAGRAM_URL = 'https://www.instagram.com/playorbit.in/';
+
+export const LOCATION_URL = 'https://maps.app.goo.gl/iy8f6nRLmkZAqztF9?g_st=awb';
 
 // ─── Helpers ─────────────────────────────────────────────
 export function getMachineCard(id: MachineId): MachineCard {

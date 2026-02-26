@@ -279,14 +279,18 @@ export default function BookingsPage() {
             <Phone className="w-3.5 h-3.5" />
             Rahul: 7774077995
           </a>
+          <a href="tel:9975011081" className="flex items-center gap-1.5 hover:text-accent transition-colors">
+            <Phone className="w-3.5 h-3.5" />
+            Raj: 9975011081
+          </a>
           <a
-            href="https://www.instagram.com/ankeetbawanecricketacademy?igsh=MWFvd2p0MzlrOWQ1Mg%3D%3D"
+            href="https://www.instagram.com/playorbit.in/"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 hover:text-accent transition-colors"
           >
             <Instagram className="w-3.5 h-3.5" />
-            @ankeetbawanecricketacademy
+            @playorbit.in
           </a>
         </div>
       </div>

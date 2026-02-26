@@ -1,7 +1,7 @@
 'use client';
 
-import { Phone, Instagram } from 'lucide-react';
-import { CONTACT_NUMBERS, INSTAGRAM_URL } from '@/lib/client-constants';
+import { Phone, Instagram, MapPin } from 'lucide-react';
+import { CONTACT_NUMBERS, INSTAGRAM_URL, LOCATION_URL } from '@/lib/client-constants';
 
 interface ContactFooterProps {
   quote?: string;
@@ -36,9 +36,18 @@ export function ContactFooter({
             className="flex items-center gap-1.5 hover:text-accent transition-colors"
           >
             <Instagram className="w-3 h-3" />
-            @ankeetbawanecricketacademy
+            @playorbit.in
           </a>
         )}
+        <a
+          href={LOCATION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 hover:text-accent transition-colors"
+        >
+          <MapPin className="w-3 h-3" />
+          Location
+        </a>
       </div>
     </div>
   );

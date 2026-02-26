@@ -43,26 +43,26 @@ export default function LoginPage() {
         </svg>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 relative z-10">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 relative z-10">
         {/* Header */}
-        <div className="text-center mb-8 animate-fade-in">
+        <div className="text-center mb-4 animate-fade-in">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/playorbit-logo.png"
             alt="PlayOrbit"
-            className="h-56 md:h-80 w-auto object-contain mx-auto mb-5 drop-shadow-[0_0_12px_rgba(100,140,255,0.35)]"
+            className="h-40 md:h-96 w-auto object-contain mx-auto mb-3 drop-shadow-[0_0_12px_rgba(100,140,255,0.35)]"
           />
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+          <h1 className="text-xl md:text-3xl font-bold text-white mb-1">
             Welcome Back
           </h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-xs md:text-sm text-slate-400">
             Sign in to book your practice session
           </p>
         </div>
 
         {/* Login Card */}
         <div className="w-full max-w-sm animate-fade-in delay-100">
-          <div className="bg-white/[0.04] backdrop-blur-sm rounded-2xl border border-white/[0.08] p-6 md:p-8 space-y-5">
+          <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl border border-white/[0.08] p-4 md:p-8 space-y-3">
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
                 <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -93,28 +93,28 @@ export default function LoginPage() {
             </button>
 
             {/* Quick features */}
-            <div className="grid grid-cols-3 gap-2 pt-2">
+            <div className="grid grid-cols-3 gap-1 pt-1">
               <div className="text-center">
-                <p className="text-lg font-bold text-accent">4</p>
-                <p className="text-[9px] text-slate-500">Machines</p>
+                <p className="text-sm md:text-lg font-bold text-accent">4</p>
+                <p className="text-[8px] text-slate-500">Machines</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-accent">3</p>
-                <p className="text-[9px] text-slate-500">Pitch Types</p>
+                <p className="text-sm md:text-lg font-bold text-accent">3</p>
+                <p className="text-[8px] text-slate-500">Pitch Types</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-accent">30m</p>
-                <p className="text-[9px] text-slate-500">Sessions</p>
+                <p className="text-sm md:text-lg font-bold text-accent">30m</p>
+                <p className="text-[8px] text-slate-500">Sessions</p>
               </div>
             </div>
           </div>
 
-          <p className="text-center mt-6 text-sm text-accent/80 font-semibold italic">
+          <p className="text-center mt-3 text-xs md:text-sm text-accent/80 font-semibold italic">
             &ldquo;Sweat in Practice. Shine in Matches.&rdquo;
           </p>
 
           {/* Contact */}
-          <div className="flex flex-col items-center gap-2 mt-6 text-xs text-slate-500">
+          <div className="flex flex-col items-center gap-1.5 mt-3 text-[10px] md:text-xs text-slate-500">
             <div className="flex items-center gap-4">
               <a href="tel:7058683664" className="flex items-center gap-1.5 hover:text-accent transition-colors">
                 <Phone className="w-3 h-3" />
@@ -124,15 +124,19 @@ export default function LoginPage() {
                 <Phone className="w-3 h-3" />
                 7774077995
               </a>
+              <a href="tel:9975011081" className="flex items-center gap-1.5 hover:text-accent transition-colors">
+                <Phone className="w-3 h-3" />
+                9975011081
+              </a>
             </div>
             <a
-              href="https://www.instagram.com/ankeetbawanecricketacademy?igsh=MWFvd2p0MzlrOWQ1Mg%3D%3D"
+              href="https://www.instagram.com/playorbit.in/"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 hover:text-accent transition-colors"
             >
               <Instagram className="w-3 h-3" />
-              @ankeetbawanecricketacademy
+              @playorbit.in
             </a>
           </div>
         </div>
