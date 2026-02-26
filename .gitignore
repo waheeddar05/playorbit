@@ -42,3 +42,6 @@ next-env.d.ts
 
 /lib/generated/prisma
 .env*.local
+
+# Play Store signing keys (KEEP PRIVATE)
+/play-store/

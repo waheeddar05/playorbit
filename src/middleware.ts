@@ -21,7 +21,9 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/images/") ||
     pathname.startsWith("/icons/") ||
     pathname === "/sw.js" ||
-    pathname === "/manifest.json";
+    pathname === "/manifest.json" ||
+    pathname.startsWith("/.well-known/") ||
+    pathname === "/privacy-policy";
 
   if (isPublicPath) {
     // If the user is logged in and tries to access login or otp page, redirect to slots
@@ -120,6 +122,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - images (public images)
      */
-    "/((?!api/auth|api/maintenance|login|otp|maintenance|_next/static|_next/image|favicon.ico|images|icons|sw\\.js|manifest\\.json).*)",
+    "/((?!api/auth|api/maintenance|login|otp|maintenance|_next/static|_next/image|favicon.ico|images|icons|sw\\.js|manifest\\.json|\\.well-known|privacy-policy).*)",
   ],
 };
