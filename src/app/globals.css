@@ -136,6 +136,14 @@ html {
   animation-delay: 0.3s;
 }
 
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+.delay-500 {
+  animation-delay: 0.5s;
+}
+
 /* Mobile tap highlight */
 * {
   -webkit-tap-highlight-color: transparent;
