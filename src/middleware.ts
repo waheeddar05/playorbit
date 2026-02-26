@@ -47,7 +47,7 @@ export async function middleware(req: NextRequest) {
   const otpToken = otpTokenStr ? verifyToken(otpTokenStr) as any : null;
 
   if (!token && !otpToken) {
-    const loginUrl = new URL("/login", req.url);
+    const loginUrl = new URL("/", req.url);
     return NextResponse.redirect(loginUrl);
   }
 

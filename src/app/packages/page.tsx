@@ -52,8 +52,8 @@ type MachineFilter = 'all' | 'GRAVITY' | 'YANTRA' | 'LEVERAGE_INDOOR' | 'LEVERAG
 const PACKAGE_MACHINE_CARDS: { id: MachineFilter; label: string; sub: string; category: string; image: string; dot: string }[] = [
   { id: 'GRAVITY', label: 'Gravity', sub: 'Leather Ball', category: 'LEATHER', image: '/images/leathermachine.jpeg', dot: 'bg-red-500' },
   { id: 'YANTRA', label: 'Yantra', sub: 'Premium Leather', category: 'LEATHER', image: '/images/yantra-machine.jpeg', dot: 'bg-red-500' },
-  { id: 'LEVERAGE_INDOOR', label: 'Leverage Tennis', sub: 'Indoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
-  { id: 'LEVERAGE_OUTDOOR', label: 'Leverage Tennis', sub: 'Outdoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
+  { id: 'LEVERAGE_INDOOR', label: 'Leverage High Speed Tennis', sub: 'Indoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
+  { id: 'LEVERAGE_OUTDOOR', label: 'Leverage High Speed Tennis', sub: 'Outdoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
 ];
 
 export default function PackagesPage() {
