@@ -521,14 +521,16 @@ export async function POST(req: NextRequest) {
     if (userPackageId && packageValidation) {
       const extraChargePerSlot = (packageValidation.extraCharge || 0) / validatedSlots.length;
       for (const result of results) {
-        await prisma.packageBooking.create({
-          data: {
+        await prisma.packageBooking.upsert({
+          where: { bookingId: result.id },
+          create: {
             userPackageId,
             bookingId: result.id,
             sessionsUsed: 1,
             extraCharge: extraChargePerSlot,
             extraChargeType: packageValidation.extraChargeType || null,
           },
+          update: {},
         });
       }
 
