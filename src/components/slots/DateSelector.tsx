@@ -9,7 +9,7 @@ interface DateSelectorProps {
   daysAhead?: number;
 }
 
-export function DateSelector({ selectedDate, onSelect, daysAhead = 7 }: DateSelectorProps) {
+export function DateSelector({ selectedDate, onSelect, daysAhead = 15 }: DateSelectorProps) {
   return (
     <div className="mb-5">
       <label className="block text-[10px] font-medium text-accent mb-2 uppercase tracking-wider">

@@ -115,8 +115,16 @@ function AdminBookingsContent() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const [statusMessage, setStatusMessage] = useState({ text: '', type: '' });
+
   const updateStatus = async (bookingId: string, status: string) => {
-    if (!confirm(`Are you sure you want to mark this booking as ${status}?`)) return;
+    const booking = bookings.find(b => b.id === bookingId);
+    const playerName = booking?.playerName || 'this booking';
+    const actionLabel = status === 'CANCELLED' ? 'cancel' : 'restore';
+
+    if (!confirm(`Are you sure you want to ${actionLabel} the booking for "${playerName}"?`)) return;
+
+    setActionLoading(bookingId);
     try {
       const res = await fetch('/api/admin/bookings', {
         method: 'PATCH',
@@ -124,14 +132,23 @@ function AdminBookingsContent() {
         body: JSON.stringify({ bookingId, status }),
       });
       if (res.ok) {
+        const successMsg = status === 'CANCELLED'
+          ? `Booking for "${playerName}" has been cancelled successfully.`
+          : `Booking for "${playerName}" has been restored successfully.`;
+        setStatusMessage({ text: successMsg, type: 'success' });
         fetchBookings();
+        setTimeout(() => setStatusMessage({ text: '', type: '' }), 4000);
       } else {
         const data = await res.json();
-        alert(data.error || 'Update failed');
+        setStatusMessage({ text: data.error || 'Update failed', type: 'error' });
+        setTimeout(() => setStatusMessage({ text: '', type: '' }), 4000);
       }
     } catch (error) {
       console.error('Failed to update booking', error);
-      alert('Failed to update booking');
+      setStatusMessage({ text: 'Failed to update booking', type: 'error' });
+      setTimeout(() => setStatusMessage({ text: '', type: '' }), 4000);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -380,6 +397,17 @@ function AdminBookingsContent() {
           <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Cancelled</div>
         </div>
       </div>
+
+      {/* Status Message */}
+      {statusMessage.text && (
+        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium ${
+          statusMessage.type === 'success'
+            ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+            : 'bg-red-500/10 border border-red-500/20 text-red-400'
+        }`}>
+          {statusMessage.text}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white/[0.06] backdrop-blur-sm rounded-xl border border-white/[0.12] p-5 mb-5">

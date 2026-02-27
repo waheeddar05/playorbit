@@ -80,6 +80,7 @@ export async function GET(req: NextRequest) {
     const headers = [
       'Booking ID',
       'Date',
+      'Created At',
       'Start Time',
       'End Time',
       'Player Name',
@@ -95,12 +96,13 @@ export async function GET(req: NextRequest) {
       'Discount',
       'Created By',
       'Cancelled By',
-      'Created At',
+      'Cancelled At',
     ];
 
     const rows = bookings.map((b: any) => [
       b.id,
       formatIST(b.date, 'yyyy-MM-dd'),
+      formatIST(b.createdAt, 'yyyy-MM-dd HH:mm:ss'),
       formatIST(b.startTime, 'HH:mm'),
       formatIST(b.endTime, 'HH:mm'),
       `"${(b.playerName || '').replace(/"/g, '""')}"`,
@@ -116,7 +118,7 @@ export async function GET(req: NextRequest) {
       b.discountAmount?.toString() || '',
       `"${(b.createdBy || '').replace(/"/g, '""')}"`,
       `"${(b.cancelledBy || '').replace(/"/g, '""')}"`,
-      formatIST(b.createdAt, 'yyyy-MM-dd HH:mm:ss'),
+      b.status === 'CANCELLED' && b.updatedAt ? formatIST(b.updatedAt, 'yyyy-MM-dd HH:mm:ss') : '',
     ]);
 
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

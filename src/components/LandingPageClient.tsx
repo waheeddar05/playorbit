@@ -33,7 +33,6 @@ export default function LandingPageClient() {
               priority
               sizes="(max-width: 768px) 60px, 120px"
             />
-            <span className="text-sm md:text-lg font-black tracking-tighter text-white uppercase italic leading-none">PlayOrbit</span>
           </div>
           <button
             onClick={openLogin}
@@ -334,7 +333,6 @@ export default function LandingPageClient() {
               loading="lazy"
               sizes="(max-width: 768px) 60px, 120px"
             />
-            <span className="text-xs md:text-sm font-black tracking-tighter text-white/80 uppercase italic">PlayOrbit</span>
           </div>
 
           <div className="flex items-center gap-6 md:gap-6">

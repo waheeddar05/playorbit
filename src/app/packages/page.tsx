@@ -52,8 +52,8 @@ type MachineFilter = 'all' | 'GRAVITY' | 'YANTRA' | 'LEVERAGE_INDOOR' | 'LEVERAG
 const PACKAGE_MACHINE_CARDS: { id: MachineFilter; label: string; sub: string; category: string; image: string; dot: string }[] = [
   { id: 'GRAVITY', label: 'Gravity', sub: 'Leather Ball', category: 'LEATHER', image: '/images/leathermachine.jpeg', dot: 'bg-red-500' },
   { id: 'YANTRA', label: 'Yantra', sub: 'Premium Leather', category: 'LEATHER', image: '/images/yantra-machine.jpeg', dot: 'bg-red-500' },
-  { id: 'LEVERAGE_INDOOR', label: 'Leverage High Speed Tennis', sub: 'Indoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
-  { id: 'LEVERAGE_OUTDOOR', label: 'Leverage High Speed Tennis', sub: 'Outdoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
+  { id: 'LEVERAGE_INDOOR', label: 'Leverage Tennis', sub: 'Indoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
+  { id: 'LEVERAGE_OUTDOOR', label: 'Leverage Tennis', sub: 'Outdoor', category: 'TENNIS', image: '/images/tennismachine.jpeg', dot: 'bg-green-500' },
 ];
 
 export default function PackagesPage() {
@@ -373,9 +373,9 @@ export default function PackagesPage() {
                       <button
                         key={card.id}
                         onClick={() => { setMachineFilter(isSelected ? 'all' : card.id); setTimingFilter(''); }}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all cursor-pointer text-left ${
                           isSelected
-                            ? 'bg-accent/15 ring-2 ring-accent/50 shadow-sm'
+                            ? 'bg-accent/15 ring-1 ring-accent/50 shadow-sm'
                             : 'bg-white/[0.04] border border-white/[0.08] hover:border-accent/30'
                         }`}
                       >
@@ -383,13 +383,13 @@ export default function PackagesPage() {
                         <img
                           src={card.image}
                           alt={card.label}
-                          className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                          className="w-8 h-8 rounded-md object-cover flex-shrink-0"
                         />
                         <div className="min-w-0">
-                          <span className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
+                          <span className={`text-[10px] font-bold leading-tight ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
                             {card.label}
                           </span>
-                          <p className={`text-[9px] ${isSelected ? 'text-accent/70' : 'text-slate-500'}`}>
+                          <p className={`text-[8px] ${isSelected ? 'text-accent/70' : 'text-slate-500'}`}>
                             {card.sub}
                           </p>
                         </div>
@@ -405,9 +405,9 @@ export default function PackagesPage() {
                       <button
                         key={card.id}
                         onClick={() => { setMachineFilter(isSelected ? 'all' : card.id); setTimingFilter(''); }}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all cursor-pointer text-left ${
                           isSelected
-                            ? 'bg-accent/15 ring-2 ring-accent/50 shadow-sm'
+                            ? 'bg-accent/15 ring-1 ring-accent/50 shadow-sm'
                             : 'bg-white/[0.04] border border-white/[0.08] hover:border-accent/30'
                         }`}
                       >
@@ -415,13 +415,13 @@ export default function PackagesPage() {
                         <img
                           src={card.image}
                           alt={card.label}
-                          className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                          className="w-8 h-8 rounded-md object-cover flex-shrink-0"
                         />
                         <div className="min-w-0">
-                          <span className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
+                          <span className={`text-[10px] font-bold leading-tight ${isSelected ? 'text-accent' : 'text-slate-300'}`}>
                             {card.label}
                           </span>
-                          <p className={`text-[9px] ${isSelected ? 'text-accent/70' : 'text-slate-500'}`}>
+                          <p className={`text-[8px] ${isSelected ? 'text-accent/70' : 'text-slate-500'}`}>
                             {card.sub}
                           </p>
                         </div>
@@ -446,22 +446,22 @@ export default function PackagesPage() {
                       <button
                         key={t.key}
                         onClick={() => setTimingFilter(isActive ? '' : t.key)}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all cursor-pointer text-left ${
                           isActive
-                            ? 'bg-accent/15 ring-2 ring-accent/50 shadow-sm'
+                            ? 'bg-accent/15 ring-1 ring-accent/50 shadow-sm'
                             : 'bg-white/[0.04] border border-white/[0.08] hover:border-accent/30'
                         }`}
                       >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${
                           isActive ? 'bg-accent/20' : 'bg-white/[0.06]'
                         }`}>
-                          <t.Icon className={`w-4 h-4 ${isActive ? 'text-accent' : 'text-slate-400'}`} />
+                          <t.Icon className={`w-3.5 h-3.5 ${isActive ? 'text-accent' : 'text-slate-400'}`} />
                         </div>
                         <div className="min-w-0">
-                          <span className={`text-[11px] font-bold block ${isActive ? 'text-accent' : 'text-slate-300'}`}>
+                          <span className={`text-[10px] font-bold block ${isActive ? 'text-accent' : 'text-slate-300'}`}>
                             {t.label}
                           </span>
-                          <span className={`text-[9px] ${isActive ? 'text-accent/70' : 'text-slate-500'}`}>
+                          <span className={`text-[8px] ${isActive ? 'text-accent/70' : 'text-slate-500'}`}>
                             {t.sub}
                           </span>
                         </div>
