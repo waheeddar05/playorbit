@@ -6,14 +6,16 @@ import { ShoppingBag } from 'lucide-react';
 
 /**
  * Rendered by scripts/kis-creatives/render.py from KIS product cutouts on a
- * PlayOrbit stage — our own composition, not KIS footage. The video loops
- * (its last frames fade back into the first), so it never visibly restarts.
- * Bump the suffix when re-rendering so caches don't serve the old cut.
+ * PlayOrbit stage — our own composition, not KIS footage. Every frame is the
+ * M&H 7000, the one bat the store stocks; re-render when that changes. The
+ * video loops (its last frames fade back into the first), so it never
+ * visibly restarts. Bump the suffix when re-rendering so caches don't serve
+ * the old cut.
  */
 export const SHOP_BAND = {
-  image: '/images/kis-gear-band-v2.jpg',
-  video: '/images/kis-hero-v2.mp4',
-  alt: 'KIS Kashmir willow cricket bats from Anantnag, the range sold at PlayOrbit',
+  image: '/images/kis-gear-band-v3.jpg',
+  video: '/images/kis-hero-v3.mp4',
+  alt: 'KIS M&H 7000 Kashmir willow cricket bats from Anantnag, sold at PlayOrbit',
 };
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
@@ -94,7 +96,8 @@ export function ShopMediaBand({ image, alt, video }: { image: string; alt: strin
             KASHMIR WILLOW, <span className="text-shimmer">PICKED IN PERSON.</span>
           </h4>
           <p className="text-slate-300 text-[9px] md:text-sm mt-0.5 md:mt-2 max-w-sm leading-relaxed">
-            Feel the pickup on two or three before you decide. Collect at Toplay.
+            The KIS M&amp;H 7000. Every cleft is different — feel the pickup on two or three before you decide.
+            Collect at Toplay.
           </p>
         </div>
       </div>

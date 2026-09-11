@@ -130,9 +130,43 @@ def trim(im: Image.Image, pad: int = 6) -> Image.Image:
     return im.crop((max(xs.min() - pad, 0), max(ys.min() - pad, 0), min(xs.max() + pad, im.width), min(ys.max() + pad, im.height)))
 
 
+def split_contact(im: Image.Image, n: int, feather: int = 6) -> list[Image.Image]:
+    """Split a row of `n` touching bats at the creases between them.
+
+    Standing side by side the blades touch, so there is no empty column to cut
+    on; the crease shows instead as the columns where the summed alpha dips
+    (rounded edges, shoulders and toes all fall away there). Each side of a
+    cut gets a short alpha ramp so the straight edge does not read as one."""
+    alpha = np.asarray(im.split()[-1]).astype(np.float32)
+    cov = alpha.sum(axis=0)
+    cuts = []
+    for i in range(1, n):
+        c = im.width * i / n
+        lo, hi = int(c - im.width * 0.07), int(c + im.width * 0.07)
+        cuts.append(lo + int(np.argmin(cov[lo:hi])))
+    xs = [0, *cuts, im.width]
+    parts = []
+    ramp = np.linspace(0.0, 1.0, feather, dtype=np.float32)
+    for i in range(n):
+        part = im.crop((xs[i], 0, xs[i + 1], im.height))
+        a = np.asarray(part.split()[-1]).astype(np.float32)
+        if i > 0:
+            a[:, :feather] *= ramp
+        if i < n - 1:
+            a[:, -feather:] *= ramp[::-1]
+        part.putalpha(Image.fromarray(a.astype(np.uint8), "L"))
+        parts.append(trim(part))
+    return parts
+
+
 @lru_cache(maxsize=None)
 def sprite(key: str) -> Image.Image:
-    """Named singles, split out of the pair masters where needed."""
+    """`name` = the cutout; `name#i` = i-th piece at an empty gap; `name@i/n` = i-th of n touching bats."""
+    if "@" in key:
+        name, _, spec = key.partition("@")
+        idx, _, n = spec.partition("/")
+        parts = split_contact(cutout(name), int(n))
+        return parts[int(idx)]
     name, _, idx = key.partition("#")
     im = cutout(name)
     if idx == "":
@@ -252,6 +286,7 @@ class Placed:
     glow: float = 0.55
     shadow: float = 0.7
     sheen: float | None = None  # 0..1 position of a light sweep across the sprite, None = off
+    fade_top: float | None = None  # fraction of H above which the sprite fades out (keeps type on clean navy)
 
 
 @lru_cache(maxsize=4096)
@@ -273,6 +308,34 @@ def soft_layer(alpha: Image.Image, color, blur: int, gain: float) -> Image.Image
     return layer.resize(alpha.size, Image.BILINEAR)
 
 
+def paste(canvas: Image.Image, im: Image.Image, x: int, y: int) -> None:
+    """alpha_composite that tolerates a layer hanging off the canvas (close-ups do)."""
+    W, H = canvas.size
+    left, top = max(0, -x), max(0, -y)
+    right, bottom = min(im.width, W - x), min(im.height, H - y)
+    if right <= left or bottom <= top:
+        return
+    if (left, top, right, bottom) != (0, 0, im.width, im.height):
+        im = im.crop((left, top, right, bottom))
+    canvas.alpha_composite(im, (x + left, y + top))
+
+
+def fade_above(im: Image.Image, y: int, H: int, fade_top: float) -> Image.Image:
+    """Multiply a layer's alpha by a vertical ramp: 0 at fade_top*H, 1 eight percent lower."""
+    f0, f1 = fade_top * H, (fade_top + 0.08) * H
+    rows = np.arange(im.height, dtype=np.float32) + y
+    ramp = np.clip((rows - f0) / max(f1 - f0, 1.0), 0.0, 1.0)
+    a = np.asarray(im.split()[-1]).astype(np.float32) * ramp[:, None]
+    out = im.copy()
+    out.putalpha(Image.fromarray(a.astype(np.uint8), "L"))
+    return out
+
+
+# Typeset layouts set this in frame(): every sprite fades out under the headline
+# block, so no handle can run through the type whatever the scene does.
+_FADE_TOP: float | None = None
+
+
 def composite(canvas: Image.Image, p: Placed) -> None:
     W, H = canvas.size
     if p.opacity <= 0.01:
@@ -281,6 +344,9 @@ def composite(canvas: Image.Image, p: Placed) -> None:
     im = transformed(p.key, hp, round(p.rot * 10))
     x = round(p.cx * W - im.width / 2)
     y = round(p.cy * H - im.height / 2)
+    fade_top = p.fade_top if p.fade_top is not None else _FADE_TOP
+    if fade_top is not None and y < fade_top * H + H * 0.08:
+        im = fade_above(im, y, H, fade_top)
     alpha = im.split()[-1]
     pad = max(40, hp // 12)
     if p.shadow > 0:
@@ -288,13 +354,13 @@ def composite(canvas: Image.Image, p: Placed) -> None:
         sh = ImageOps.expand(sh, pad)
         sha = sh.split()[-1].point(lambda v: int(v * p.shadow * p.opacity))
         sh.putalpha(sha)
-        canvas.alpha_composite(sh, (x - pad + round(hp * 0.02), y - pad + round(hp * 0.035)))
+        paste(canvas, sh, x - pad + round(hp * 0.02), y - pad + round(hp * 0.035))
     if p.glow > 0:
         gl = soft_layer(alpha, SKY, pad, 1.0)
         gl = ImageOps.expand(gl, pad)
         gla = gl.split()[-1].point(lambda v: int(v * p.glow * 0.5 * p.opacity))
         gl.putalpha(gla)
-        canvas.alpha_composite(gl, (x - pad, y - pad))
+        paste(canvas, gl, x - pad, y - pad)
     body = im
     if p.sheen is not None:
         body = im.copy()
@@ -309,7 +375,7 @@ def composite(canvas: Image.Image, p: Placed) -> None:
         a = body.split()[-1].point(lambda v: int(v * p.opacity))
         body = body.copy()
         body.putalpha(a)
-    canvas.alpha_composite(body, (x, y))
+    paste(canvas, body, x, y)
 
 
 # ------------------------------------------------------------------- type --
@@ -410,94 +476,104 @@ def layout_for(kind: str) -> Layout:
 
 
 # Scene timing (seconds). Each scene owns [start, end); crossfades overlap by XF.
+# One bat only: PlayOrbit stocks the M&H 7000 and nothing else yet, so every
+# scene is that bat — the trio as shot, the three split into singles, a blade
+# close-up, and the edge-on view from the second master.
 XF = 0.7
-SCENES = [("trio", 0.0, 4.6), ("range", 4.6, 9.4), ("detail", 9.4, 13.2), ("edge", 13.2, 17.4), ("end", 17.4, 20.0)]
+SCENES = [("hero", 0.0, 4.6), ("singles", 4.6, 9.4), ("detail", 9.4, 13.2), ("edge", 13.2, 17.4), ("end", 17.4, 20.0)]
 DURATION = 20.0
 
+TRIO = "mh7000-face"
+SINGLES = ["mh7000-face@0/3", "mh7000-face@1/3", "mh7000-face@2/3"]
+CLOSEUP = "mh7000-face@0/3"
+PAIR, EDGE = "mh7000-trio#0", "mh7000-trio#1"
+PRICE = "₹6,500"
+
 COPY = {
-    "trio": ("KASHMIR WILLOW.", "Pressed in Anantnag by Khan International Sports."),
-    "range": ("THE KIS RANGE.", "Kashmir willow to English willow, Legends to Master Pro."),
-    "detail": ("PICK IT UP FIRST.", "Feel the balance on two or three before you decide."),
-    "edge": ("BUILT FOR LEATHER.", "Thick edges, full profiles, ready for the nets."),
+    "hero": ("THE KIS M&H 7000.", "Grade A++ Kashmir willow, pressed in Anantnag."),
+    "singles": ("PICK IT UP FIRST.", "Every cleft is different. Feel the pickup on two or three."),
+    "detail": ("KNOCKED IN. READY.", "Hand-finished and pre-knocked — face leather from day one."),
+    "edge": ("BUILT FOR LEATHER.", "Thick edges, full profile, short handle."),
     "end": ("HAND-PICK AT TOPLAY.", "playorbit.in/shop"),
 }
 
 
-def scene_trio(L: Layout, t: float, u: float, alpha: float, c: Image.Image) -> None:
-    """u = seconds since scene start. Trio drifts; no entry so the loop is seamless."""
+def scene_hero(L: Layout, t: float, u: float, alpha: float, c: Image.Image) -> None:
+    """u = seconds since scene start. The trio drifts; no entry, so the loop is seamless."""
     drift = ease_in_out_cubic(u / 4.6)
     h = L.bat_h * lerp(1.0, 1.05, drift)
-    cy = (0.60 if not L.text else 0.60) - 0.02 * drift
+    cy = 0.60 - 0.02 * drift
     c.alpha_composite(radial_glow(L.W, L.H, L.ax, cy - 0.05, 0.5, SKY, 0.16 * alpha))
-    composite(c, Placed("mh7000-face", L.ax, cy, h, rot=lerp(-1.5, 1.5, drift), opacity=alpha, glow=0.7))
+    composite(c, Placed(TRIO, L.ax, cy, h, rot=lerp(-1.5, 1.5, drift), opacity=alpha, glow=0.7))
 
 
-def scene_range(L: Layout, t: float, u: float, alpha: float, c: Image.Image) -> None:
-    keys = ["classic-face#0", "legends-face#0", "am-face#0", "pro-face#1", "limited-face#0"]
-    n = len(keys)
+def scene_singles(L: Layout, t: float, u: float, alpha: float, c: Image.Image) -> None:
+    """The same three bats, apart: each one is its own cleft."""
     if L.portrait:
-        xs = [0.18, 0.34, 0.50, 0.66, 0.82]
-        rots = [-9, -4.5, 0, 4.5, 9]
-        h = L.bat_h * 0.98
-        cy = 0.58
+        xs, h, cy = [0.24, 0.50, 0.76], L.bat_h * 1.0, 0.58
+    elif L.square:
+        xs, h, cy = [L.ax - 0.24, L.ax, L.ax + 0.24], L.bat_h * 1.0, 0.64
     else:
-        span = 0.50 if not L.text else 0.78
-        x0 = L.ax - span / 2 + (0.05 if not L.text else 0)
-        xs = [x0 + span * i / (n - 1) for i in range(n)]
-        rots = [-8, -4, 0, 4, 8]
-        h = L.bat_h * 0.92
-        cy = 0.62
+        xs, h, cy = [L.ax - 0.20, L.ax, L.ax + 0.20], L.bat_h * 1.05, 0.64
+    rots = [-7, 0, 7]
     push = ease_in_out_cubic(seg(u, 1.2, 3.4))
     c.alpha_composite(radial_glow(L.W, L.H, L.ax, cy - 0.08, 0.6, SKY, 0.14 * alpha))
-    for i, k in enumerate(keys):
-        e = ease_out_expo(seg(u, 0.12 * i, 1.1))
-        dx = (1 - e) * (0.55 if not L.portrait else 0.9)
-        dy = (1 - e) * 0.05
+    for i, k in enumerate(SINGLES):
+        e = ease_out_expo(seg(u, 0.14 * i, 1.1))
+        dx = (1 - e) * (0.45 if not L.portrait else 0.0)
+        dy = (1 - e) * (0.05 if not L.portrait else 0.5)
         composite(c, Placed(k, xs[i] + dx, cy + dy, h * lerp(1.0, 1.04, push), rot=rots[i] * e, opacity=alpha * min(1, e * 3), glow=0.5))
 
 
 def scene_detail(L: Layout, t: float, u: float, alpha: float, c: Image.Image) -> None:
+    """Blade close-up: the sticker, the model name and the grain, with a light sweep."""
     pan = ease_in_out_cubic(u / 3.8)
+    focus = lerp(0.50, 0.64, pan)  # where on the bat (0 top, 1 toe) the frame centre sits
+    # a single bat is only ~0.14 as wide as it is tall, so a real close-up
+    # means several frame-heights of bat; the cutout is kept tall for this
     if L.portrait:
-        h, cx, cy = 0.62, 0.5, 0.52
+        h, cx, mid = 2.4, 0.5, 0.5
     elif L.square:
-        h, cx, cy = 1.0, 0.5, 0.62
+        h, cx, mid = 3.0, 0.54, 0.5
     else:
-        h, cx, cy = 1.35, lerp(L.ax + 0.05, L.ax - 0.02, pan), 0.55
+        h, cx, mid = 4.0, lerp(L.ax + 0.03, L.ax - 0.02, pan), 0.5
+    cy = mid - (focus - 0.5) * h
     sheen = seg(u, 0.9, 1.8)
-    c.alpha_composite(radial_glow(L.W, L.H, cx, cy, 0.55, SKY_LIGHT, 0.12 * alpha))
-    composite(c, Placed("limited-grains", cx, cy, h * lerp(1.0, 1.06, pan), rot=lerp(2, -1, pan), opacity=alpha, glow=0.35, shadow=0.8, sheen=sheen if 0 < sheen < 1 else None))
+    c.alpha_composite(radial_glow(L.W, L.H, cx, mid, 0.55, SKY_LIGHT, 0.12 * alpha))
+    composite(c, Placed(CLOSEUP, cx, cy, h, rot=lerp(2.5, -1.5, pan), opacity=alpha, glow=0.25, shadow=0.6,
+                        sheen=sheen if 0 < sheen < 1 else None))
 
 
 def scene_edge(L: Layout, t: float, u: float, alpha: float, c: Image.Image) -> None:
-    keys = ["reserve-edge", "reserve-face", "classic-side#0", "pads-white"]
+    """Two faces and one turned edge-on: the thickness is the point."""
+    keys = [PAIR, EDGE]
     if L.portrait:
-        pos = [(0.24, 0.56, 0.80, -10), (0.42, 0.56, 0.80, -3), (0.60, 0.56, 0.80, 4), (0.80, 0.70, 0.30, 0)]
+        pos = [(0.40, 0.60, 0.78, -3), (0.74, 0.60, 0.78, 5)]
     elif L.square:
-        pos = [(0.22, 0.64, 1.05, -10), (0.40, 0.64, 1.05, -3), (0.58, 0.64, 1.05, 4), (0.82, 0.76, 0.40, 0)]
+        pos = [(L.ax - 0.12, 0.66, 1.05, -3), (L.ax + 0.20, 0.66, 1.05, 5)]
     else:
-        pos = [(L.ax - 0.20, 0.62, 1.30, -10), (L.ax - 0.06, 0.62, 1.30, -3), (L.ax + 0.08, 0.62, 1.30, 4), (L.ax + 0.25, 0.75, 0.55, 0)]
+        pos = [(L.ax - 0.10, 0.62, 1.30, -3), (L.ax + 0.14, 0.62, 1.30, 5)]
     c.alpha_composite(radial_glow(L.W, L.H, L.ax, 0.5, 0.6, SKY, 0.14 * alpha))
     for i, (k, (cx, cy, h, rot)) in enumerate(zip(keys, pos)):
-        e = ease_out_back(seg(u, 0.14 * i, 1.2), 0.6)
-        dy = (1 - ease_out_expo(seg(u, 0.14 * i, 1.2))) * 0.6
-        composite(c, Placed(k, cx, cy + dy, h * (0.9 if k == "pads-white" else 1.0), rot=rot * e, opacity=alpha * min(1, e * 2), glow=0.45))
+        e = ease_out_back(seg(u, 0.16 * i, 1.2), 0.6)
+        dy = (1 - ease_out_expo(seg(u, 0.16 * i, 1.2))) * 0.6
+        composite(c, Placed(k, cx, cy + dy, h, rot=rot * e, opacity=alpha * min(1, e * 2), glow=0.45))
 
 
 def scene_end(L: Layout, t: float, u: float, alpha: float, c: Image.Image) -> None:
-    """Logo card. In the band this simply crossfades back to the trio."""
+    """Logo card. In the band this simply crossfades back to the hero."""
     if not L.text:
-        scene_trio(L, t, 0.0, alpha, c)
+        scene_hero(L, t, 0.0, alpha, c)
         return
     e = ease_out_expo(seg(u, 0.1, 1.2))
     lw = round(L.W * (0.66 if L.portrait else 0.46) * lerp(0.92, 1.0, e))
     cy = 0.38 if L.portrait else 0.36
     c.alpha_composite(radial_glow(L.W, L.H, 0.5, cy, 0.5, PURPLE, 0.18 * alpha * e))
-    composite(c, Placed("mh7000-face", 0.5, 1.10 if L.portrait else 1.12, 0.9 if L.portrait else 0.95, opacity=alpha * 0.9 * e, glow=0.4, shadow=0.5))
+    composite(c, Placed(TRIO, 0.5, 1.10 if L.portrait else 1.12, 0.9 if L.portrait else 0.95, opacity=alpha * 0.9 * e, glow=0.4, shadow=0.5))
     add_logo(c, lw, 0.5, cy, alpha * e)
 
 
-SCENE_FN = {"trio": scene_trio, "range": scene_range, "detail": scene_detail, "edge": scene_edge, "end": scene_end}
+SCENE_FN = {"hero": scene_hero, "singles": scene_singles, "detail": scene_detail, "edge": scene_edge, "end": scene_end}
 
 
 def scene_copy(L: Layout, name: str, u: float, dur: float, alpha: float, c: Image.Image) -> None:
@@ -524,12 +600,14 @@ def scene_copy(L: Layout, name: str, u: float, dur: float, alpha: float, c: Imag
     draw_text(c, sub, x, y_sub + round((1 - e_sub) * 30), round(size * 0.36), SLATE, "Medium", tracking=0.0, shadow=True, opacity=alpha * e_sub)
     if name == "end":
         e_pill = ease_out_back(seg(u, 1.0, 0.9), 0.8)
-        draw_pill(c, "KIS  ×  PLAYORBIT", L.W // 2, round(L.H * (0.56 if L.portrait else 0.62)), round(size * 0.34), opacity=alpha * clamp01(e_pill))
+        draw_pill(c, f"KIS M&H 7000  ·  {PRICE}", L.W // 2, round(L.H * (0.56 if L.portrait else 0.62)), round(size * 0.42), opacity=alpha * clamp01(e_pill))
     else:
         draw_pill(c, "HAND-PICKED GEAR", x + round(size * 1.1), y_head - round(size * 0.55), round(size * 0.26), opacity=a)
 
 
 def frame(L: Layout, t: float, idx: int) -> Image.Image:
+    global _FADE_TOP
+    _FADE_TOP = (0.20 if L.portrait else 0.21) if L.text else None
     c = gradient(L.W, L.H).convert("RGBA")
     # backdrop: the willow stacks, drifting a touch, faint
     bd = backdrop(str(BACKDROP), L.W, L.H)
@@ -554,9 +632,9 @@ def frame(L: Layout, t: float, idx: int) -> Image.Image:
             continue
         SCENE_FN[name](L, t, max(0.0, t - start), alpha, c)
         active.append((name, start, end, alpha))
-    if not L.text and t >= DURATION - XF:  # loop seam: head of the trio scene fades back in
+    if not L.text and t >= DURATION - XF:  # loop seam: head of the hero scene fades back in
         a = ease_in_out_cubic(seg(t, DURATION - XF, XF))
-        scene_trio(L, 0.0, 0.0, a, c)
+        scene_hero(L, 0.0, 0.0, a, c)
     if L.text:
         c.alpha_composite(scrim(L.W, L.H))
         for name, start, end, alpha in active:
@@ -628,7 +706,7 @@ def render_preview(kind: str) -> None:
 
 def render_stills() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    # band poster = the trio at rest
+    # band poster = the hero trio at rest
     L = layout_for("band")
     _init("band")
     frame(L, 0.2, 3).save(OUT / "kis-gear-band.jpg", quality=86, optimize=True, progressive=True)

@@ -57,14 +57,22 @@ PICKS = {
     # Grade A+ on black
     "gradea-face": ("cricket-bat-for-leather-bat-kis-grade-a", "kashmir_willow_KIS_bat_b.webp"),
     "gradea-angle": ("cricket-bat-for-leather-bat-kis-grade-a", "kashmir_willow_KIS_bat_a.webp"),
-    # Lifestyle masters where the bat is clearly separable
+    # M&H 7000 — the bat PlayOrbit actually stocks. Workshop shots, 3024x4032,
+    # always a group of three; render.py splits the standing trios into singles.
     "mh7000-face": ("m-h7000-best-kashmir-willow-cricket-bat-for-leather-ball-kis-unstoppable", "mh7000-kis-bat-front-face.jpg"),
+    "mh7000-trio": ("m-h7000-best-kashmir-willow-cricket-bat-for-leather-ball-kis-unstoppable", "cricket-bat-top-grade-mh7000.jpg"),
+    "mh7000-fan": ("m-h7000-best-kashmir-willow-cricket-bat-for-leather-ball-kis-unstoppable", "curved-profile-cricket-bat-for-leather-ball.jpg"),
+    "mh7000-lean": ("m-h7000-best-kashmir-willow-cricket-bat-for-leather-ball-kis-unstoppable", "best-kashmir-willow-cricket-bat.jpg"),
     # Accessories
     "pads-white": ("batting-pads-batting-leg-guard-shop-now", "ChatGPTImageAug18_2026_02_52_34PM.png"),
 }
 
 # White blade on white paper fools isnet; these get the heavier BiRefNet pass.
 HARD = {"am-face", "pro-face", "gradea-face", "gradea-angle", "pads-white"}
+
+# Kept at (near) master resolution: render.py's blade close-up shows a single
+# bat at four times the frame height, and 2600 px would be upscaled there.
+TALL = {"mh7000-face": 3800}
 
 
 def load(path: Path) -> Image.Image:
@@ -110,8 +118,9 @@ def main(names: list[str]) -> None:
             im = im.resize((round(im.width * 3200 / im.height), 3200), Image.LANCZOS)
         cut = remove(im, session=session, post_process_mask=True)
         cut = clean_alpha(trim(cut))
-        if cut.height > MAX_H:
-            cut = cut.resize((round(cut.width * MAX_H / cut.height), MAX_H), Image.LANCZOS)
+        max_h = TALL.get(name, MAX_H)
+        if cut.height > max_h:
+            cut = cut.resize((round(cut.width * max_h / cut.height), max_h), Image.LANCZOS)
         cut.save(dst, optimize=True)
         print(f"ok {name:18s} {cut.width}x{cut.height}  <- {fn}")
 

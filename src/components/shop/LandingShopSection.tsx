@@ -28,6 +28,19 @@ const TILE_COLORS: Record<string, string> = {
 };
 
 /**
+ * The featured strip is a four-up grid on desktop, but the store may be
+ * selling one or two things (launch is a single bat). A lone card in the
+ * first of four columns reads as three missing products, so the grid
+ * narrows to the count and centres itself.
+ */
+function featuredGridClass(count: number): string {
+  if (count === 1) return 'grid grid-cols-1 max-w-[240px] md:max-w-[280px] mx-auto';
+  if (count === 2) return 'grid grid-cols-2 gap-2.5 max-w-lg mx-auto';
+  if (count === 3) return 'grid grid-cols-2 md:grid-cols-3 gap-2.5 max-w-3xl mx-auto';
+  return 'grid grid-cols-2 md:grid-cols-4 gap-2.5';
+}
+
+/**
  * The landing page's store section — sits between Ways to Train and the
  * features grid and mirrors their styling. Shows the center's featured
  * products when it has any, otherwise the category teaser, and always a
@@ -64,7 +77,7 @@ export function LandingShopSection() {
         {SHOP_BAND && <ShopMediaBand {...SHOP_BAND} />}
 
         {featured.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          <div className={featuredGridClass(featured.length)}>
             {featured.map((product) => (
               <ProductCard key={product.id} product={product} comingSoon={showComingSoon} />
             ))}

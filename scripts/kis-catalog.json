@@ -1,21 +1,38 @@
 {
-  "note": "KIS (Khan International Sports, Anantnag) bat line-up for the PlayOrbit Cricket Store launch. Product names, willow types and grades are the manufacturer's; `price` is seeded from public retail listings and is a placeholder for PlayOrbit's own pricing — set it before publishing. Photos: drop the supplier's asset pack into folders named after each sku (e.g. kis-assets/KIS-CLS-KW/01.jpg) and pass --images kis-assets; the first file becomes the card thumbnail. Nothing here is published until --publish is passed or the row is switched on in Admin -> Cricket Store.",
+  "note": "KIS (Khan International Sports, Anantnag) bat line-up for the PlayOrbit Cricket Store. Product names, willow types and grades are the manufacturer's. For launch PlayOrbit stocks one bat, the M&H 7000 at ₹6,500 (`isActive: true`); the rest of the line-up is kept here priced from public retail listings and stays hidden (`isActive: false`) until it is actually on the shelf — flip the flag and set PlayOrbit's own price when it is. Photos: drop the supplier's asset pack into folders named after each sku (e.g. kis-assets/KIS-CLS-KW/01.jpg) and pass --images kis-assets; the first file becomes the card thumbnail.",
   "products": [
     {
       "sku": "KIS-LEG-KW",
       "name": "KIS Legends Edition",
       "category": "BAT",
       "brand": "KIS",
-      "description": "The entry bat in the KIS range: Kashmir willow shaped for leather-ball cricket, ready for a first season of hard practice. Light enough for a young batter stepping up from tennis-ball games.",
+      "description": "The entry bat in the KIS range: Kashmir willow shaped for leather-ball cricket, ready for a first season of hard practice. Light enough for a young batter stepping up from tennis-ball games.\n\nComes in Size 6 and Harrow as well as full size, so a growing player can be fitted properly rather than handed something to grow into. Made in Anantnag by Khan International Sports, pressing willow in Kashmir since 1994.\n\nBest for: a first leather-ball bat, junior and school cricket, net practice.",
       "price": 2999,
       "inStock": true,
+      "isActive": false,
       "displayOrder": 10,
-      "sizes": ["Size 6", "Harrow", "SH"],
+      "sizes": [
+        "Size 6",
+        "Harrow",
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "Kashmir Willow" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Handle", "value": "Cane, rubber grip" },
-        { "label": "Made in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "Kashmir Willow"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Handle",
+          "value": "Cane, rubber grip"
+        },
+        {
+          "label": "Made in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -23,17 +40,36 @@
       "name": "KIS Classic — Kashmir Willow",
       "category": "BAT",
       "brand": "KIS",
-      "description": "The all-round club bat. Grade A++ Kashmir willow with a traditional profile and a mid blade sweet spot that suits every format.",
+      "description": "The all-round club bat. Grade A++ Kashmir willow with a traditional profile and a mid blade sweet spot that suits every format.\n\nA mid sweet spot is the safe choice when you play both red and white ball — high enough to defend the rising delivery, low enough to drive. If you are buying one bat to do everything, this is the one in the range that does not force a compromise.\n\nBest for: club and league cricket, players who bat across formats.",
       "price": 3800,
       "inStock": true,
+      "isActive": false,
       "displayOrder": 20,
-      "sizes": ["Harrow", "SH"],
+      "sizes": [
+        "Harrow",
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "Kashmir Willow" },
-        { "label": "Grade", "value": "A++" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Sweet spot", "value": "Mid blade" },
-        { "label": "Made in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "Kashmir Willow"
+        },
+        {
+          "label": "Grade",
+          "value": "A++"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Sweet spot",
+          "value": "Mid blade"
+        },
+        {
+          "label": "Made in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -41,17 +77,33 @@
       "name": "KIS AM Unstoppable",
       "category": "BAT",
       "brand": "KIS",
-      "description": "KIS's signature Unstoppable profile — full-bodied Kashmir willow with a pronounced bow and generous edges for players who back themselves through the line.",
+      "description": "KIS's signature Unstoppable profile — full-bodied Kashmir willow with a pronounced bow and generous edges for players who back themselves through the line.\n\nThe bow brings more of the blade behind the ball at contact, and the edges keep mass where a mis-hit usually finds you. It is a bat with a point of view: it rewards committing to the shot rather than feeling for it.\n\nBest for: aggressive top-order batting, white-ball cricket, players who hit straight and hard.",
       "price": 3900,
       "inStock": true,
+      "isActive": false,
       "isFeatured": true,
       "displayOrder": 30,
-      "sizes": ["Harrow", "SH"],
+      "sizes": [
+        "Harrow",
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "Kashmir Willow" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Profile", "value": "Full face, pronounced bow" },
-        { "label": "Made in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "Kashmir Willow"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Profile",
+          "value": "Full face, pronounced bow"
+        },
+        {
+          "label": "Made in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -59,17 +111,36 @@
       "name": "KIS Boom Boom Edition",
       "category": "BAT",
       "brand": "KIS",
-      "description": "Grade A++ Kashmir willow with a low sweet spot and heavy edges, built for hitting through the line in white-ball cricket.",
+      "description": "Grade A++ Kashmir willow with a low sweet spot and heavy edges, built for hitting through the line in white-ball cricket.\n\nA low sweet spot puts the middle where a full ball arrives, which is what makes this a hitter's bat — yorker-length deliveries and slog-sweeps come off it cleanly. Add heavy edges and the margin down the ground is genuinely forgiving.\n\nBest for: T20 and limited-overs, middle-order power hitting, finishing an innings.",
       "price": 4120,
       "inStock": true,
+      "isActive": false,
       "displayOrder": 40,
-      "sizes": ["Harrow", "SH"],
+      "sizes": [
+        "Harrow",
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "Kashmir Willow" },
-        { "label": "Grade", "value": "A++" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Sweet spot", "value": "Low" },
-        { "label": "Made in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "Kashmir Willow"
+        },
+        {
+          "label": "Grade",
+          "value": "A++"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Sweet spot",
+          "value": "Low"
+        },
+        {
+          "label": "Made in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -77,18 +148,37 @@
       "name": "KIS Game Changer — Kashmir Willow",
       "category": "BAT",
       "brand": "KIS",
-      "description": "Grade A++ Kashmir willow, thick edges and a big spine, pressed for power without losing pickup. The step up from the Classic for a regular league batter.",
+      "description": "Grade A++ Kashmir willow, thick edges and a big spine, pressed for power without losing pickup. The step up from the Classic for a regular league batter.\n\nThe spine is where a bat stores its power and the edges are where it forgives you; this profile is shaped to have both without turning into a plank. Pick it up next to the Classic and the difference in presence is immediate — the difference in weight is not.\n\nBest for: a second season and beyond, competitive league cricket, batters who have outgrown their first bat.",
       "price": 4999,
       "inStock": true,
+      "isActive": false,
       "isFeatured": true,
       "displayOrder": 50,
-      "sizes": ["Harrow", "SH"],
+      "sizes": [
+        "Harrow",
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "Kashmir Willow" },
-        { "label": "Grade", "value": "A++" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Edges", "value": "Thick" },
-        { "label": "Made in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "Kashmir Willow"
+        },
+        {
+          "label": "Grade",
+          "value": "A++"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Edges",
+          "value": "Thick"
+        },
+        {
+          "label": "Made in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -96,16 +186,31 @@
       "name": "KIS Bazuka Edition",
       "category": "BAT",
       "brand": "KIS",
-      "description": "The thick-edge Bazuka profile in Kashmir willow — a big, square-shouldered blade for batters who want maximum mass behind the ball.",
+      "description": "The thick-edge Bazuka profile in Kashmir willow — a big, square-shouldered blade for batters who want maximum mass behind the ball.\n\nThis is the largest profile KIS press in Kashmir willow. Square shoulders carry the width higher up the blade than a traditional shape, so there is real timber behind a shot played square of the wicket, not just down the ground.\n\nBest for: strong, physical batters who want the biggest blade in the range. Full size only — feel the pickup before you commit.",
       "price": 5500,
       "inStock": true,
+      "isActive": false,
       "displayOrder": 60,
-      "sizes": ["SH"],
+      "sizes": [
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "Kashmir Willow" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Profile", "value": "Thick edge, square shoulder" },
-        { "label": "Made in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "Kashmir Willow"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Profile",
+          "value": "Thick edge, square shoulder"
+        },
+        {
+          "label": "Made in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -113,17 +218,35 @@
       "name": "KIS M&H 7000",
       "category": "BAT",
       "brand": "KIS",
-      "description": "Grade A++ Kashmir willow from KIS's premium press, hand-finished and knocked in ready. A serious club bat at a Kashmir-willow price.",
-      "price": 6399,
+      "description": "Grade A++ Kashmir willow from KIS's premium press, hand-finished and knocked in ready. A serious club bat at a Kashmir-willow price.\n\nKnocked in ready matters more than it sounds: a new bat needs hours of careful work before it can safely face a hard ball, and this one arrives with that already done properly. Hand-finishing is the difference between a bat that is pressed and a bat that is finished by someone who plays.\n\nBest for: players who want premium feel without moving to English willow, and anyone who would rather bat than knock in.",
+      "price": 6500,
       "inStock": true,
+      "isActive": true,
       "displayOrder": 70,
-      "sizes": ["SH"],
+      "sizes": [
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "Kashmir Willow" },
-        { "label": "Grade", "value": "A++" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Finish", "value": "Hand-finished" },
-        { "label": "Made in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "Kashmir Willow"
+        },
+        {
+          "label": "Grade",
+          "value": "A++"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Finish",
+          "value": "Hand-finished"
+        },
+        {
+          "label": "Made in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -131,17 +254,32 @@
       "name": "KIS Master Pro",
       "category": "BAT",
       "brand": "KIS",
-      "description": "Top-grade Kashmir willow, hand-picked cleft and a players' profile. The best bat KIS make before the English willow range starts.",
+      "description": "Top-grade Kashmir willow, hand-picked cleft and a players' profile. The best bat KIS make before the English willow range starts.\n\nHand-picked means someone stood in the workshop and chose this cleft over the ones beside it — for grain, for weight, for how it rang. That selection is most of what separates a top-grade bat from a good one, and it is why no two are quite identical.\n\nBest for: serious club and district cricket. The last stop before English willow, and for many players the sensible one.",
       "price": 11050,
       "inStock": true,
+      "isActive": false,
       "isFeatured": true,
       "displayOrder": 80,
-      "sizes": ["SH"],
+      "sizes": [
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "Kashmir Willow" },
-        { "label": "Grade", "value": "Top grade, hand-picked cleft" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Made in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "Kashmir Willow"
+        },
+        {
+          "label": "Grade",
+          "value": "Top grade, hand-picked cleft"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Made in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -149,17 +287,32 @@
       "name": "KIS Game Changer — English Willow",
       "category": "BAT",
       "brand": "KIS",
-      "description": "Grade A++ English willow, pressed in Kashmir. Straight grains, light pickup for its mass, and the ping a leather-ball season asks for.",
+      "description": "Grade A++ English willow, pressed in Kashmir. Straight grains, light pickup for its mass, and the ping a leather-ball season asks for.\n\nEnglish willow is softer and more fibrous than Kashmir, which is what produces the rebound players mean by ping — and also why it needs knocking in and looking after. Straight grains through the blade are the visible sign of a cleft cut true.\n\nBest for: a full competitive season on turf. Ask us about knocking-in and oiling when you collect it.",
       "price": 19000,
       "inStock": true,
+      "isActive": false,
       "isFeatured": true,
       "displayOrder": 90,
-      "sizes": ["SH"],
+      "sizes": [
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "English Willow" },
-        { "label": "Grade", "value": "A++" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Pressed in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "English Willow"
+        },
+        {
+          "label": "Grade",
+          "value": "A++"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Pressed in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     },
     {
@@ -167,17 +320,35 @@
       "name": "KIS Classic — English Willow",
       "category": "BAT",
       "brand": "KIS",
-      "description": "The English willow Classic: Grade A++ cleft, traditional profile, hand-made and knocked in. KIS's flagship for players in serious competitive cricket.",
+      "description": "The English willow Classic: Grade A++ cleft, traditional profile, hand-made and knocked in. KIS's flagship for players in serious competitive cricket.\n\nEverything in the range points here. A Grade A++ English cleft, shaped to the traditional profile that has outlasted every trend, hand-made and knocked in so it is ready for a hard ball on the day you collect it.\n\nBest for: representative and premier-division cricket. Hand-picked at Toplay — come and feel three before you choose one.",
       "price": 22500,
       "inStock": true,
+      "isActive": false,
       "displayOrder": 100,
-      "sizes": ["SH"],
+      "sizes": [
+        "SH"
+      ],
       "specs": [
-        { "label": "Willow", "value": "English Willow" },
-        { "label": "Grade", "value": "A++" },
-        { "label": "Ball", "value": "Leather" },
-        { "label": "Finish", "value": "Hand-made, knocked in" },
-        { "label": "Pressed in", "value": "Anantnag, Kashmir" }
+        {
+          "label": "Willow",
+          "value": "English Willow"
+        },
+        {
+          "label": "Grade",
+          "value": "A++"
+        },
+        {
+          "label": "Ball",
+          "value": "Leather"
+        },
+        {
+          "label": "Finish",
+          "value": "Hand-made, knocked in"
+        },
+        {
+          "label": "Pressed in",
+          "value": "Anantnag, Kashmir"
+        }
       ]
     }
   ]

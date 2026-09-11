@@ -38,6 +38,11 @@
  * it. On an existing row the published state is left alone unless
  * --publish is given, so a re-run to fix a price cannot pull a live
  * catalog off the storefront.
+ *
+ * A row may also say so itself: an explicit `isActive` in the manifest is
+ * a merchandising decision written down ("we stock this one, not those"),
+ * and it is applied as written on create and update alike, --publish or
+ * not. Rows without it keep the behaviour above.
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -131,6 +136,7 @@ const ManifestProductSchema = z
     mrp: z.number().positive().max(MARKETPLACE_LIMITS.maxPrice).nullish(),
     stockQty: z.number().int().min(0).max(MARKETPLACE_LIMITS.maxStock).nullish(),
     inStock: z.boolean().optional(),
+    isActive: z.boolean().optional(),
     isFeatured: z.boolean().optional(),
     displayOrder: z.number().int().min(-1000).max(100_000).optional(),
     sizes: z.array(z.string().trim().min(1).max(MARKETPLACE_LIMITS.sizeLabel)).optional(),
@@ -230,6 +236,8 @@ function discoverImages(imagesRoot: string, sku: string): string[] {
 interface PlannedProduct {
   sku: string;
   input: ProductInput;
+  /** The manifest row spelled out its published state; apply it as written. */
+  explicitActive: boolean;
   images: LoadedImage[];
   existingId: string | null;
   existingImageCount: number;
@@ -255,7 +263,7 @@ function toProductInput(row: ManifestProduct, publish: boolean): ProductInput {
     mrp: row.mrp ?? null,
     stockQty: row.stockQty ?? null,
     inStock: row.inStock ?? true,
-    isActive: publish,
+    isActive: row.isActive ?? publish,
     isFeatured: row.isFeatured ?? false,
     displayOrder: row.displayOrder ?? 0,
     sizes: row.sizes ?? [],
@@ -361,6 +369,7 @@ async function buildPlan(rows: ManifestProduct[], opts: Options): Promise<Planne
     plan.push({
       sku: row.sku,
       input,
+      explicitActive: row.isActive !== undefined,
       images,
       existingId: matches[0]?.id ?? null,
       existingImageCount: matches[0]?._count.images ?? 0,
@@ -381,15 +390,17 @@ async function applyProduct(p: PlannedProduct, authorId: string | null, opts: Op
   const { specs, isActive, ...fields } = p.input;
   const data = { ...fields, specs: specs as Prisma.InputJsonValue };
 
-  // `isActive` is only ever written upward from here. A product's
-  // published state is an admin's decision made in the UI, and a re-run
-  // to correct a price must not quietly pull the whole catalog off
-  // /shop — so an update sets it only when --publish asks for it.
+  // Unless the row states its own `isActive`, the flag is only ever
+  // written upward from here. A product's published state is an admin's
+  // decision made in the UI, and a re-run to correct a price must not
+  // quietly pull the whole catalog off /shop — so an update sets it only
+  // when --publish asks for it.
+  const activeOnUpdate = p.explicitActive ? { isActive } : opts.publish ? { isActive: true } : {};
   const productId = p.existingId
     ? (
         await prisma.marketplaceProduct.update({
           where: { id: p.existingId },
-          data: opts.publish ? { ...data, isActive: true } : data,
+          data: { ...data, ...activeOnUpdate },
           select: { id: true },
         })
       ).id
@@ -466,7 +477,15 @@ async function main(): Promise<void> {
         : p.existingImageCount > 0 && !opts.replaceImages
           ? `${p.existingImageCount} photo(s) kept`
           : `${p.images.length} photo(s)`;
-    const visibility = p.existingId && !opts.publish ? 'visibility unchanged' : opts.publish ? 'published' : 'hidden';
+    const visibility = p.explicitActive
+      ? p.input.isActive
+        ? 'published (manifest)'
+        : 'hidden (manifest)'
+      : p.existingId && !opts.publish
+        ? 'visibility unchanged'
+        : opts.publish
+          ? 'published'
+          : 'hidden';
     console.log(
       `  ${action.padEnd(6)} ${p.sku.padEnd(22)} ${formatRupees(p.input.price).padStart(9)}  ${photos}, ${visibility}`,
     );
@@ -490,8 +509,8 @@ async function main(): Promise<void> {
   const total = await prisma.marketplaceProduct.count();
   const live = await prisma.marketplaceProduct.count({ where: { isActive: true } });
   console.log(`Created ${created}, updated ${updated}. Catalog now ${total} product(s), ${live} published.`);
-  if (!opts.publish) {
-    console.log('Rows are hidden — set prices, then publish from Admin → Cricket Store.');
+  if (!opts.publish && plan.some((p) => !p.explicitActive && !p.existingId)) {
+    console.log('New rows are hidden — set prices, then publish from Admin → Cricket Store.');
   }
 }
 
