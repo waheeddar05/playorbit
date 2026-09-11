@@ -1,26 +1,36 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { ShoppingBag } from 'lucide-react';
 
+/**
+ * Rendered by scripts/kis-creatives/render.py from KIS product cutouts on a
+ * PlayOrbit stage — our own composition, not KIS footage. The video loops
+ * (its last frames fade back into the first), so it never visibly restarts.
+ * Bump the suffix when re-rendering so caches don't serve the old cut.
+ */
 export const SHOP_BAND = {
-  image: '/images/kis-gear-band.jpg',
-  video: '/images/kis-hero.mp4',
-  alt: 'KIS cricket bats in Kashmir willow at the Khan International Sports workshop, Anantnag',
+  image: '/images/kis-gear-band-v2.jpg',
+  video: '/images/kis-hero-v2.mp4',
+  alt: 'KIS Kashmir willow cricket bats from Anantnag, the range sold at PlayOrbit',
 };
 
-/** Starts false so server and first client render agree, then corrects itself. */
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+function subscribeReducedMotion(onChange: () => void) {
+  const query = window.matchMedia(REDUCED_MOTION);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+/** Server snapshot is false so SSR and hydration agree; the client value takes over right after. */
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(query.matches);
-    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches);
-    query.addEventListener('change', onChange);
-    return () => query.removeEventListener('change', onChange);
-  }, []);
-  return reduced;
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
 }
 
 /**
