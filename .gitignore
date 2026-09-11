@@ -50,3 +50,7 @@ kis-raw/
 kis-assets/
 kis-inbox/
 kis-raw-listings/
+
+# python tooling under scripts/
+__pycache__/
+*.pyc
