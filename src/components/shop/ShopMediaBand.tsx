@@ -38,11 +38,21 @@ function usePrefersReducedMotion() {
  * looping, `playsInline` so iOS plays it in place, and faded in only once it
  * can actually play — so a slow connection or blocked autoplay leaves the
  * poster showing rather than a black rectangle.
+ *
+ * The element is server-rendered with `autoPlay`, so on a warm cache the
+ * browser has fired `canplay` before React hydrates and attaches the handler;
+ * the video would then play forever at opacity 0 under the poster. The ref
+ * callback checks `readyState` on attach, and `onTimeUpdate` keeps firing while
+ * it plays, so whichever lands after hydration reveals it.
  */
 export function ShopMediaBand({ image, alt, video }: { image: string; alt: string; video?: string }) {
   const reducedMotion = usePrefersReducedMotion();
   const [canPlay, setCanPlay] = useState(false);
   const showVideo = Boolean(video) && !reducedMotion;
+  const reveal = () => setCanPlay(true);
+  const attachVideo = (node: HTMLVideoElement | null) => {
+    if (node && node.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) reveal();
+  };
 
   return (
     <div className="mb-3 md:mb-6 relative rounded-xl md:rounded-2xl overflow-hidden border border-white/[0.06] group">
@@ -66,7 +76,10 @@ export function ShopMediaBand({ image, alt, video }: { image: string; alt: strin
             preload="none"
             aria-hidden
             tabIndex={-1}
-            onCanPlay={() => setCanPlay(true)}
+            ref={attachVideo}
+            onCanPlay={reveal}
+            onPlaying={reveal}
+            onTimeUpdate={reveal}
             className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-700 ${
               canPlay ? 'opacity-70 group-hover:opacity-90' : 'opacity-0'
             }`}
