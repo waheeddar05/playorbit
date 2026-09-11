@@ -29,6 +29,14 @@ cropping the product, normalises exposure, resizes to 1280x1600, encodes
 JPEG stepping quality down until it fits the 3 MB server cap, and strips
 all metadata (supplier phone photos carry GPS).
 
+The padding is white by default, which disappears around a studio shot
+on white. A location shot (bats against the willow stacks) would get a
+white frame instead — `--frame extend` pads it with a blurred, darkened
+stretch of its own edges, so the photo simply seems to continue. Use
+`--fill 1` with it: a composed photo has nothing to breathe around.
+
+    python3 scripts/prep-store-photos.py --in ~/kis-raw --out ~/kis-assets --frame extend --fill 1
+
 What it cannot do: invent detail. A photo whose subject is a few hundred
 pixels across was shot or compressed too small to sell a bat with, and
 upscaling it produces plausible-looking wood grain that is not the grain
@@ -75,6 +83,7 @@ THIN_SUBJECT_LONG_EDGE = 1100
 
 SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 WHITE = (255, 255, 255)
+FRAMES = ("white", "extend")
 
 
 # ── catalog matching ────────────────────────────────────────────────
@@ -154,10 +163,30 @@ def subject_box(img: Image.Image) -> tuple[int, int, int, int]:
     return (0, 0, img.width, img.height)
 
 
-def compose(img: Image.Image, aspect: tuple[int, int], fill: float) -> Image.Image:
+def extended_backdrop(subject: Image.Image, size: tuple[int, int]) -> Image.Image:
     """
-    Product centred on a white frame of the target aspect, scaled to fill
-    `fill` of it. Never crops: the frame grows around the product.
+    The photo stretched to cover the frame, blurred hard and pulled down
+    a stop, for `--frame extend`. Being the photo's own colours it reads
+    as more of the same scene; being blurred and darker it never competes
+    with the sharp original placed over it.
+    """
+    from PIL import ImageEnhance, ImageFilter
+
+    fw, fh = size
+    src = subject.convert("RGB")
+    scale = max(fw / src.width, fh / src.height)
+    cover = src.resize((max(fw, int(src.width * scale) + 1), max(fh, int(src.height * scale) + 1)), Image.LANCZOS)
+    left, top = (cover.width - fw) // 2, (cover.height - fh) // 2
+    cover = cover.crop((left, top, left + fw, top + fh))
+    cover = cover.filter(ImageFilter.GaussianBlur(max(fw, fh) / 40))
+    return ImageEnhance.Brightness(cover).enhance(0.55)
+
+
+def compose(img: Image.Image, aspect: tuple[int, int], fill: float, frame: str = "white") -> Image.Image:
+    """
+    Product centred on a frame of the target aspect, scaled to fill
+    `fill` of it. Never crops: the frame grows around the product. The
+    frame is white, or (`extend`) the photo's own blurred edges.
     """
     box = subject_box(img)
     subject = img.crop(box)
@@ -172,7 +201,10 @@ def compose(img: Image.Image, aspect: tuple[int, int], fill: float) -> Image.Ima
         frame_w = frame_h * aw / ah
     frame_w, frame_h = int(round(frame_w)), int(round(frame_h))
 
-    canvas = Image.new("RGB", (frame_w, frame_h), WHITE)
+    if frame == "extend" and subject.mode != "RGBA":
+        canvas = extended_backdrop(subject, (frame_w, frame_h))
+    else:
+        canvas = Image.new("RGB", (frame_w, frame_h), WHITE)
     offset = ((frame_w - sw) // 2, (frame_h - sh) // 2)
     if subject.mode == "RGBA":
         canvas.paste(subject, offset, subject)
@@ -307,7 +339,7 @@ def process_folder(
                 "fine on cards, soft on the product page"
             )
 
-        framed = compose(img, args.aspect, args.fill)
+        framed = compose(img, args.aspect, args.fill, args.frame)
         if not args.no_levels:
             framed = normalise_exposure(framed)
 
@@ -348,6 +380,8 @@ def main() -> int:
     ap.add_argument("--cutout", action="store_true", help="remove the background and place the product on white")
     ap.add_argument("--aspect", type=parse_aspect, default=DEFAULT_ASPECT, help="output aspect ratio")
     ap.add_argument("--fill", type=float, default=SUBJECT_FILL, help="share of the frame the product fills")
+    ap.add_argument("--frame", choices=FRAMES, default="white",
+                    help="what pads the photo out to the aspect: white, or its own blurred edges")
     ap.add_argument("--max-images", type=int, default=8, help="per-product cap, matching the store")
     ap.add_argument("--keep-small", action="store_true", help="write photos flagged TOO SMALL instead of skipping them")
     ap.add_argument("--no-levels", action="store_true", help="skip exposure normalisation")
@@ -380,7 +414,7 @@ def main() -> int:
     print(f"catalog: {args.catalog or '(none — folder names used as skus)'}")
     print(f"mode:    {'DRY RUN' if args.dry_run else 'WRITE'}"
           f"{', cutout' if args.cutout else ', pad only'}"
-          f", {args.aspect[0]}:{args.aspect[1]}"
+          f", {args.aspect[0]}:{args.aspect[1]}, {args.frame} frame, fill {args.fill:g}"
           f"{'' if HEIC else ', no HEIC support'}")
     print()
 

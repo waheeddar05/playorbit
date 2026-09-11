@@ -16,6 +16,7 @@
  *   --dry-run           validate and print the plan; write nothing
  *   --publish           land rows with isActive=true (default: hidden)
  *   --replace-images    delete a product's existing photos and re-upload
+ *   --only <sku,...>    touch only these manifest rows (a reshoot of one bat)
  *   --as <id>           email or mobile of the user to record as createdBy
  *
  * Photos need no JSON: with --images pointing at the supplier's pack,
@@ -68,6 +69,7 @@ interface Options {
   dryRun: boolean;
   publish: boolean;
   replaceImages: boolean;
+  only: Set<string> | null;
   as: string | null;
 }
 
@@ -78,6 +80,7 @@ function parseArgs(argv: string[]): Options {
     dryRun: false,
     publish: false,
     replaceImages: false,
+    only: null,
     as: null,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -91,6 +94,14 @@ function parseArgs(argv: string[]): Options {
       case '--manifest': opts.manifest = next(); break;
       case '--images': opts.imagesDir = next(); break;
       case '--as': opts.as = next(); break;
+      case '--only':
+        opts.only = new Set(
+          next()
+            .split(',')
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean),
+        );
+        break;
       case '--dry-run': opts.dryRun = true; break;
       case '--publish': opts.publish = true; break;
       case '--replace-images': opts.replaceImages = true; break;
@@ -112,6 +123,7 @@ function printUsage(): void {
       '  --dry-run           validate and print the plan; write nothing',
       '  --publish           land rows with isActive=true (default: hidden)',
       '  --replace-images    delete existing photos and re-upload',
+      '  --only <sku,...>    touch only these manifest rows',
       '  --as <email|mobile> user recorded as createdBy',
     ].join('\n'),
   );
@@ -417,27 +429,34 @@ async function applyProduct(p: PlannedProduct, authorId: string | null, opts: Op
   const shouldWriteImages =
     p.images.length > 0 && (opts.replaceImages || p.existingImageCount === 0);
   if (shouldWriteImages) {
-    await prisma.$transaction(async (tx) => {
-      if (opts.replaceImages) {
-        await tx.marketplaceProductImage.deleteMany({ where: { productId } });
-      }
-      for (let i = 0; i < p.images.length; i++) {
-        const img = p.images[i];
-        await tx.marketplaceProductImage.create({
-          data: {
-            productId,
-            data: img.bytes,
-            contentType: img.contentType,
-            sizeBytes: img.bytes.byteLength,
-            width: img.width,
-            height: img.height,
-            alt: img.alt,
-            sortOrder: i,
-          },
-          select: { id: true },
-        });
-      }
-    });
+    // One transaction so a replace never leaves a product half-pictured.
+    // Each photo is a few hundred KB travelling to a remote database, so
+    // the default 5 s interactive-transaction budget is not enough for a
+    // full set; give it a minute.
+    await prisma.$transaction(
+      async (tx) => {
+        if (opts.replaceImages) {
+          await tx.marketplaceProductImage.deleteMany({ where: { productId } });
+        }
+        for (let i = 0; i < p.images.length; i++) {
+          const img = p.images[i];
+          await tx.marketplaceProductImage.create({
+            data: {
+              productId,
+              data: img.bytes,
+              contentType: img.contentType,
+              sizeBytes: img.bytes.byteLength,
+              width: img.width,
+              height: img.height,
+              alt: img.alt,
+              sortOrder: i,
+            },
+            select: { id: true },
+          });
+        }
+      },
+      { maxWait: 10_000, timeout: 60_000 },
+    );
   }
   return productId;
 }
@@ -465,7 +484,16 @@ async function main(): Promise<void> {
   console.log(`Images:   ${opts.imagesDir ? resolve(opts.imagesDir) : '(none listed)'}`);
   console.log(`Mode:     ${opts.dryRun ? 'DRY RUN' : 'WRITE'}${opts.publish ? ', publishing (isActive=true)' : ', hidden (isActive=false)'}${opts.replaceImages ? ', replacing photos' : ''}`);
 
-  const plan = await buildPlan(manifest.data.products, opts);
+  let rows = manifest.data.products;
+  if (opts.only) {
+    const only = opts.only;
+    rows = rows.filter((row) => only.has(row.sku.toLowerCase()));
+    const missing = [...only].filter((sku) => !rows.some((row) => row.sku.toLowerCase() === sku));
+    if (missing.length > 0) throw new Error(`--only: not in the manifest: ${missing.join(', ')}`);
+    console.log(`Only:     ${rows.map((row) => row.sku).join(', ')}`);
+  }
+
+  const plan = await buildPlan(rows, opts);
   const authorId = opts.dryRun ? null : await resolveAuthorId(opts.as);
 
   console.log('');
