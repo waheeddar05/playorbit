@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isValidIndianMobile } from '@/lib/whatsapp';
 import { issueAndSendOtp, normalizeIndianMobile } from '@/lib/otp-delivery';
-import { isReviewLoginMobile } from '@/lib/review-login';
+import {
+  getReviewLoginConfig,
+  REVIEW_ACCOUNT_EMAIL,
+  REVIEW_ACCOUNT_NAME,
+} from '@/lib/review-login';
 
 /**
  * POST /api/auth/otp/request — step 1 of the WhatsApp login.
@@ -40,15 +44,63 @@ export async function POST(req: NextRequest) {
     const cleaned = normalizeIndianMobile(mobileNumber);
 
     // Play reviewer: the code is fixed and already sitting in Play Console's
-    // "App access", so nothing is issued, stored, sent or paid for here. The
-    // response still has to be indistinguishable from a real send so the UI
-    // advances to the code screen exactly as it does for everyone else — and
-    // so this number reveals nothing to anyone probing the endpoint.
+    // "App access", so nothing is sent or paid for. It IS stored, though —
+    // as an ordinary Otp row — because that row is what gives this login the
+    // same attempt cap and issue ceiling as every other one. A fixed
+    // six-digit code that is published in Play Console, never rotates and
+    // never expires is worth very little if it can be guessed a million
+    // times, and this account books for free.
     //
-    // No account is touched at this step: the reviewer's row is created by
-    // the verify step, which is where the fail-closed collision check lives.
-    if (isReviewLoginMobile(cleaned)) {
-      console.log('[otp.login] Review login requested — no code issued or sent');
+    // The response stays byte-identical to a real send so the UI advances to
+    // the code screen and the endpoint reveals nothing to anyone probing it.
+    const reviewConfig = getReviewLoginConfig();
+    if (reviewConfig && reviewConfig.mobileNumber === cleaned) {
+      const existing = await prisma.user.findUnique({
+        where: { mobileNumber: cleaned },
+        select: { id: true, email: true },
+      });
+
+      // Fail closed, and do it here rather than at verify: if this number
+      // belongs to a real customer the configuration is wrong, and seeding a
+      // code against their row would hand the holder of a published secret
+      // that person's bookings, payments and phone number.
+      if (existing && existing.email !== REVIEW_ACCOUNT_EMAIL) {
+        console.error(
+          '[otp.login] REVIEW_LOGIN_MOBILE belongs to a real account — refusing to seed. Point it at an unused number:',
+          { userId: existing.id },
+        );
+        return NextResponse.json({ message: 'Code sent to your WhatsApp', channel: 'WhatsApp' });
+      }
+
+      const reviewer =
+        existing ??
+        (await prisma.user.create({
+          data: {
+            name: REVIEW_ACCOUNT_NAME,
+            email: REVIEW_ACCOUNT_EMAIL,
+            mobileNumber: cleaned,
+            authProvider: 'WHATSAPP',
+            role: 'USER',
+            mobileVerified: false,
+            // Play's declaration asserts these credentials reach paid
+            // content, and reviewers may not pay. Set at creation so the
+            // claim can't go stale if the row is ever recreated.
+            isFreeUser: true,
+          },
+          select: { id: true, email: true },
+        }));
+
+      const reviewResult = await issueAndSendOtp({
+        userId: reviewer.id,
+        mobileNumber: cleaned,
+        logTag: '[otp.login.review]',
+        reviewCode: reviewConfig.otp,
+      });
+
+      if (!reviewResult.ok) {
+        return NextResponse.json({ error: reviewResult.error }, { status: reviewResult.status });
+      }
+
       return NextResponse.json({ message: 'Code sent to your WhatsApp', channel: 'WhatsApp' });
     }
 

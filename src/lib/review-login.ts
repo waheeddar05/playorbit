@@ -112,7 +112,15 @@ export function isReviewLoginMobile(cleanedMobile: string): boolean {
   return config !== null && config.mobileNumber === cleanedMobile;
 }
 
-/** Constant-time check of a supplied code against the configured one. */
+/**
+ * Constant-time check of a supplied code against the configured one.
+ *
+ * NOT a login check on its own, and must never be wired up as one: it is
+ * stateless, so nothing here counts or caps attempts. The reviewer's code is
+ * fixed, published in Play Console and never rotates — the login path seeds
+ * it as an ordinary Otp row precisely so the usual attempt cap and issue
+ * ceiling apply to it.
+ */
 export function reviewOtpMatches(supplied: unknown): boolean {
   const config = getReviewLoginConfig();
   if (!config) return false;

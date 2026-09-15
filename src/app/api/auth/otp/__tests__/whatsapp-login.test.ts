@@ -86,6 +86,8 @@ beforeEach(() => {
   process.env.WHATSAPP_OTP_TEMPLATE = 'playorbit_otp';
   delete process.env.INITIAL_ADMIN_MOBILE;
   delete process.env.SUPER_ADMIN_MOBILE;
+  delete process.env.REVIEW_LOGIN_MOBILE;
+  delete process.env.REVIEW_LOGIN_OTP;
 });
 
 describe('POST /api/auth/otp/request — step 1', () => {
@@ -377,5 +379,130 @@ describe('POST /api/auth/otp/verify — step 2', () => {
     }).include;
     expect(include.otps.where).toMatchObject({ used: false });
     expect(include.otps.where).toHaveProperty('expiresAt');
+  });
+});
+
+// ─── Play reviewer ──────────────────────────────────────────────────
+// The reviewer's code is fixed, published in Play Console, never rotates,
+// and the account books for free. So the tests that matter are the ones
+// proving it is stored like any other code and therefore inherits the
+// attempt cap and issue ceiling — and that it stays inert and unprivileged.
+
+describe('Play reviewer login', () => {
+  const REVIEW_MOBILE = '9000000001';
+  const REVIEW_CODE = '424242';
+  const REVIEW_EMAIL = 'play-review@playorbit.invalid';
+
+  const arm = (mobile = REVIEW_MOBILE, code = REVIEW_CODE) => {
+    process.env.REVIEW_LOGIN_MOBILE = mobile;
+    process.env.REVIEW_LOGIN_OTP = code;
+  };
+
+  it('stores the fixed code as a real Otp row and sends nothing', async () => {
+    arm();
+
+    const res = await requestOtp(req({ mobileNumber: REVIEW_MOBILE }));
+
+    expect(res.status).toBe(200);
+    expect(sendWhatsAppOTPMock).not.toHaveBeenCalled();
+    expect(sendWhatsAppNotificationMock).not.toHaveBeenCalled();
+    expect(sendSMSMock).not.toHaveBeenCalled();
+    // The row is the whole point: it is what the attempt cap hangs off.
+    expect(otpCreateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('is bounded by the per-account issue limit', async () => {
+    // Without this a fixed six-digit code takes unlimited guesses.
+    arm();
+    otpCountMock.mockResolvedValue(3);
+
+    const res = await requestOtp(req({ mobileNumber: REVIEW_MOBILE }));
+
+    expect(res.status).toBe(429);
+    expect(otpCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('never echoes the code', async () => {
+    arm();
+
+    const res = await requestOtp(req({ mobileNumber: REVIEW_MOBILE }));
+
+    expect(JSON.stringify(await res.json())).not.toContain(REVIEW_CODE);
+  });
+
+  it('creates the reviewer row as a free-booking USER', async () => {
+    arm();
+
+    await requestOtp(req({ mobileNumber: REVIEW_MOBILE }));
+
+    const data = (userCreateMock.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    expect(data).toMatchObject({
+      email: REVIEW_EMAIL,
+      mobileNumber: REVIEW_MOBILE,
+      role: 'USER',
+      isFreeUser: true,
+    });
+  });
+
+  it('refuses to seed against a real customer on that number', async () => {
+    arm();
+    userFindUniqueMock.mockResolvedValue({ id: 'usr_real', email: 'someone@example.com' });
+
+    const res = await requestOtp(req({ mobileNumber: REVIEW_MOBILE }));
+
+    // Indistinguishable response, but nothing is issued against their row.
+    expect(res.status).toBe(200);
+    expect(otpCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses at verify too if the number resolves to a real account', async () => {
+    arm();
+    userFindUniqueMock.mockResolvedValue({
+      id: 'usr_real',
+      email: 'someone@example.com',
+      role: 'USER',
+      mobileNumber: REVIEW_MOBILE,
+      otps: [{ id: 'otp_1', codeHash: 'h', attempts: 0 }],
+    });
+
+    const res = await verifyOtp(req({ mobileNumber: REVIEW_MOBILE, otp: REVIEW_CODE }));
+
+    expect(res.status).toBe(400);
+    expect(res.cookies.get('token')).toBeUndefined();
+  });
+
+  it('issues a plain USER session even if the row was tampered to ADMIN', async () => {
+    arm();
+    userFindUniqueMock.mockResolvedValue({
+      id: 'usr_rev',
+      email: REVIEW_EMAIL,
+      role: 'ADMIN',
+      isSuperAdmin: true,
+      mobileNumber: REVIEW_MOBILE,
+      otps: [{ id: 'otp_1', codeHash: 'h', attempts: 0 }],
+    });
+
+    const res = await verifyOtp(req({ mobileNumber: REVIEW_MOBILE, otp: REVIEW_CODE }));
+
+    expect(res.status).toBe(200);
+    expect(res.cookies.get('token')?.value).toContain('"role":"USER"');
+  });
+
+  it('leaves every other number on the normal delivery path', async () => {
+    arm();
+
+    await requestOtp(req({ mobileNumber: '9876543210' }));
+
+    expect(sendWhatsAppOTPMock).toHaveBeenCalledTimes(1);
+    expect(sendWhatsAppOTPMock.mock.calls[0][1]).not.toBe(REVIEW_CODE);
+  });
+
+  it('is inert when the env vars are unset', async () => {
+    await requestOtp(req({ mobileNumber: REVIEW_MOBILE }));
+
+    expect(sendWhatsAppOTPMock).toHaveBeenCalledTimes(1);
+    expect(userCreateMock.mock.calls[0][0]).not.toMatchObject({
+      data: { email: REVIEW_EMAIL },
+    });
   });
 });

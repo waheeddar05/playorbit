@@ -76,8 +76,19 @@ export async function issueAndSendOtp(opts: {
   mobileNumber: string;
   /** Log prefix, e.g. '[otp.login]'. */
   logTag: string;
+  /**
+   * The Play reviewer's fixed code (see `@/lib/review-login`). When set it
+   * is stored instead of a random one and nothing is delivered — a reviewer
+   * cannot receive WhatsApp or SMS.
+   *
+   * The point of routing the reviewer through here rather than answering
+   * them inline is the two rate limits above: the code is fixed, public in
+   * Play Console, and never rotates, so without a stored row there is no
+   * attempt cap and no issue ceiling, and six digits fall to a script.
+   */
+  reviewCode?: string;
 }): Promise<OtpDeliveryResult> {
-  const { userId, mobileNumber, logTag } = opts;
+  const { userId, mobileNumber, logTag, reviewCode } = opts;
 
   // ── Rate limit: this account ──
   const windowStart = new Date(Date.now() - RATE_WINDOW_MS);
@@ -108,13 +119,21 @@ export async function issueAndSendOtp(opts: {
   }
 
   // ── Issue ──
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otp = reviewCode ?? Math.floor(100000 + Math.random() * 900000).toString();
   const hashedOtp = await bcrypt.hash(otp, 10);
   const expiresAt = new Date(Date.now() + (Number(process.env.OTP_TTL_MINUTES) || 10) * 60000);
 
   const otpRecord = await prisma.otp.create({
     data: { userId, codeHash: hashedOtp, expiresAt },
   });
+
+  // The reviewer already has this code from Play Console, so there is
+  // nothing to deliver and no provider that can fail. The stored row is
+  // identical to any other, so verify needs no special case for it.
+  if (reviewCode) {
+    console.log(`${logTag} Reviewer code stored without delivery for user:`, userId);
+    return { ok: true, status: 200, channel: 'WhatsApp' };
+  }
 
   // ── Deliver ──
   let whatsappSent = false;

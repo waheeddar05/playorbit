@@ -4,12 +4,7 @@ import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/jwt';
 import { normalizeIndianMobile } from '@/lib/otp-delivery';
 import { setSessionCookie } from '@/lib/session-cookie';
-import {
-  isReviewLoginMobile,
-  reviewOtpMatches,
-  REVIEW_ACCOUNT_EMAIL,
-  REVIEW_ACCOUNT_NAME,
-} from '@/lib/review-login';
+import { isReviewLoginMobile, REVIEW_ACCOUNT_EMAIL } from '@/lib/review-login';
 
 /**
  * POST /api/auth/otp/verify — step 2 of the WhatsApp login.
@@ -30,79 +25,12 @@ export async function POST(req: NextRequest) {
     // as +91XXXXXXXXXX still resolves to the row keyed on 10 digits.
     const cleaned = normalizeIndianMobile(mobileNumber);
 
-    // ── Play reviewer ──────────────────────────────────────────────────
-    // One number, one fixed code, no stored OTP to check. Handled before
-    // the ordinary path because there is deliberately nothing in the `otp`
-    // table for this account — the request step never issues one.
-    if (isReviewLoginMobile(cleaned)) {
-      if (!reviewOtpMatches(otp)) {
-        return NextResponse.json({ error: 'Invalid OTP' }, { status: 400 });
-      }
-
-      const existing = await prisma.user.findUnique({
-        where: { mobileNumber: cleaned },
-        select: { id: true, email: true, name: true },
-      });
-
-      // Fail closed. If this number already belongs to a real customer the
-      // configuration is wrong, and signing the reviewer in would hand them
-      // that person's bookings, payments and phone number. Refuse, shout in
-      // the logs, and say no more to the caller than any other bad code does.
-      if (existing && existing.email !== REVIEW_ACCOUNT_EMAIL) {
-        console.error(
-          '[otp.login] REVIEW_LOGIN_MOBILE belongs to a real account — refusing. Point it at an unused number:',
-          { userId: existing.id },
-        );
-        return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
-      }
-
-      const reviewer = existing
-        ? await prisma.user.update({
-            where: { id: existing.id },
-            data: { lastSeen: new Date(), mobileVerified: true, phonePromptDismissed: true },
-            select: { id: true, name: true, mobileNumber: true },
-          })
-        : await prisma.user.create({
-            data: {
-              name: REVIEW_ACCOUNT_NAME,
-              email: REVIEW_ACCOUNT_EMAIL,
-              mobileNumber: cleaned,
-              authProvider: 'WHATSAPP',
-              role: 'USER',
-              mobileVerified: true,
-              phonePromptDismissed: true,
-              lastSeen: new Date(),
-              // Play Console's "Sign in details" declaration asserts these
-              // credentials give full access "including premium or paid
-              // content", and Play states reviewers may not make purchases.
-              // Free bookings are what make that declaration true and let a
-              // reviewer finish the core flow; set it at creation so the
-              // claim can't quietly go stale if this row is ever recreated.
-              isFreeUser: true,
-            },
-            select: { id: true, name: true, mobileNumber: true },
-          });
-
-      console.log('[otp.login] Review login succeeded:', { userId: reviewer.id });
-
-      // Hard-coded, not read off the row: an ordinary customer session is
-      // all a store reviewer needs, and nothing that happens to this
-      // account later can turn this into an admin session.
-      const reviewToken = await signToken({
-        userId: reviewer.id,
-        name: reviewer.name,
-        email: REVIEW_ACCOUNT_EMAIL,
-        mobileNumber: reviewer.mobileNumber,
-        role: 'USER',
-        mobileVerified: true,
-        isSuperAdmin: false,
-        isStoreAdmin: false,
-      });
-
-      const reviewResponse = NextResponse.json({ message: 'Login successful' });
-      setSessionCookie(reviewResponse, reviewToken);
-      return reviewResponse;
-    }
+    // The Play reviewer is NOT special-cased here. Their code is seeded as
+    // an ordinary Otp row by the request step, so it runs the same gauntlet
+    // as everyone else's: TTL, single use, and the attempt cap below. What
+    // the reviewer does get is a session that can never be more than a
+    // customer's — see the token at the end.
+    const isReviewer = isReviewLoginMobile(cleaned);
 
     const user = await prisma.user.findUnique({
       where: { mobileNumber: cleaned },
@@ -119,6 +47,16 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user || user.otps.length === 0) {
+      return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
+    }
+
+    // Belt and braces for the check the request step already makes: never
+    // sign a published credential into a row that isn't the reviewer's.
+    if (isReviewer && user.email !== REVIEW_ACCOUNT_EMAIL) {
+      console.error(
+        '[otp.login] REVIEW_LOGIN_MOBILE resolves to a real account — refusing:',
+        { userId: user.id },
+      );
       return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
     }
 
@@ -161,7 +99,7 @@ export async function POST(req: NextRequest) {
     // would still be bounced at the door.
     const superAdminMobile = (process.env.SUPER_ADMIN_MOBILE || '').replace(/\D/g, '').slice(-10);
     const isBootstrapSuperAdmin = !!superAdminMobile && cleaned === superAdminMobile;
-    const promote = isBootstrapSuperAdmin && (!user.isSuperAdmin || user.role !== 'ADMIN');
+    const promote = !isReviewer && isBootstrapSuperAdmin && (!user.isSuperAdmin || user.role !== 'ADMIN');
     if (promote) {
       console.log('[otp.login] Bootstrapping super admin from SUPER_ADMIN_MOBILE:', { userId: user.id });
     }
@@ -198,7 +136,10 @@ export async function POST(req: NextRequest) {
       name: user.name,
       email: user.email,
       mobileNumber: user.mobileNumber,
-      role: promote ? 'ADMIN' : user.role,
+      // Hard-coded for the reviewer rather than read off the row: a customer
+      // session is all a store reviewer needs, and nothing that happens to
+      // this account later can turn a published credential into an admin one.
+      role: isReviewer ? 'USER' : promote ? 'ADMIN' : user.role,
       mobileVerified: true,
     });
 
