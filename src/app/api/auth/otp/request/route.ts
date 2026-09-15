@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isValidIndianMobile } from '@/lib/whatsapp';
 import { issueAndSendOtp, normalizeIndianMobile } from '@/lib/otp-delivery';
+import { isReviewLoginMobile } from '@/lib/review-login';
 
 /**
  * POST /api/auth/otp/request — step 1 of the WhatsApp login.
@@ -37,6 +38,19 @@ export async function POST(req: NextRequest) {
     }
 
     const cleaned = normalizeIndianMobile(mobileNumber);
+
+    // Play reviewer: the code is fixed and already sitting in Play Console's
+    // "App access", so nothing is issued, stored, sent or paid for here. The
+    // response still has to be indistinguishable from a real send so the UI
+    // advances to the code screen exactly as it does for everyone else — and
+    // so this number reveals nothing to anyone probing the endpoint.
+    //
+    // No account is touched at this step: the reviewer's row is created by
+    // the verify step, which is where the fail-closed collision check lives.
+    if (isReviewLoginMobile(cleaned)) {
+      console.log('[otp.login] Review login requested — no code issued or sent');
+      return NextResponse.json({ message: 'Code sent to your WhatsApp', channel: 'WhatsApp' });
+    }
 
     // Find-or-create by mobile number. The number IS the identity for this
     // flow — an account is only ever matched to a number the caller has

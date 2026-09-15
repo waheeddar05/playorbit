@@ -4,6 +4,12 @@ import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/jwt';
 import { normalizeIndianMobile } from '@/lib/otp-delivery';
 import { setSessionCookie } from '@/lib/session-cookie';
+import {
+  isReviewLoginMobile,
+  reviewOtpMatches,
+  REVIEW_ACCOUNT_EMAIL,
+  REVIEW_ACCOUNT_NAME,
+} from '@/lib/review-login';
 
 /**
  * POST /api/auth/otp/verify — step 2 of the WhatsApp login.
@@ -23,6 +29,73 @@ export async function POST(req: NextRequest) {
     // Normalize the same way the request step stored it, so a number typed
     // as +91XXXXXXXXXX still resolves to the row keyed on 10 digits.
     const cleaned = normalizeIndianMobile(mobileNumber);
+
+    // ── Play reviewer ──────────────────────────────────────────────────
+    // One number, one fixed code, no stored OTP to check. Handled before
+    // the ordinary path because there is deliberately nothing in the `otp`
+    // table for this account — the request step never issues one.
+    if (isReviewLoginMobile(cleaned)) {
+      if (!reviewOtpMatches(otp)) {
+        return NextResponse.json({ error: 'Invalid OTP' }, { status: 400 });
+      }
+
+      const existing = await prisma.user.findUnique({
+        where: { mobileNumber: cleaned },
+        select: { id: true, email: true, name: true },
+      });
+
+      // Fail closed. If this number already belongs to a real customer the
+      // configuration is wrong, and signing the reviewer in would hand them
+      // that person's bookings, payments and phone number. Refuse, shout in
+      // the logs, and say no more to the caller than any other bad code does.
+      if (existing && existing.email !== REVIEW_ACCOUNT_EMAIL) {
+        console.error(
+          '[otp.login] REVIEW_LOGIN_MOBILE belongs to a real account — refusing. Point it at an unused number:',
+          { userId: existing.id },
+        );
+        return NextResponse.json({ error: 'Invalid or expired OTP' }, { status: 400 });
+      }
+
+      const reviewer = existing
+        ? await prisma.user.update({
+            where: { id: existing.id },
+            data: { lastSeen: new Date(), mobileVerified: true, phonePromptDismissed: true },
+            select: { id: true, name: true, mobileNumber: true },
+          })
+        : await prisma.user.create({
+            data: {
+              name: REVIEW_ACCOUNT_NAME,
+              email: REVIEW_ACCOUNT_EMAIL,
+              mobileNumber: cleaned,
+              authProvider: 'WHATSAPP',
+              role: 'USER',
+              mobileVerified: true,
+              phonePromptDismissed: true,
+              lastSeen: new Date(),
+            },
+            select: { id: true, name: true, mobileNumber: true },
+          });
+
+      console.log('[otp.login] Review login succeeded:', { userId: reviewer.id });
+
+      // Hard-coded, not read off the row: an ordinary customer session is
+      // all a store reviewer needs, and nothing that happens to this
+      // account later can turn this into an admin session.
+      const reviewToken = await signToken({
+        userId: reviewer.id,
+        name: reviewer.name,
+        email: REVIEW_ACCOUNT_EMAIL,
+        mobileNumber: reviewer.mobileNumber,
+        role: 'USER',
+        mobileVerified: true,
+        isSuperAdmin: false,
+        isStoreAdmin: false,
+      });
+
+      const reviewResponse = NextResponse.json({ message: 'Login successful' });
+      setSessionCookie(reviewResponse, reviewToken);
+      return reviewResponse;
+    }
 
     const user = await prisma.user.findUnique({
       where: { mobileNumber: cleaned },
