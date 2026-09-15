@@ -72,6 +72,13 @@ export async function POST(req: NextRequest) {
               mobileVerified: true,
               phonePromptDismissed: true,
               lastSeen: new Date(),
+              // Play Console's "Sign in details" declaration asserts these
+              // credentials give full access "including premium or paid
+              // content", and Play states reviewers may not make purchases.
+              // Free bookings are what make that declaration true and let a
+              // reviewer finish the core flow; set it at creation so the
+              // claim can't quietly go stale if this row is ever recreated.
+              isFreeUser: true,
             },
             select: { id: true, name: true, mobileNumber: true },
           });
