@@ -1,0 +1,42 @@
+{
+  "packageId": "com.playorbit.app",
+  "host": "www.playorbit.in",
+  "name": "PlayOrbit",
+  "launcherName": "PlayOrbit",
+  "display": "standalone",
+  "themeColor": "#1e3a5f",
+  "themeColorDark": "#1e3a5f",
+  "navigationColor": "#1e3a5f",
+  "navigationColorDark": "#1e3a5f",
+  "navigationDividerColor": "#1e3a5f",
+  "navigationDividerColorDark": "#1e3a5f",
+  "backgroundColor": "#0a1628",
+  "enableNotifications": false,
+  "startUrl": "/slots",
+  "iconUrl": "https://www.playorbit.in/icons/icon-512x512.png",
+  "maskableIconUrl": "https://www.playorbit.in/icons/icon-512x512.png",
+  "appVersionName": "1.0.1",
+  "appVersionCode": 3,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://www.playorbit.in/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://www.playorbit.in/",
+  "minSdkVersion": 23,
+  "orientation": "portrait",
+  "signingKey": {
+    "path": "/Users/waheed/playorbit-upload.jks",
+    "alias": "playorbit-upload"
+  },
+  "appVersion": "1.0.1",
+  "splashScreenFadeOutDuration": 300,
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
