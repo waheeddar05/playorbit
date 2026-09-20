@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import { Prisma, type BookingCategory } from '@prisma/client';
+import { deterministicBookingId } from '@/lib/booking-idempotency';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { resolveCurrentCenter } from '@/lib/centers';
@@ -983,6 +985,12 @@ async function executeResourceBookingCore(
       });
     });
 
+    // Idempotency key for this fulfilment. Online bookings key on the
+    // Payment id so verify / webhook / reconcile all derive the *same*
+    // booking ids; everything else gets a per-attempt nonce, which still
+    // covers the retry layers described on `deterministicBookingId`.
+    const fulfilmentKey = onlinePaymentId ?? `req_${randomUUID()}`;
+
     // Now create everything atomically. Re-runs under serializable on
     // conflict so concurrent bookings can't both grab the same resource.
     const created: { id: string; status: string }[] = [];
@@ -1021,14 +1029,31 @@ async function executeResourceBookingCore(
               // handler and lands on a clean "session full" rejection.
               if (isMatchPractice) {
                 const mp = mpPlans[i];
+                const mpBookingId = deterministicBookingId(fulfilmentKey, i);
+                // An earlier attempt of this transaction may have committed
+                // this row and lost the response. Adopt it instead of
+                // re-running the seat check and re-creating it.
+                const mpExisting = await tx.booking.findUnique({
+                  where: { id: mpBookingId },
+                  select: { id: true, status: true },
+                });
+                if (mpExisting) {
+                  out.push(mpExisting);
+                  continue;
+                }
                 await assertMatchPracticeSeat(tx, center.id, targetUserId, mp);
                 const groundStaffId = pickGroundStaffForSlot(mpGroundStaff, {
                   date: mp.date,
                   startTime: mp.startTime,
                   endTime: mp.endTime,
                 });
-                const booking = await tx.booking.create({
-                  data: {
+                const booking = await tx.booking.upsert({
+                  where: { id: mpBookingId },
+                  // No-op on replay: a retried INSERT must not create a
+                  // second row (see `deterministicBookingId`).
+                  update: {},
+                  create: {
+                    id: mpBookingId,
                     centerId: center.id,
                     userId: targetUserId,
                     date: mp.date,
@@ -1067,6 +1092,18 @@ async function executeResourceBookingCore(
 
               const plan = plans[i];
               const isConsecutive = planIsConsecutive[i];
+              const bookingId = deterministicBookingId(fulfilmentKey, i);
+              // Same replay guard as the match-practice branch above:
+              // skip the whole slot (planning, package decrement, resource
+              // assignment) when a previous attempt already committed it.
+              const existingForSlot = await tx.booking.findUnique({
+                where: { id: bookingId },
+                select: { id: true, status: true },
+              });
+              if (existingForSlot) {
+                out.push(existingForSlot);
+                continue;
+              }
               // Operator-availability pre-check for MACHINE bookings.
               // Leather (and any future operator-mandatory) machines
               // can't be booked when no operator's weekly availability
@@ -1400,8 +1437,13 @@ async function executeResourceBookingCore(
                 operationMode = 'SELF_OPERATE';
               }
 
-              const booking = await tx.booking.create({
-                data: {
+              const booking = await tx.booking.upsert({
+                where: { id: bookingId },
+                // No-op on replay: a retried INSERT must not create a
+                // second row (see `deterministicBookingId`).
+                update: {},
+                create: {
+                  id: bookingId,
                   centerId: center.id,
                   userId: targetUserId,
                   date: plan.date,
@@ -1494,7 +1536,7 @@ async function executeResourceBookingCore(
                 }
 
                 const newUsed = fresh.usedSessions + 1;
-                const updateData: any = { usedSessions: newUsed };
+                const updateData: Prisma.UserPackageUpdateManyMutationInput = { usedSessions: newUsed };
 
                 // If first booking, activate validity period
                 if (fresh.usedSessions === 0) {
@@ -1518,8 +1560,10 @@ async function executeResourceBookingCore(
                 if (updateRes.count !== 1) {
                   throw new BookingResourceError('Package was modified by another booking; please retry', 409);
                 }
-                await tx.packageBooking.create({
-                  data: {
+                await tx.packageBooking.upsert({
+                  where: { bookingId: booking.id },
+                  update: {},
+                  create: {
                     userPackageId: userPackage.id,
                     bookingId: booking.id,
                     sessionsUsed: 1,
