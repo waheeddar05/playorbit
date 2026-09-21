@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
-import { ArrowRight, ShoppingBag, X } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { SHOP_PATH } from '@/lib/marketplace';
 import { useMarketplaceStatus } from '@/lib/marketplace-status';
 import { ComingSoonBadge } from './ShopBadges';
+import { KIS_MODEL, KIS_PROMO_PHOTO } from '@/lib/kis-showcase';
+import { KisFrame } from './KisFrame';
 
 /**
  * Slim, dismissible "there's a shop" strip for the booking screen — the
@@ -73,11 +75,20 @@ export function MarketplacePromoBanner() {
       }`}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <ShoppingBag className={`w-4 h-4 flex-shrink-0 ${comingSoon ? 'text-amber-300' : 'text-accent'}`} />
+        {/* The bat itself rather than a shopping-bag glyph: this strip
+            sits on the booking screen, the one page every signed-in
+            player passes through, so it is the cheapest place on the
+            site to actually show what is for sale. */}
+        {KIS_PROMO_PHOTO ? (
+          <span className="relative flex-shrink-0 w-8 h-10 rounded-md overflow-hidden ring-1 ring-white/10 bg-[#050b14]">
+            <KisFrame photo={KIS_PROMO_PHOTO} sizes="32px" />
+          </span>
+        ) : null}
         {/* Wraps onto a second line on narrow phones instead of truncating. */}
         <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-slate-300 leading-snug">
-            <span className="font-semibold text-white">PlayOrbit Cricket Store</span> — bats, gloves &amp; gear.
+            <span className="font-semibold text-white">PlayOrbit Cricket Store</span> — the {KIS_MODEL.fullName},
+            hand-picked.
           </span>
           {comingSoon ? (
             <ComingSoonBadge />

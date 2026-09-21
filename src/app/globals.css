@@ -377,3 +377,61 @@ input[type="number"] {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ─── KIS M&H 7000 showcase ───────────────────
+   The store sells one bat, so its photography carries the landing page,
+   /shop and the product page. Two motions do that work.
+
+   The marquee track holds the photo list twice and slides exactly half
+   its own width, so the second copy lands where the first started and
+   the loop has no seam. `translate3d` keeps it on the compositor —
+   a `left`/`margin` version repainted the whole band every frame on
+   mid-range Androids.
+
+   Both animations move *position*, which the blanket
+   prefers-reduced-motion rule above cannot simply shorten: clamped to
+   one 0.01ms pass the track would snap to -50% and sit there. The
+   components read `usePrefersReducedMotion()` and render a static,
+   scrollable variant instead, so these classes are never applied when
+   motion is off. */
+
+@keyframes kis-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.kis-marquee-track {
+  animation: kis-marquee var(--kis-marquee-duration, 52s) linear infinite;
+  will-change: transform;
+}
+
+/* Hovering or tabbing into the band holds it still so a photo can be
+   looked at — and, for a keyboard user, so the focused link stops
+   moving under the focus ring. */
+.kis-marquee:hover .kis-marquee-track,
+.kis-marquee:focus-within .kis-marquee-track {
+  animation-play-state: paused;
+}
+
+/* A slow push on the spotlight plate. Stays under 1.08 scale: the
+   photos are 1100px wide and the plate can be 640px on desktop, so
+   anything more starts to soften the blade's edge. */
+@keyframes kis-drift {
+  from {
+    transform: scale(1.005);
+  }
+
+  to {
+    transform: scale(1.075);
+  }
+}
+
+.kis-drift {
+  animation: kis-drift 14s ease-in-out infinite alternate;
+  will-change: transform;
+}

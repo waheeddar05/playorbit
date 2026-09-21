@@ -21,6 +21,8 @@ import { ProductGallery } from './ProductGallery';
 import { ComingSoonBadge, PriceTag, StockPill } from './ShopBadges';
 import { NotifyMeButton } from './NotifyMeButton';
 import { DeliveryAddressHint, useDefaultAddress } from './DeliveryAddressHint';
+import { KisMarquee } from './KisMarquee';
+import { isKisModel } from '@/lib/kis-showcase';
 
 /** `GET /api/shop/products/[id]` */
 interface ProductDetailResponse {
@@ -239,6 +241,11 @@ function ProductDetail({
 
   const metaLine = product.brand ? `${product.brand} · ${product.categoryLabel}` : product.categoryLabel;
 
+  // The M&H 7000's own shoot, under the buy bar. Gated on the row being
+  // that bat: this is KIS's photography of one specific model, and
+  // hanging it under a glove or a helmet would misrepresent both.
+  const showKisShoot = isKisModel(product);
+
   return (
     <article className="md:grid md:grid-cols-2 md:gap-6 md:items-start animate-fade-in">
       <ProductGallery images={product.images} category={product.category} name={product.name} />
@@ -397,6 +404,15 @@ function ProductDetail({
           </div>
         </div>
       </div>
+
+      {showKisShoot && (
+        <section className="md:col-span-2 mt-6 -mx-4 md:mx-0" aria-label="More photos of this bat">
+          <p className="px-4 md:px-0 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+            More from the shoot
+          </p>
+          <KisMarquee size="tall" duration={58} />
+        </section>
+      )}
     </article>
   );
 }

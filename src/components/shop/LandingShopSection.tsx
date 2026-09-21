@@ -2,52 +2,30 @@
 
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { SHOP_PATH, type MarketplaceCategoryId } from '@/lib/marketplace';
+import { SHOP_PATH } from '@/lib/marketplace';
 import { useMarketplaceStatus } from '@/lib/marketplace-status';
-import { CATEGORY_TILES } from './categoryIcons';
-import { ProductCard } from './ProductCard';
-import { ComingSoonBadge } from './ShopBadges';
+import { KIS_MODEL } from '@/lib/kis-showcase';
+import { KisSpotlight } from './KisSpotlight';
 import { SHOP_BAND, ShopMediaBand } from './ShopMediaBand';
 
-const DEFAULT_TAGLINE = 'Bats, gloves, thigh guards & more — sold straight from PlayOrbit.';
-
-/** The launch line-up shown until the center publishes its first products. */
-const TEASER_CATEGORIES: ReadonlyArray<MarketplaceCategoryId> = ['BAT', 'GLOVES', 'THIGH_GUARD', 'PADS'];
-
-const TEASER_TILES = TEASER_CATEGORIES.flatMap((value) => {
-  const tile = CATEGORY_TILES.find((t) => t.value === value);
-  return tile ? [tile] : [];
-});
-
-/** One accent per tile, matching the multi-colour Ways to Train row above it. */
-const TILE_COLORS: Record<string, string> = {
-  BAT: 'text-accent',
-  GLOVES: 'text-purple-400',
-  THIGH_GUARD: 'text-emerald-400',
-  PADS: 'text-amber-400',
-};
+const DEFAULT_TAGLINE = 'Grade A++ Kashmir willow, knocked in ready, hand-picked at Toplay.';
 
 /**
- * The featured strip is a four-up grid on desktop, but the store may be
- * selling one or two things (launch is a single bat). A lone card in the
- * first of four columns reads as three missing products, so the grid
- * narrows to the count and centres itself.
- */
-function featuredGridClass(count: number): string {
-  if (count === 1) return 'grid grid-cols-1 max-w-[240px] md:max-w-[280px] mx-auto';
-  if (count === 2) return 'grid grid-cols-2 gap-2.5 max-w-lg mx-auto';
-  if (count === 3) return 'grid grid-cols-2 md:grid-cols-3 gap-2.5 max-w-3xl mx-auto';
-  return 'grid grid-cols-2 md:grid-cols-4 gap-2.5';
-}
-
-/**
- * The landing page's store section — sits between Ways to Train and the
- * features grid and mirrors their styling. Shows the center's featured
- * products when it has any, otherwise the category teaser, and always a
- * button into /shop.
+ * The landing page's store section.
  *
- * While the status is loading the static teaser renders (no flash of an
- * empty band); a center with the store switched off renders nothing.
+ * The store stocks one bat, so this is a campaign for that bat rather
+ * than a storefront preview: the wide video band, then the spotlight
+ * with the live price off the catalog row, then the way in.
+ *
+ * It used to show a four-up teaser of BAT / GLOVES / THIGH GUARD / PADS
+ * next to a single 240px product card. That advertised three categories
+ * with nothing behind them and made the one thing actually for sale the
+ * smallest element on screen — exactly backwards for a one-model launch.
+ *
+ * While the status is loading the spotlight still renders, with no price
+ * and no stock pill, so there is no empty gap and no flash of a "coming
+ * soon" badge on a live store. A center with the store switched off
+ * renders nothing at all.
  */
 export function LandingShopSection() {
   const { status, loading, enabled, comingSoon } = useMarketplaceStatus();
@@ -58,6 +36,8 @@ export function LandingShopSection() {
   // flash the badge on a live store for a beat and then pull it.
   const showComingSoon = !loading && comingSoon;
   const featured = status?.featured ?? [];
+  // The catalog is one bat deep at launch; the first featured row is it.
+  const hero = featured[0] ?? null;
   const productCount = status?.productCount ?? 0;
   const tagline = (status?.launchNote ?? '').trim() || DEFAULT_TAGLINE;
 
@@ -65,56 +45,32 @@ export function LandingShopSection() {
     <section id="shop" className="relative z-10 px-4 md:px-6 py-4 md:py-10">
       <div className="max-w-6xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-3 md:mb-8">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-3 mb-1 md:mb-2">
-            <h3 className="text-lg md:text-3xl font-black text-white leading-tight">
-              GEAR <span className="text-accent/40">UP.</span>
-            </h3>
-            {showComingSoon && <ComingSoonBadge size="lg" />}
-          </div>
-          <p className="text-slate-500 text-[10px] md:text-sm">{tagline}</p>
+          <h3 className="text-lg md:text-3xl font-black text-white leading-tight">
+            {KIS_MODEL.headline}{' '}
+            <span className="text-shimmer">{KIS_MODEL.headlineAccent}</span>
+          </h3>
+          <p className="text-slate-500 text-[10px] md:text-sm mt-1 md:mt-2">{tagline}</p>
         </div>
 
-        {SHOP_BAND && <ShopMediaBand {...SHOP_BAND} />}
+        <ShopMediaBand {...SHOP_BAND} />
 
-        {featured.length > 0 ? (
-          <div className={featuredGridClass(featured.length)}>
-            {featured.map((product) => (
-              <ProductCard key={product.id} product={product} comingSoon={showComingSoon} />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 md:gap-4">
-            {TEASER_TILES.map((tile) => (
-              <div
-                key={tile.value}
-                className="group p-2.5 md:p-5 rounded-lg md:rounded-2xl border border-white/[0.05] hover:border-white/[0.1] bg-[#060d1b]/60 hover:bg-[#0a1628]/80 transition-all duration-300 text-center min-w-0"
-              >
-                <div
-                  className={`w-8 h-8 md:w-11 md:h-11 rounded-lg md:rounded-xl bg-white/[0.04] flex items-center justify-center mb-1.5 md:mb-3 border border-white/[0.06] mx-auto ${TILE_COLORS[tile.value] ?? 'text-accent'} group-hover:scale-110 transition-transform`}
-                >
-                  <tile.icon className="w-4 h-4 md:w-5 md:h-5" />
-                </div>
-                <h4 className="text-[11px] md:text-base font-black text-white mb-0.5 md:mb-1.5 uppercase italic tracking-tighter leading-tight">
-                  {tile.label}
-                </h4>
-                <p className="text-slate-500 text-[9px] md:text-xs leading-relaxed group-hover:text-slate-400 transition-colors">
-                  {tile.blurb}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+        <KisSpotlight
+          href={hero ? `${SHOP_PATH}/${hero.id}` : SHOP_PATH}
+          product={hero}
+          comingSoon={showComingSoon}
+          pickupNote={status?.pickupNote ?? ''}
+        />
 
         {/* The catalog size rides inside the button as a count pill. As a
             separate line under it on phones it read as a stray caption. */}
         <div className="mt-3 md:mt-6 flex items-center justify-center">
           <Link
             href={SHOP_PATH}
-            className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-light text-primary font-bold rounded-xl px-5 py-2.5 text-xs md:text-sm transition-all active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-white font-bold rounded-xl px-5 py-2.5 text-xs md:text-sm transition-all active:scale-[0.98] border border-white/[0.08]"
           >
             EXPLORE THE STORE
             {productCount > 0 && (
-              <span className="inline-flex items-center rounded-full bg-primary/15 px-2 py-0.5 text-[10px] md:text-[11px] font-black tabular-nums">
+              <span className="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-[10px] md:text-[11px] font-black tabular-nums">
                 {productCount} {productCount === 1 ? 'product' : 'products'}
               </span>
             )}

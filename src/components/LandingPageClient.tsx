@@ -7,6 +7,8 @@ import Image from 'next/image';
 import { Calendar, Zap, Instagram, Phone, Target, Shield, Users, Star, ArrowRight, MapPin, Building2, Mail, Crosshair, GraduationCap, LayoutGrid, Maximize2, Wallet, ShoppingBag, MessageCircle } from 'lucide-react';
 import LoginModal from './LoginModal';
 import { LandingShopSection } from './shop/LandingShopSection';
+import { KisMarquee } from './shop/KisMarquee';
+import { KIS_MODEL, KIS_RIBBON_PHOTOS } from '@/lib/kis-showcase';
 import { INSTAGRAM_URL } from '@/lib/client-constants';
 import { SHOP_PATH, STORE_NAV_LABEL, buildWhatsAppLink } from '@/lib/marketplace';
 import { DEFAULT_POST_LOGIN_PATH, safeNextPath } from '@/lib/login-href';
@@ -302,6 +304,29 @@ export default function LandingPageClient() {
           )}
         </div>
       </section>
+
+      {/* KIS ribbon — the store sells one bat, so it gets a moving band of
+          its own photography directly under the hero, before anything else
+          on the page. Slim on purpose: it is a pointer into /shop, not the
+          campaign itself (that is the spotlight further down). Rendered
+          while the store status is still loading too, so it does not pop in
+          and shove the page down a beat after paint. */}
+      {(shopLoading || shopEnabled) && (
+        <section className="relative z-10 pt-3 pb-4 md:pt-6 md:pb-7 animate-fade-in delay-500">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 mb-2 md:mb-3 flex items-center gap-3">
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
+            <Link
+              href={SHOP_PATH}
+              className="inline-flex items-center gap-1.5 text-[9px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 hover:text-accent transition-colors whitespace-nowrap"
+            >
+              <ShoppingBag className="w-3 h-3" />
+              Now in the store &mdash; {KIS_MODEL.fullName}
+            </Link>
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
+          </div>
+          <KisMarquee size="slim" href={SHOP_PATH} duration={46} photos={KIS_RIBBON_PHOTOS} />
+        </section>
+      )}
 
       {/* Stats Section */}
       <section className="relative z-10 py-2 md:py-5 border-y border-white/5 glass-dark overflow-hidden">

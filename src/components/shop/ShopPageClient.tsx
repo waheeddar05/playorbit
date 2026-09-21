@@ -18,6 +18,9 @@ import { ProductCard } from './ProductCard';
 import { ComingSoonBadge } from './ShopBadges';
 import { CategoryChips } from './CategoryChips';
 import { ShopTeaser } from './ShopTeaser';
+import { KisSpotlight } from './KisSpotlight';
+import { KisMarquee } from './KisMarquee';
+import { isKisModel } from '@/lib/kis-showcase';
 
 /** `GET /api/shop/products` */
 interface ShopCatalogResponse {
@@ -222,6 +225,18 @@ export function ShopPageClient() {
   const refetching = loading && data !== null;
   const questionLink = buildWhatsAppLink(data?.enquiryPhone, QUESTION_ENQUIRY);
 
+  // The launch catalog is one bat deep. A search box and a one-chip
+  // category rail over a single product are controls with nothing to
+  // control, and they make the page read as a store that failed to
+  // load; they come back as soon as there is a second thing to sort
+  // through, and a filter in the URL always brings them back.
+  const minimalChrome = data !== null && !hasFilter && data.total <= 2 && data.categories.length <= 1;
+
+  // The spotlight is the campaign for the M&H 7000, so it only appears
+  // when that bat is actually in the view being shown — never over a
+  // filtered result set it has nothing to do with.
+  const kisRow = !hasFilter ? (data?.products.find(isKisModel) ?? null) : null;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-5">
       <PageBackground />
@@ -248,6 +263,17 @@ export function ShopPageClient() {
         </div>
       </header>
 
+      {kisRow && enabled && !error && (
+        <KisSpotlight
+          href={`${SHOP_PATH}/${kisRow.id}`}
+          product={kisRow}
+          comingSoon={comingSoon}
+          pickupNote={config?.pickupNote ?? ''}
+          priority
+          className="mb-4"
+        />
+      )}
+
       {error ? (
         <ErrorState message={error} onRetry={retry} />
       ) : initialLoading ? (
@@ -265,18 +291,22 @@ export function ShopPageClient() {
         <ShopTeaser enquiryPhone={data.enquiryPhone} pickupNote={config?.pickupNote ?? ''} />
       ) : data ? (
         <>
-          <SearchBox
-            value={searchInput}
-            onChange={handleSearchChange}
-            onSubmit={commitSearch}
-            busy={refetching}
-          />
-          <CategoryChips
-            categories={data.categories}
-            selected={category}
-            onSelect={selectCategory}
-            className="mb-4"
-          />
+          {!minimalChrome && (
+            <>
+              <SearchBox
+                value={searchInput}
+                onChange={handleSearchChange}
+                onSubmit={commitSearch}
+                busy={refetching}
+              />
+              <CategoryChips
+                categories={data.categories}
+                selected={category}
+                onSelect={selectCategory}
+                className="mb-4"
+              />
+            </>
+          )}
 
           {data.products.length === 0 ? (
             <EmptyState
@@ -292,9 +322,11 @@ export function ShopPageClient() {
           ) : (
             <>
               <div
-                className={`grid grid-cols-2 md:grid-cols-3 gap-2.5 transition-opacity duration-200 ${
-                  refetching ? 'opacity-60' : 'opacity-100'
-                }`}
+                className={`grid gap-2.5 transition-opacity duration-200 ${
+                  data.products.length === 1
+                    ? 'grid-cols-1 max-w-[260px] mx-auto'
+                    : 'grid-cols-2 md:grid-cols-3'
+                } ${refetching ? 'opacity-60' : 'opacity-100'}`}
                 aria-busy={refetching}
               >
                 {data.products.map((product, i) => (
@@ -318,6 +350,15 @@ export function ShopPageClient() {
                 </div>
               )}
             </>
+          )}
+
+          {kisRow && (
+            <div className="mt-6 -mx-4">
+              <p className="px-4 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 text-center">
+                Shot at the KIS press in Anantnag
+              </p>
+              <KisMarquee size="tall" href={`${SHOP_PATH}/${kisRow.id}`} duration={58} />
+            </div>
           )}
 
           {questionLink && (
