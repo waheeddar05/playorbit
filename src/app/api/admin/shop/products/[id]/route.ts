@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { sanitizeApiError } from '@/lib/api-errors';
-import { ProductInputSchema, type MarketplaceInterestView } from '@/lib/marketplace';
+import {
+  ProductInputSchema,
+  type MarketplaceInterestView,
+  type MarketplacePreBookingView,
+} from '@/lib/marketplace';
 import { ADMIN_PRODUCT_SELECT, forbidden, readJson, requireShopAdmin, toAdminProductView } from '../../shared';
 
 type Params = { id: string };
 
 /**
- *   GET    /api/admin/shop/products/[id]   product + the users who want it
+ *   GET    /api/admin/shop/products/[id]   product, its pre-bookings and its Notify-me list
  *   PATCH  /api/admin/shop/products/[id]   replace (complete body)
  *   DELETE /api/admin/shop/products/[id]   remove (cascades images + interests)
  *
@@ -28,7 +32,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<Params> }) {
     if (!auth) return forbidden();
     const { id } = await ctx.params;
 
-    const [row, interestRows] = await Promise.all([
+    const [row, interestRows, preBookingRows] = await Promise.all([
       prisma.marketplaceProduct.findUnique({ where: { id }, select: ADMIN_PRODUCT_SELECT }),
       prisma.marketplaceInterest.findMany({
         where: { productId: id },
@@ -36,6 +40,29 @@ export async function GET(req: NextRequest, ctx: { params: Promise<Params> }) {
         select: {
           id: true,
           createdAt: true,
+          user: { select: { id: true, name: true, mobileNumber: true } },
+        },
+      }),
+      // Everything, cancelled included: the store has usually already
+      // acted on a row by the time it is called off, and a pre-booking
+      // that disappears from the list is worse than one marked off.
+      prisma.marketplacePreBooking.findMany({
+        where: { productId: id },
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          productId: true,
+          productName: true,
+          quantity: true,
+          size: true,
+          unitPrice: true,
+          status: true,
+          contactName: true,
+          contactPhone: true,
+          addressText: true,
+          adminNote: true,
+          createdAt: true,
+          updatedAt: true,
           user: { select: { id: true, name: true, mobileNumber: true } },
         },
       }),
@@ -50,7 +77,26 @@ export async function GET(req: NextRequest, ctx: { params: Promise<Params> }) {
       createdAt: r.createdAt.toISOString(),
     }));
 
-    return NextResponse.json({ product: toAdminProductView(row), interests });
+    const preBookings: MarketplacePreBookingView[] = preBookingRows.map((r) => ({
+      id: r.id,
+      productId: r.productId,
+      productName: r.productName,
+      quantity: r.quantity,
+      size: r.size,
+      unitPrice: r.unitPrice,
+      status: r.status,
+      userId: r.user.id,
+      name: r.user.name,
+      mobileNumber: r.user.mobileNumber,
+      contactName: r.contactName,
+      contactPhone: r.contactPhone,
+      addressText: r.addressText,
+      adminNote: r.adminNote,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+    }));
+
+    return NextResponse.json({ product: toAdminProductView(row), interests, preBookings });
   } catch (error) {
     const { message, status } = sanitizeApiError(error, 'admin.shop.product.get');
     return NextResponse.json({ error: message }, { status });

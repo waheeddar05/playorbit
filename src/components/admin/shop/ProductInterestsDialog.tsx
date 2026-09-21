@@ -74,9 +74,8 @@ export function ProductInterestsDialog({ product, onClose }: Props) {
           </div>
           <p className="text-sm font-medium text-slate-300">Nobody has asked to be notified yet</p>
           <p className="text-xs text-slate-500 mt-1">
-            Customers tap &ldquo;Notify me&rdquo; on the product page while the store is in Pre-book mode.
-            Anyone ready to commit pre-books over WhatsApp instead, so that conversation lands in your
-            chats rather than in this list.
+            Older signups from before the store took pre-bookings. The product page now offers Pre-book
+            instead, so new demand lands in the Pre-bookings list.
           </p>
         </div>
       ) : (

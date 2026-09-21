@@ -343,6 +343,62 @@ export interface MarketplaceProductView {
 /** Admin list rows carry the interest count as a launch-demand signal. */
 export interface MarketplaceProductAdminView extends MarketplaceProductView {
   interestCount: number;
+  /** Pre-bookings still waiting on us — cancelled and collected ones are not counted. */
+  preBookingCount: number;
+}
+
+/**
+ * Where a pre-booking has got to. No money is involved at any point —
+ * these track a conversation, not a payment.
+ */
+export const PRE_BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED'] as const;
+export type PreBookingStatus = (typeof PRE_BOOKING_STATUSES)[number];
+
+export const PRE_BOOKING_STATUS_LABELS: Record<PreBookingStatus, string> = {
+  PENDING: 'New',
+  CONFIRMED: 'Holding',
+  FULFILLED: 'Collected',
+  CANCELLED: 'Cancelled',
+};
+
+/** Statuses that still mean somebody is waiting for a bat. */
+export function isActivePreBooking(status: PreBookingStatus): boolean {
+  return status === 'PENDING' || status === 'CONFIRMED';
+}
+
+/** Nobody may pre-book more than this in one go — it is a hold, not a wholesale order. */
+export const PRE_BOOKING_MAX_QTY = 10;
+
+export const PreBookInputSchema = z.object({
+  quantity: z.number().int().min(1).max(PRE_BOOKING_MAX_QTY).optional().default(1),
+  size: z.string().trim().max(40).nullable().optional(),
+});
+export type PreBookInput = z.infer<typeof PreBookInputSchema>;
+
+/** The viewer's own pre-booking, as the product page needs it. */
+export interface MyPreBookingView {
+  id: string;
+  productId: string;
+  quantity: number;
+  size: string | null;
+  unitPrice: number;
+  status: PreBookingStatus;
+  createdAt: string;
+}
+
+/** One row of the store's pre-booking list. */
+export interface MarketplacePreBookingView extends MyPreBookingView {
+  userId: string;
+  /** The customer's account name, and the name/phone they gave for delivery. */
+  name: string | null;
+  mobileNumber: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  /** The delivery address as it stood when they booked, or null if they had none saved. */
+  addressText: string | null;
+  productName: string;
+  adminNote: string | null;
+  updatedAt: string;
 }
 
 export interface MarketplaceInterestView {
@@ -413,21 +469,19 @@ export function buildWhatsAppLink(phone: string | null | undefined, text: string
 }
 
 /**
- * What the buyer is actually sending.
+ * What the buyer is sending over WhatsApp.
  *
- * `ask` is a question and commits to nothing. `prebook` and `order` are
- * both requests for a specific quantity at a specific address — the only
- * difference is whether the bat is on the shelf yet — so they carry the
- * same lines and differ in one word. This used to be a `comingSoon`
- * boolean, which conflated "pre-launch" with "not buying", and that is
- * precisely the pairing we no longer want: pre-launch is when we most
- * want the pre-booking.
+ * `ask` is a question and commits to nothing. `order` is a request for a
+ * quantity at an address, once the store is selling from stock.
+ *
+ * There is deliberately no pre-book intent: a pre-booking is recorded in
+ * the app (see `MarketplacePreBooking`), not typed into a chat, so that
+ * the store has a list it can work rather than a scroll of messages.
  */
-export type EnquiryIntent = 'ask' | 'prebook' | 'order';
+export type EnquiryIntent = 'ask' | 'order';
 
 const ENQUIRY_OPENING: Record<EnquiryIntent, string> = {
   ask: `Hi PlayOrbit, I have a question about this product:`,
-  prebook: `Hi PlayOrbit, I'd like to pre-book this from your store:`,
   order: `Hi PlayOrbit, I'd like to order this from your store:`,
 };
 

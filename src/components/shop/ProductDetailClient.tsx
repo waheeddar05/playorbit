@@ -15,11 +15,12 @@ import {
   buildWhatsAppLink,
   formatRupees,
   type MarketplaceProductView,
+  type MyPreBookingView,
 } from '@/lib/marketplace';
 import { formatAddressLines } from '@/lib/addresses';
 import { ProductGallery } from './ProductGallery';
 import { PreBookBadge, PriceTag, StockPill } from './ShopBadges';
-import { NotifyMeButton } from './NotifyMeButton';
+import { PreBookAction } from './PreBookAction';
 import { DeliveryAddressHint, useDefaultAddress } from './DeliveryAddressHint';
 import { KisMarquee } from './KisMarquee';
 import { isKisModel } from '@/lib/kis-showcase';
@@ -30,6 +31,8 @@ interface ProductDetailResponse {
   config: { enabled: boolean; comingSoon: boolean; launchNote: string; pickupNote: string };
   enquiryPhone: string | null;
   interested: boolean;
+  /** The viewer's own standing pre-booking, or null. */
+  preBooking: MyPreBookingView | null;
   signedIn: boolean;
 }
 
@@ -65,7 +68,7 @@ export function ProductDetailClient({ id }: ProductDetailClientProps) {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const [interested, setInterested] = useState(false);
+  const [preBooking, setPreBooking] = useState<MyPreBookingView | null>(null);
   const [size, setSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(MIN_QTY);
   const [copied, setCopied] = useState(false);
@@ -100,7 +103,7 @@ export function ProductDetailClient({ id }: ProductDetailClientProps) {
         if (!active) return;
         const detail = body as ProductDetailResponse;
         setData(detail);
-        setInterested(detail.interested);
+        setPreBooking(detail.preBooking);
       } catch (err) {
         if (!active || controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : 'Could not load this product');
@@ -165,8 +168,8 @@ export function ProductDetailClient({ id }: ProductDetailClientProps) {
       ) : data ? (
         <ProductDetail
           data={data}
-          interested={interested}
-          onInterestedChange={setInterested}
+          preBooking={preBooking}
+          onPreBookingChange={setPreBooking}
           size={size}
           onSizeChange={setSize}
           quantity={quantity}
@@ -186,8 +189,8 @@ export function ProductDetailClient({ id }: ProductDetailClientProps) {
 
 interface ProductDetailProps {
   data: ProductDetailResponse;
-  interested: boolean;
-  onInterestedChange: (next: boolean) => void;
+  preBooking: MyPreBookingView | null;
+  onPreBookingChange: (next: MyPreBookingView | null) => void;
   size: string | null;
   onSizeChange: (next: string | null) => void;
   quantity: number;
@@ -201,8 +204,8 @@ interface ProductDetailProps {
 
 function ProductDetail({
   data,
-  interested,
-  onInterestedChange,
+  preBooking,
+  onPreBookingChange,
   size,
   onSizeChange,
   quantity,
@@ -226,25 +229,24 @@ function ProductDetail({
     enquiryPhone,
     buildEnquiryMessage({ product, size, intent: 'ask', productUrl }),
   );
-  // The one committing action. Pre-launch takes the same quantity and
-  // address as a live order and differs by a single word, because a
-  // pre-booking we can actually fulfil is worth more than a mailing-list
-  // signup — which is what "Notify me" alone was collecting.
-  const commitIntent = comingSoon ? 'prebook' : 'order';
-  const commitLabel = comingSoon ? 'Pre-book on WhatsApp' : 'Order on WhatsApp';
-  const commitLink = !soldOut
-    ? buildWhatsAppLink(
-        enquiryPhone,
-        buildEnquiryMessage({
-          product,
-          size,
-          quantity,
-          addressLines: addressState.address ? formatAddressLines(addressState.address) : null,
-          productUrl,
-          intent: commitIntent,
-        }),
-      )
-    : null;
+  // Once the store sells from stock, ordering still runs over WhatsApp.
+  // Pre-booking does not: it is recorded in the app so the store has a
+  // list to work instead of a scroll of chat messages, and so the
+  // customer can see and cancel what they asked for.
+  const orderLink =
+    !comingSoon && !soldOut
+      ? buildWhatsAppLink(
+          enquiryPhone,
+          buildEnquiryMessage({
+            product,
+            size,
+            quantity,
+            addressLines: addressState.address ? formatAddressLines(addressState.address) : null,
+            productUrl,
+            intent: 'order',
+          }),
+        )
+      : null;
 
   const metaLine = product.brand ? `${product.brand} · ${product.categoryLabel}` : product.categoryLabel;
 
@@ -349,17 +351,9 @@ function ProductDetail({
 
         {!soldOut && <DeliveryAddressHint signedIn={signedIn} state={addressState} className="mt-4" />}
 
-        {comingSoon && !soldOut && (
-          <div className="mt-5 flex flex-col sm:flex-row gap-2">
-            <NotifyMeButton
-              productId={product.id}
-              interested={interested}
-              signedIn={signedIn}
-              onChange={onInterestedChange}
-              variant="secondary"
-              className="flex-1"
-            />
-            {askLink && <WhatsAppLink href={askLink} label="Ask a question" variant="secondary" />}
+        {comingSoon && !soldOut && askLink && (
+          <div className="mt-5 flex">
+            <WhatsAppLink href={askLink} label="Ask a question" variant="secondary" />
           </div>
         )}
 
@@ -381,6 +375,49 @@ function ProductDetail({
                 </button>
                 {askLink && <WhatsAppLink href={askLink} label="Ask on WhatsApp" variant="secondary" />}
               </div>
+            ) : comingSoon ? (
+              // Pre-launch: pre-book in the app, nothing charged. Once a
+              // booking exists the quantity is part of it, so the stepper
+              // and the running total step aside for the receipt — the
+              // way to change the number is to cancel and book again.
+              preBooking ? (
+                <PreBookAction
+                  productId={product.id}
+                  productName={product.name}
+                  preBooking={preBooking}
+                  onChange={onPreBookingChange}
+                  quantity={quantity}
+                  size={size}
+                  signedIn={signedIn}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-3 mb-2 text-xs">
+                    <span className="text-slate-400 tabular-nums">
+                      {quantity} × {formatRupees(product.price)}
+                    </span>
+                    <span className="text-slate-300 tabular-nums">
+                      <span className="font-bold text-white">{formatRupees(product.price * quantity)}</span>{' '}
+                      <span className="text-slate-500">on collection</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <QuantityStepper value={quantity} onChange={onQuantityChange} />
+                    <PreBookAction
+                      productId={product.id}
+                      productName={product.name}
+                      preBooking={null}
+                      onChange={onPreBookingChange}
+                      quantity={quantity}
+                      size={size}
+                      signedIn={signedIn}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 leading-snug">
+                    Nothing to pay — we hold one for you and message you when it’s ready.
+                  </p>
+                </>
+              )
             ) : (
               <>
                 <div className="flex items-center justify-between gap-3 mb-2 text-xs">
@@ -391,8 +428,8 @@ function ProductDetail({
                 </div>
                 <div className="flex items-center gap-2">
                   <QuantityStepper value={quantity} onChange={onQuantityChange} />
-                  {commitLink ? (
-                    <WhatsAppLink href={commitLink} label={commitLabel} variant="primary" />
+                  {orderLink ? (
+                    <WhatsAppLink href={orderLink} label="Order on WhatsApp" variant="primary" />
                   ) : (
                     <button
                       type="button"
@@ -400,22 +437,13 @@ function ProductDetail({
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold bg-accent text-primary opacity-50 cursor-not-allowed"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      {commitLabel}
+                      Order on WhatsApp
                     </button>
                   )}
                 </div>
-                {!commitLink && (
+                {!orderLink && (
                   <p className="text-[11px] text-slate-500 mt-2">
-                    {comingSoon ? 'Pre-booking' : 'Ordering'} isn’t open yet — the store hasn’t set a WhatsApp
-                    number.
-                  </p>
-                )}
-                {comingSoon && (
-                  // Say what a pre-booking is before they tap it: no card,
-                  // no charge, a conversation that ends in a bat held back
-                  // for them.
-                  <p className="text-[11px] text-slate-500 mt-2 leading-snug">
-                    Nothing is charged now — we confirm on WhatsApp and hold your bat.
+                    Ordering isn’t open yet — the store hasn’t set a WhatsApp number.
                   </p>
                 )}
               </>

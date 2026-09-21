@@ -415,29 +415,22 @@ describe('buildEnquiryMessage', () => {
     expect(lines[lines.length - 1]).toBe('https://playorbit.in/shop/p1');
   });
 
-  it('pre-books with the quantity and the delivery address, exactly as an order does', () => {
-    const shared = {
+  it('orders with the quantity and the delivery address', () => {
+    const text = buildEnquiryMessage({
       product,
       size: 'SH',
       quantity: 2,
       addressLines: address,
       productUrl: 'https://playorbit.in/shop/p1',
-    } as const;
-    const prebook = buildEnquiryMessage({ ...shared, intent: 'prebook' });
-    const order = buildEnquiryMessage({ ...shared, intent: 'order' });
-
-    const lines = prebook.split('\n');
-    expect(lines[0]).toBe("Hi PlayOrbit, I'd like to pre-book this from your store:");
+      intent: 'order',
+    });
+    const lines = text.split('\n');
+    expect(lines[0]).toBe("Hi PlayOrbit, I'd like to order this from your store:");
     expect(lines).toContain('Qty: 2');
     const deliverAt = lines.indexOf('Deliver to:');
     expect(deliverAt).toBeGreaterThan(0);
     expect(lines.slice(deliverAt + 1, deliverAt + 1 + address.length)).toEqual(address);
     expect(lines[lines.length - 1]).toBe('https://playorbit.in/shop/p1');
-
-    // The two differ in one word and nothing else — a pre-booking we can
-    // fulfil carries the same detail as an order.
-    expect(order.split('\n')[0]).toBe("Hi PlayOrbit, I'd like to order this from your store:");
-    expect(order.split('\n').slice(1)).toEqual(lines.slice(1));
   });
 
   it('omits the size, address and URL lines when they are not supplied', () => {
@@ -453,7 +446,7 @@ describe('buildEnquiryMessage', () => {
   });
 
   it('never sends a quantity below one or a fractional one', () => {
-    expect(buildEnquiryMessage({ product, quantity: 0, intent: 'prebook' })).toContain('Qty: 1');
+    expect(buildEnquiryMessage({ product, quantity: 0, intent: 'order' })).toContain('Qty: 1');
     expect(buildEnquiryMessage({ product, quantity: 2.7, intent: 'order' })).toContain('Qty: 2');
   });
 });

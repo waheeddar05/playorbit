@@ -1,6 +1,7 @@
 import type {
   MarketplaceConfig,
   MarketplaceInterestView,
+  MarketplacePreBookingView,
   MarketplaceProductAdminView,
 } from '@/lib/marketplace';
 
@@ -31,6 +32,7 @@ export interface ShopSettingsSaveResponse {
 export interface ProductDetailResponse {
   product: MarketplaceProductAdminView;
   interests: MarketplaceInterestView[];
+  preBookings: MarketplacePreBookingView[];
 }
 
 /** The list's status filter — `active` is "published", `inactive` is "hidden". */

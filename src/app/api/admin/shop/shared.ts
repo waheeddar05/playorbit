@@ -20,17 +20,32 @@ export async function requireShopAdmin(req: NextRequest): Promise<{ user: Authen
 
 export const forbidden = () => NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
 
-/** Product row plus the "Notify me" count — the launch-demand signal. */
+/**
+ * Product row plus the two demand signals: "Notify me" taps, and
+ * pre-bookings that are still waiting on us. Cancelled and collected
+ * pre-bookings are excluded from the count — the number on the row is
+ * meant to read as "people expecting a bat", which is what the store
+ * acts on.
+ */
 export const ADMIN_PRODUCT_SELECT = {
   ...PRODUCT_SELECT,
-  _count: { select: { interests: true } },
+  _count: {
+    select: {
+      interests: true,
+      preBookings: { where: { status: { in: ['PENDING', 'CONFIRMED'] } } },
+    },
+  },
 } satisfies Prisma.MarketplaceProductSelect;
 
 export type AdminProductRow = Prisma.MarketplaceProductGetPayload<{ select: typeof ADMIN_PRODUCT_SELECT }>;
 
 export function toAdminProductView(row: AdminProductRow): MarketplaceProductAdminView {
   const { _count, ...rest } = row;
-  return { ...toProductView(rest as ProductRow), interestCount: _count.interests };
+  return {
+    ...toProductView(rest as ProductRow),
+    interestCount: _count.interests,
+    preBookingCount: _count.preBookings,
+  };
 }
 
 /** Parse a JSON body, or return undefined (caller answers 400). */

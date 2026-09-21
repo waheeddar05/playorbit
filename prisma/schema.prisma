@@ -391,6 +391,7 @@ model User {
   // Marketplace (Admin -> Marketplace, /shop) + delivery addresses.
   addresses               UserAddress[]
   marketplaceInterests    MarketplaceInterest[]
+  marketplacePreBookings  MarketplacePreBooking[]
   marketplaceProducts     MarketplaceProduct[] @relation("MarketplaceProductsCreated")
 }
 
@@ -1295,6 +1296,7 @@ model MarketplaceProduct {
   createdBy User?                     @relation("MarketplaceProductsCreated", fields: [createdById], references: [id], onDelete: SetNull)
   images    MarketplaceProductImage[]
   interests MarketplaceInterest[]
+  preBookings MarketplacePreBooking[]
 
   // /shop listing: published products, per category.
   @@index([isActive, category])
@@ -1337,6 +1339,62 @@ model MarketplaceInterest {
 
   @@unique([productId, userId])
   @@index([userId])
+}
+
+/// A customer has asked us to hold one, before we are selling from stock.
+///
+/// No money changes hands — the row IS the commitment on both sides, and
+/// the store works the list by hand. That is why the product name, unit
+/// price and delivery address are copied in rather than read through the
+/// relations: an admin who edits the catalog or a customer who edits
+/// their address book must not silently rewrite what somebody was
+/// promised three weeks ago. The relations stay for joining; the
+/// snapshot is the record.
+model MarketplacePreBooking {
+  id        String @id @default(cuid())
+  productId String
+  userId    String
+
+  /// Snapshot of what was promised, at the moment it was promised.
+  productName String
+  unitPrice   Float
+  quantity    Int     @default(1)
+  size        String?
+
+  /// Where it should go, copied from the address book at booking time.
+  /// Null when the customer had no address saved — the store asks.
+  contactName  String?
+  contactPhone String?
+  addressText  String?
+
+  status    PreBookingStatus @default(PENDING)
+  /// Free-text note the store adds while working the list.
+  adminNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One standing pre-booking per person per product: tapping again
+  /// revises the quantity rather than queuing a second bat, and a
+  /// cancelled row is revived instead of leaving a duplicate behind.
+  @@unique([productId, userId])
+  @@index([productId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+enum PreBookingStatus {
+  /// Recorded, nobody has looked at it yet.
+  PENDING
+  /// The store has spoken to them and is holding a bat.
+  CONFIRMED
+  /// Handed over.
+  FULFILLED
+  /// Called off, by either side.
+  CANCELLED
 }
 
 // Delivery addresses on the user's profile (/profile). Global, not

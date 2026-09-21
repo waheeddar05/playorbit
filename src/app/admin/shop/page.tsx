@@ -22,6 +22,7 @@ import { MarketplaceSettingsCard } from '@/components/admin/shop/MarketplaceSett
 import { ProductFormDialog } from '@/components/admin/shop/ProductFormDialog';
 import { ProductImagesManager } from '@/components/admin/shop/ProductImagesManager';
 import { ProductInterestsDialog } from '@/components/admin/shop/ProductInterestsDialog';
+import { ProductPreBookingsDialog } from '@/components/admin/shop/ProductPreBookingsDialog';
 import { ProductRow } from '@/components/admin/shop/ProductRow';
 import { productToInput, readApiError } from '@/components/admin/shop/common';
 import type { AdminProductsResponse, ProductStatusFilter } from '@/components/admin/shop/types';
@@ -107,6 +108,7 @@ export default function AdminShopPage() {
   const [editing, setEditing] = useState<MarketplaceProductAdminView | null>(null);
   const [photosFor, setPhotosFor] = useState<MarketplaceProductAdminView | null>(null);
   const [interestsFor, setInterestsFor] = useState<MarketplaceProductAdminView | null>(null);
+  const [preBookingsFor, setPreBookingsFor] = useState<MarketplaceProductAdminView | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<MarketplaceProductAdminView | null>(null);
   // Product id with a publish / feature / delete request in flight.
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -125,6 +127,7 @@ export default function AdminShopPage() {
   }, []);
   const closePhotos = useCallback(() => setPhotosFor(null), []);
   const closeInterests = useCallback(() => setInterestsFor(null), []);
+  const closePreBookings = useCallback(() => setPreBookingsFor(null), []);
 
   // ─── Row-level updates ──────────────────────────────────────────
   /** Replace one row in place, keeping the center-wide totals in step. */
@@ -406,6 +409,7 @@ export default function AdminShopPage() {
                 onToggleFeatured={() => toggleFeatured(p)}
                 onDelete={() => setConfirmDelete(p)}
                 onShowInterests={() => setInterestsFor(p)}
+                onShowPreBookings={() => setPreBookingsFor(p)}
               />
             ))}
           </ul>
@@ -419,6 +423,15 @@ export default function AdminShopPage() {
       )}
 
       {interestsFor && <ProductInterestsDialog product={interestsFor} onClose={closeInterests} />}
+      {preBookingsFor && (
+        // Moving a booking along changes the count on the row behind, so
+        // the list is refetched when the dialog closes.
+        <ProductPreBookingsDialog
+          product={preBookingsFor}
+          onClose={closePreBookings}
+          onChanged={refresh}
+        />
+      )}
 
       <ConfirmDialog
         open={!!confirmDelete}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { sanitizeApiError } from '@/lib/api-errors';
+import { isActivePreBooking, type MyPreBookingView } from '@/lib/marketplace';
 import {
   PRODUCT_SELECT,
   getMarketplaceConfig,
@@ -19,7 +20,9 @@ type Params = { id: string };
  * center they book at.
  *
  * `interested` is whether the signed-in viewer has already tapped
- * "Notify me"; false for anonymous visitors.
+ * "Notify me"; false for anonymous visitors. `preBooking` is that
+ * viewer's own standing pre-booking, so the page can open showing what
+ * they already asked us to hold rather than offering to take it again.
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<Params> }) {
   try {
@@ -33,12 +36,34 @@ export async function GET(req: NextRequest, ctx: { params: Promise<Params> }) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    const interested = user
-      ? !!(await prisma.marketplaceInterest.findUnique({
-          where: { productId_userId: { productId: id, userId: user.id } },
-          select: { id: true },
-        }))
-      : false;
+    const [interestRow, preBookingRow] = user
+      ? await Promise.all([
+          prisma.marketplaceInterest.findUnique({
+            where: { productId_userId: { productId: id, userId: user.id } },
+            select: { id: true },
+          }),
+          prisma.marketplacePreBooking.findUnique({
+            where: { productId_userId: { productId: id, userId: user.id } },
+            select: {
+              id: true,
+              productId: true,
+              quantity: true,
+              size: true,
+              unitPrice: true,
+              status: true,
+              createdAt: true,
+            },
+          }),
+        ])
+      : [null, null];
+
+    const interested = !!interestRow;
+    // A cancelled row still exists (the store may have acted on it), but
+    // to the customer it is gone — the page must offer to book again.
+    const preBooking: MyPreBookingView | null =
+      preBookingRow && isActivePreBooking(preBookingRow.status)
+        ? { ...preBookingRow, createdAt: preBookingRow.createdAt.toISOString() }
+        : null;
 
     return NextResponse.json({
       product: toProductView(row),
@@ -50,6 +75,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<Params> }) {
       },
       enquiryPhone: resolveEnquiryPhone(config),
       interested,
+      preBooking,
       signedIn: !!user,
     });
   } catch (error) {

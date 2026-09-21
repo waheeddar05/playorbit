@@ -7,10 +7,9 @@
  *
  * Reads `GET /api/admin/shop/settings`, writes `PUT`. The two toggles
  * are the launch levers: **Store enabled** shows or hides the shop
- * everywhere, **Pre-book mode** decides whether the product page takes a
- * pre-booking or a plain order — both collect a quantity and an address
- * over WhatsApp, so the switch changes the wording and the promise, not
- * whether a customer can act. A save invalidates the client-side status
+ * everywhere, **Pre-book mode** decides whether the product page records
+ * a pre-booking in the app (no payment, and the store works the list) or
+ * opens a WhatsApp order. A save invalidates the client-side status
  * cache so the panel's own nav reflects the change without a reload.
  *
  * Nothing is editable until the stored config has been read back: the
@@ -168,7 +167,7 @@ export function MarketplaceSettingsCard({ onSaved }: Props) {
               enabled={form.comingSoon}
               onToggle={() => set('comingSoon', !form.comingSoon)}
               label="Pre-book mode"
-              description="Pre-launch: customers pre-book on WhatsApp (nothing is charged) or tap Notify me. Switch off once you're selling from stock and the same flow becomes an order."
+              description="Pre-launch: customers pre-book in the app and nothing is charged — you work the list from each product's Pre-bookings. Switch off once you're selling from stock and the page takes WhatsApp orders instead."
               icon={Clock}
               disabled={saving}
             />
@@ -245,7 +244,7 @@ export function MarketplaceSettingsCard({ onSaved }: Props) {
                 </span>
               ) : resolvedDigits ? (
                 <span className="text-slate-500">
-                  Ask / Pre-book / Order buttons will open WhatsApp at{' '}
+                  Ask / Order buttons will open WhatsApp at{' '}
                   <span className="text-slate-300 font-semibold tabular-nums">
                     {formatWhatsAppDigits(resolvedDigits)}
                   </span>

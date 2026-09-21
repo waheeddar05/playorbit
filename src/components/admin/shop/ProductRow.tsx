@@ -6,7 +6,7 @@
  * compact actions (icon on every width, text from md up).
  */
 
-import { Eye, EyeOff, Heart, Images, Loader2, Pencil, Star, StarOff, Trash2 } from 'lucide-react';
+import { CalendarCheck, Eye, EyeOff, Heart, Images, Loader2, Pencil, Star, StarOff, Trash2 } from 'lucide-react';
 import { ProductImage } from '@/components/shop/ProductImage';
 import { FeaturedBadge, PriceTag, StockPill } from '@/components/shop/ShopBadges';
 import { stockLabel, type MarketplaceProductAdminView } from '@/lib/marketplace';
@@ -22,6 +22,7 @@ interface Props {
   onToggleFeatured: () => void;
   onDelete: () => void;
   onShowInterests: () => void;
+  onShowPreBookings: () => void;
 }
 
 const neutralAction = `${rowActionClass} bg-white/[0.04] border-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.08]`;
@@ -36,6 +37,7 @@ export function ProductRow({
   onToggleFeatured,
   onDelete,
   onShowInterests,
+  onShowPreBookings,
 }: Props) {
   const stock = stockLabel(product);
   const photoCount = product.images.length;
@@ -83,6 +85,23 @@ export function ProductRow({
         </span>
         {product.isFeatured && <FeaturedBadge />}
         {stock.tone !== 'ok' && <StockPill product={product} />}
+        <button
+          type="button"
+          onClick={onShowPreBookings}
+          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold cursor-pointer transition-colors ${
+            product.preBookingCount > 0
+              ? 'bg-accent/10 border-accent/25 text-accent hover:bg-accent/20'
+              : 'border-white/[0.06] text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
+          }`}
+          aria-label={
+            product.preBookingCount > 0
+              ? `${product.preBookingCount} pre-booked — view the list`
+              : 'No pre-bookings — view the list'
+          }
+        >
+          <CalendarCheck className="w-2.5 h-2.5" />
+          {product.preBookingCount} pre-booked
+        </button>
         {product.interestCount > 0 ? (
           <button
             type="button"
