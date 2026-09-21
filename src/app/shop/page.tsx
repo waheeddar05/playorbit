@@ -2,14 +2,18 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { ShopPageClient } from '@/components/shop/ShopPageClient';
-
-export const metadata: Metadata = {
-  title: 'PlayOrbit Shop - Cricket Gear',
-  description: 'Bats, gloves, guards, pads and more from PlayOrbit.',
-};
+import { storeMetadata } from '@/lib/marketplace-seo';
 
 /**
- * /shop — the public storefront for the current center.
+ * The share card for /shop: a link pasted into WhatsApp shows the bat,
+ * not the generic "book cricket practice" cover. Static copy only — the
+ * price and the launch state live on the product page's card, which is
+ * generated per request.
+ */
+export const metadata: Metadata = storeMetadata();
+
+/**
+ * /shop — the public storefront.
  *
  * Browsable signed-out (the middleware lets /shop and /api/shop through),
  * so this shell stays a static server component. The catalog, filters and

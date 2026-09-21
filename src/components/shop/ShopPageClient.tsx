@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, MapPin, MessageCircle, Search, SearchX, ShoppingBag, Store, X } from 'lucide-react';
+import { Loader2, MapPin, Search, SearchX, ShoppingBag, Store, X } from 'lucide-react';
 import {
   SHOP_PATH,
   STORE_NAME,
-  buildWhatsAppLink,
+  buildShareText,
   isMarketplaceCategory,
   type MarketplaceCategoryCount,
   type MarketplaceProductView,
@@ -20,6 +20,10 @@ import { CategoryChips } from './CategoryChips';
 import { ShopTeaser } from './ShopTeaser';
 import { KisSpotlight } from './KisSpotlight';
 import { KisMarquee } from './KisMarquee';
+import { KisHighlights } from './KisHighlights';
+import { KisHowItWorks } from './KisHowItWorks';
+import { StoreSocialLinks } from './StoreSocialLinks';
+import { ShareButton } from './ShareButton';
 import { isKisModel } from '@/lib/kis-showcase';
 
 /** `GET /api/shop/products` */
@@ -34,6 +38,13 @@ interface ShopCatalogResponse {
   limit: number;
   hasMore: boolean;
 }
+
+// The page's absolute origin, for the share sheet. Read through
+// useSyncExternalStore so the server render (no window) gets '' and the
+// client fills it in after hydration without an effect.
+const subscribeNoop = () => () => {};
+const getOrigin = () => window.location.origin;
+const getServerOrigin = () => '';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MAX_LENGTH = 60;
@@ -223,7 +234,7 @@ export function ShopPageClient() {
   const hasFilter = category !== '' || q !== '';
   const initialLoading = loading && data === null;
   const refetching = loading && data !== null;
-  const questionLink = buildWhatsAppLink(data?.enquiryPhone, QUESTION_ENQUIRY);
+  const origin = useSyncExternalStore(subscribeNoop, getOrigin, getServerOrigin);
 
   // The launch catalog is one bat deep. A search box and a one-chip
   // category rail over a single product are controls with nothing to
@@ -236,6 +247,15 @@ export function ShopPageClient() {
   // when that bat is actually in the view being shown — never over a
   // filtered result set it has nothing to do with.
   const kisRow = !hasFilter ? (data?.products.find(isKisModel) ?? null) : null;
+
+  // When that bat *is* the catalog, the page is a landing page for it,
+  // not a grid: the spotlight already links to the product, so a lone
+  // 260px card under it was the same link again, shaped like a store
+  // with three products missing. The reasons to buy and the three steps
+  // to buying take that space instead. A second published product
+  // brings the grid straight back.
+  const soloKis = minimalChrome && kisRow !== null && data !== null && data.products.length === 1;
+  const shareUrl = origin ? `${origin}${SHOP_PATH}` : null;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-5">
@@ -261,6 +281,16 @@ export function ShopPageClient() {
             </p>
           )}
         </div>
+        {/* Share the store itself — the launch travels over WhatsApp. */}
+        {kisRow && enabled && !error && (
+          <ShareButton
+            title={`${STORE_NAME} — ${kisRow.name}`}
+            text={buildShareText({ product: kisRow, comingSoon })}
+            url={shareUrl}
+            variant="pill"
+            className="shrink-0"
+          />
+        )}
       </header>
 
       {kisRow && enabled && !error && (
@@ -319,6 +349,11 @@ export function ShopPageClient() {
               }
               action={{ label: 'Clear filters', onClick: clearFilters }}
             />
+          ) : soloKis ? (
+            <>
+              <KisHighlights className="mt-1" />
+              <KisHowItWorks comingSoon={comingSoon} className="mt-5" />
+            </>
           ) : (
             <>
               <div
@@ -358,20 +393,7 @@ export function ShopPageClient() {
             </div>
           )}
 
-          {questionLink && (
-            <p className="mt-8 text-center text-xs text-slate-500">
-              Questions?{' '}
-              <a
-                href={questionLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-accent font-semibold hover:underline"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                Ask us on WhatsApp
-              </a>
-            </p>
-          )}
+          <StoreSocialLinks enquiryPhone={data.enquiryPhone} message={QUESTION_ENQUIRY} className="mt-8" />
         </>
       ) : null}
     </div>

@@ -1,121 +1,94 @@
 'use client';
 
 import Link from 'next/link';
-import { useSyncExternalStore } from 'react';
-import { ArrowRight, X } from 'lucide-react';
-import { SHOP_PATH } from '@/lib/marketplace';
+import { ChevronRight, ShoppingBag } from 'lucide-react';
+import { SHOP_PATH, STORE_NAME } from '@/lib/marketplace';
 import { useMarketplaceStatus } from '@/lib/marketplace-status';
-import { PreBookBadge } from './ShopBadges';
-import { KIS_MODEL, KIS_PROMO_PHOTO } from '@/lib/kis-showcase';
+import { KIS_MODEL, KIS_PROMO_PHOTO, isKisModel } from '@/lib/kis-showcase';
 import { KisFrame } from './KisFrame';
+import { OpenBadge, PreBookBadge, PriceTag } from './ShopBadges';
 
 /**
- * Slim, dismissible "there's a shop" strip for the booking screen — the
- * page every signed-in user lands on, so the one place a store highlight
- * is guaranteed to be seen.
+ * The store's standing entry on the booking screen.
  *
- * Follows `MultiCenterBanner`: the dismissal lives in localStorage behind
- * a tiny external store read through `useSyncExternalStore`, which needs
- * no mount effect or setState. Hidden while the status loads, when the
- * center has the store switched off, and once dismissed.
+ * /slots is the page every signed-in player lands on, so it is the one
+ * place a store highlight is guaranteed to be seen. It used to be a
+ * dismissible strip whose dismissal was kept in localStorage for good:
+ * a player who closed it on day one never saw the store from here
+ * again, which is the opposite of what a launch wants. It is now a
+ * fixture — always on while the store is enabled, never closable — and
+ * carries enough to be worth a look: the bat itself, the live price off
+ * the catalog row, and whether the store is taking pre-bookings or
+ * orders. The whole card is the link.
+ *
+ * It renders while the status is still loading (static copy, no price)
+ * so it never pops in and shoves the booking form down a beat after
+ * paint. Only a store that is switched off removes it.
  */
-
-const DISMISS_KEY = 'po_shop_promo_dismissed_v1';
-
-// The native `storage` event only fires in *other* tabs, so same-tab
-// updates go through this listener set.
-const listeners = new Set<() => void>();
-
-function subscribe(cb: () => void): () => void {
-  listeners.add(cb);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === DISMISS_KEY) cb();
-  };
-  window.addEventListener('storage', onStorage);
-  return () => {
-    listeners.delete(cb);
-    window.removeEventListener('storage', onStorage);
-  };
-}
-
-function getDismissedSnapshot(): boolean {
-  try {
-    return localStorage.getItem(DISMISS_KEY) === '1';
-  } catch {
-    // Private mode / storage disabled — treat as not dismissed so it shows.
-    return false;
-  }
-}
-
-// On the server (and during hydration) act dismissed so nothing renders
-// until the client takes over — the status is client-loaded anyway.
-function getServerSnapshot(): boolean {
-  return true;
-}
-
-function dismiss(): void {
-  try {
-    localStorage.setItem(DISMISS_KEY, '1');
-  } catch {
-    // Non-fatal — still hide it for this tab via the listener notify below.
-  }
-  listeners.forEach((l) => l());
-}
-
 export function MarketplacePromoBanner() {
-  const dismissed = useSyncExternalStore(subscribe, getDismissedSnapshot, getServerSnapshot);
-  const { loading, enabled, comingSoon } = useMarketplaceStatus();
+  const { status, loading, enabled, comingSoon } = useMarketplaceStatus();
 
-  if (dismissed || loading || !enabled) return null;
+  if (!loading && !enabled) return null;
+
+  const featured = status?.featured ?? [];
+  // The catalog is one bat deep at launch; prefer that row, fall back to
+  // whatever is featured so a future catalog still gets a live price.
+  const bat = featured.find(isKisModel) ?? featured[0] ?? null;
+  const href = bat ? `${SHOP_PATH}/${bat.id}` : SHOP_PATH;
+  // Only mark the state once we know it — the optimistic default would
+  // flash "Pre-book" on a live store for a beat and then swap it.
+  const known = !loading;
+  const cta = known && !comingSoon ? 'Shop' : 'Pre-book';
 
   return (
-    <div
-      className={`relative z-10 mb-4 rounded-xl border px-3 py-2 text-xs animate-fade-in ${
-        comingSoon ? 'bg-amber-500/10 border-amber-500/20' : 'bg-accent/10 border-accent/20'
-      }`}
+    <Link
+      href={href}
+      className="group relative z-10 mb-4 flex items-center gap-3 rounded-xl border border-white/[0.08] hover:border-accent/30 bg-[#060d1b]/80 backdrop-blur-sm px-2.5 py-2 md:px-3 md:py-2.5 overflow-hidden transition-all duration-300 hover:shadow-[0_8px_40px_rgba(56,189,248,0.10)] active:scale-[0.99] animate-fade-in"
     >
-      <div className="flex items-center gap-2 min-w-0">
-        {/* The bat itself rather than a shopping-bag glyph: this strip
-            sits on the booking screen, the one page every signed-in
-            player passes through, so it is the cheapest place on the
-            site to actually show what is for sale. */}
-        {KIS_PROMO_PHOTO ? (
-          <span className="relative flex-shrink-0 w-8 h-10 rounded-md overflow-hidden ring-1 ring-white/10 bg-[#050b14]">
-            <KisFrame photo={KIS_PROMO_PHOTO} sizes="32px" />
-          </span>
-        ) : null}
-        {/* Wraps onto a second line on narrow phones instead of truncating. */}
-        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-slate-300 leading-snug">
-            <span className="font-semibold text-white">PlayOrbit Cricket Store</span> — the {KIS_MODEL.fullName},
-            hand-picked.
-          </span>
-          {comingSoon ? (
-            <PreBookBadge />
-          ) : (
-            <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
-              Now open
-            </span>
-          )}
+      {/* Ambient wash so the card reads as part of the store, not a form row. */}
+      <span className="pointer-events-none absolute -top-10 -right-6 w-32 h-32 rounded-full bg-accent/10 blur-[50px]" />
+
+      {/* The bat, not a shopping-bag glyph: this is the cheapest place on
+          the site to actually show what is for sale. */}
+      {KIS_PROMO_PHOTO ? (
+        <span className="relative shrink-0 w-11 h-14 md:w-12 md:h-[60px] rounded-lg overflow-hidden ring-1 ring-white/10 bg-[#050b14]">
+          <KisFrame
+            photo={KIS_PROMO_PHOTO}
+            sizes="48px"
+            className="transition-transform duration-700 group-hover:scale-110"
+          />
+        </span>
+      ) : (
+        <span className="shrink-0 w-11 h-14 rounded-lg bg-accent/10 flex items-center justify-center">
+          <ShoppingBag className="w-5 h-5 text-accent" />
+        </span>
+      )}
+
+      <div className="relative min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
+          <ShoppingBag className="w-3 h-3" aria-hidden="true" />
+          {STORE_NAME}
+        </p>
+        <p className="text-sm md:text-base font-black text-white leading-tight truncate mt-0.5">
+          {KIS_MODEL.fullName}
+          <span className="hidden sm:inline font-semibold text-slate-400"> · {KIS_MODEL.claims[0]}</span>
+        </p>
+        <div className="mt-1 flex items-center gap-2 flex-wrap">
+          {bat ? <PriceTag product={bat} /> : null}
+          {known ? comingSoon ? <PreBookBadge /> : <OpenBadge /> : null}
         </div>
-        <Link
-          href={SHOP_PATH}
-          className={`flex items-center gap-1 font-semibold flex-shrink-0 whitespace-nowrap transition-colors ${
-            comingSoon ? 'text-amber-300 hover:text-amber-200' : 'text-accent hover:text-accent-light'
-          }`}
-        >
-          Explore
-          <ArrowRight className="w-3 h-3" />
-        </Link>
-        <button
-          type="button"
-          onClick={dismiss}
-          aria-label="Dismiss shop promotion"
-          className="flex-shrink-0 text-slate-500 hover:text-white transition-colors p-0.5 cursor-pointer"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
       </div>
-    </div>
+
+      <span
+        className={`relative shrink-0 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] md:text-xs font-bold transition-colors ${
+          known && !comingSoon
+            ? 'bg-accent text-primary group-hover:bg-accent-light'
+            : 'bg-amber-500/15 border border-amber-500/30 text-amber-300 group-hover:bg-amber-500/25'
+        }`}
+      >
+        {cta}
+        <ChevronRight className="w-3.5 h-3.5" />
+      </span>
+    </Link>
   );
 }

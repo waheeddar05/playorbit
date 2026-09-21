@@ -8,6 +8,7 @@ import {
   MarketplaceConfigSchema,
   ProductInputSchema,
   buildEnquiryMessage,
+  buildShareText,
   buildWhatsAppLink,
   discountPercent,
   formatRupees,
@@ -616,5 +617,27 @@ describe('MARKETPLACE_CATEGORIES', () => {
     expect(marketplaceCategoryLabel('HELICOPTER')).toBe('HELICOPTER');
     expect(marketplaceCategoryLabel(null)).toBe('Uncategorised');
     expect(marketplaceCategoryLabel('')).toBe('Uncategorised');
+  });
+});
+
+// ─── Share text ──────────────────────────────────────────────────────
+
+describe('buildShareText', () => {
+  const bat = { name: 'KIS M&H 7000', price: 6500 };
+
+  it('names the product with its live price and the pre-booking state', () => {
+    expect(buildShareText({ product: bat, comingSoon: true })).toBe(
+      'KIS M&H 7000 — ₹6,500 at the PlayOrbit Cricket Store. Pre-booking open, nothing to pay now.',
+    );
+  });
+
+  it('says the store is open once it is', () => {
+    expect(buildShareText({ product: bat, comingSoon: false })).toBe(
+      'KIS M&H 7000 — ₹6,500 at the PlayOrbit Cricket Store. Now open for orders.',
+    );
+  });
+
+  it('carries no URL — the share sheet takes that as its own field', () => {
+    expect(buildShareText({ product: bat, comingSoon: true })).not.toMatch(/https?:/);
   });
 });

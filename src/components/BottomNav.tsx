@@ -12,7 +12,7 @@ interface Tab {
   href: string;
   label: string;
   icon: typeof Calendar;
-  /** Pre-launch marker — an amber dot on the icon, the phone's "Soon" pill. */
+  /** Pre-launch marker — an amber dot on the icon, the phone's "Pre-book" pill. */
   soon?: boolean;
 }
 
@@ -57,8 +57,8 @@ export default function BottomNav() {
 
   // Append role-specific availability tabs only for staff who hold that
   // role at the current center. A user who is both gets both tabs.
-  // "Soon" only once the status is known — the optimistic default would
-  // flash the dot on a live store for a beat and then pull it.
+  // The dot only once the status is known — the optimistic default would
+  // flash it on a live store for a beat and then pull it.
   const tabs: Tab[] = [
     ...baseTabs,
     ...(shopEnabled ? [{ ...shopTab, soon: !shopLoading && shopComingSoon }] : []),
@@ -100,7 +100,7 @@ export default function BottomNav() {
                 </span>
                 <span className={`${labelSize} mt-0.5 font-medium whitespace-nowrap ${active ? 'text-accent' : 'text-slate-400'}`}>
                   {label}
-                  {soon && <span className="sr-only"> (coming soon)</span>}
+                  {soon && <span className="sr-only"> (pre-booking open)</span>}
                 </span>
               </Link>
             );

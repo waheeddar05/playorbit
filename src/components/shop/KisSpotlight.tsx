@@ -58,6 +58,12 @@ export function KisSpotlight({
   const photos = KIS_HERO_PHOTOS;
   const count = photos.length;
   const target = href ?? SHOP_PATH;
+  // The button says what tapping it leads to. "See the bat" was a
+  // passive label on the strongest call to action on the site; the
+  // product page is where the pre-booking (or the order) happens, so
+  // name that. Stock only matters once the store sells from it.
+  const soldOut = !comingSoon && product != null && (!product.inStock || product.stockQty === 0);
+  const cta = !product || soldOut ? 'SEE THE BAT' : comingSoon ? 'PRE-BOOK NOW' : 'ORDER NOW';
 
   // One piece of state, so advancing can never leave the active frame
   // unmounted: `mounted` is how many leading frames are in the DOM.
@@ -185,9 +191,12 @@ export function KisSpotlight({
             href={target}
             className="mt-4 md:mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-accent hover:bg-accent-light text-primary font-black px-5 py-2.5 text-xs md:text-sm transition-all hover:shadow-[0_0_40px_rgba(56,189,248,0.35)] active:scale-[0.98]"
           >
-            SEE THE BAT
+            {cta}
             <ArrowRight className="w-4 h-4" />
           </Link>
+          {product && !soldOut && comingSoon && (
+            <p className="mt-2 text-[11px] text-slate-500 leading-snug">Nothing to pay now — we hold one for you.</p>
+          )}
 
           {pickupNote && (
             <p className="mt-3 flex items-start gap-1.5 text-[11px] md:text-xs text-slate-500 leading-snug">

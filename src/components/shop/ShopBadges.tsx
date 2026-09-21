@@ -32,6 +32,27 @@ export function PreBookBadge({ size = 'sm', className = '' }: { size?: 'sm' | 'l
   );
 }
 
+/**
+ * The store-wide "open for orders" marker — the other half of
+ * `PreBookBadge`, so a surface that names the state can show either
+ * without inventing its own pill. Same two sizes for the same reasons.
+ */
+export function OpenBadge({ size = 'sm', className = '' }: { size?: 'sm' | 'lg'; className?: string }) {
+  const lg = size === 'lg';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border text-emerald-400 font-bold uppercase tracking-wider ${
+        lg
+          ? 'bg-emerald-500/10 border-emerald-500/25 px-3 py-1 text-[11px] md:text-xs'
+          : 'bg-emerald-500/10 border-emerald-500/25 px-2 py-0.5 text-[9px]'
+      } ${className}`}
+    >
+      <span className={`rounded-full bg-emerald-400 ${lg ? 'w-1.5 h-1.5' : 'w-1 h-1'}`} aria-hidden="true" />
+      Now open
+    </span>
+  );
+}
+
 /** Ribbon over a product photo once the store is open — same opaque backdrop as the small Coming soon. */
 export function FeaturedBadge({ className = '' }: { className?: string }) {
   return (

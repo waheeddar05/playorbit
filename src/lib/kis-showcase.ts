@@ -29,6 +29,55 @@ export const KIS_MODEL = {
   claims: ['Grade A++ Kashmir willow', 'Knocked in ready', 'Hand-finished', 'Made in Anantnag'] as const,
 } as const;
 
+/**
+ * The claims, expanded to a line each — the highlights strip on /shop
+ * and the product page. Icons are chosen in the component; this module
+ * stays free of React so the metadata and tests can read it.
+ */
+export const KIS_HIGHLIGHTS = [
+  {
+    key: 'willow',
+    title: 'Grade A++ Kashmir willow',
+    text: 'Top-grade clefts, pressed at the KIS works in Anantnag.',
+  },
+  {
+    key: 'ready',
+    title: 'Knocked in ready',
+    text: 'Hours of prep already done — face a hard ball from day one.',
+  },
+  {
+    key: 'hand',
+    title: 'Hand-finished',
+    text: 'Shaped and finished by people who play, not just pressed.',
+  },
+  {
+    key: 'origin',
+    title: 'Made in Anantnag',
+    text: 'KIS has pressed and finished Kashmir willow there since 1994.',
+  },
+] as const;
+
+export type KisHighlightKey = (typeof KIS_HIGHLIGHTS)[number]['key'];
+
+/**
+ * How the bat reaches a customer, in three steps — one set while the
+ * store takes pre-bookings, one once it sells from stock. The wording
+ * mirrors the product page's own buttons ("Pre-book", "Order on
+ * WhatsApp") so the steps describe what the page actually does.
+ */
+export const KIS_STEPS = {
+  prebook: [
+    { title: 'Pre-book in the app', text: 'Pick a quantity and tap Pre-book. Nothing to pay now.' },
+    { title: 'We hold one for you', text: 'The store confirms and messages you the moment it’s ready.' },
+    { title: 'Hand-pick, then pay on collection', text: 'Feel the pickup on two or three before you choose yours.' },
+  ],
+  order: [
+    { title: 'Order on WhatsApp', text: 'Quantity and delivery address go into the message, ready to send.' },
+    { title: 'We confirm', text: 'The store replies with availability and how to pay.' },
+    { title: 'Collect or get it delivered', text: 'Hand-pick at the store, or arrange delivery in the same chat.' },
+  ],
+} as const;
+
 function pick(slugs: readonly string[]): KisPhoto[] {
   return slugs.flatMap((slug) => {
     const photo = KIS_PHOTOS.find((p) => p.slug === slug);

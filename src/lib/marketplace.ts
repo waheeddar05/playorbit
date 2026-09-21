@@ -519,6 +519,22 @@ export function buildEnquiryMessage(input: EnquiryMessageInput): string {
   return lines.join('\n');
 }
 
+/**
+ * What the Share button hands to the phone's share sheet (and what goes
+ * into WhatsApp when the sheet lands there): the product, its live
+ * price, and the one thing a friend needs to know about the state of
+ * the store. The URL is passed to the sheet separately, so it is not
+ * in here.
+ */
+export function buildShareText(input: {
+  product: Pick<MarketplaceProductView, 'name' | 'price'>;
+  comingSoon: boolean;
+}): string {
+  const { product, comingSoon } = input;
+  const state = comingSoon ? 'Pre-booking open, nothing to pay now.' : 'Now open for orders.';
+  return `${product.name} — ${formatRupees(product.price)} at the PlayOrbit ${STORE_NAME}. ${state}`;
+}
+
 /** ₹ formatting that matches the rest of the app (`formatCurrency`). */
 export function formatRupees(amount: number): string {
   return `₹${Math.round(amount).toLocaleString('en-IN')}`;

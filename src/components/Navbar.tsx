@@ -22,8 +22,9 @@ export default function Navbar() {
   const router = useRouter();
   const { canAccessAdminPanelAtCurrentCenter, isStaffAtCurrentCenter, loading: centerLoading } = useCenter();
   const [scrolled, setScrolled] = useState(false);
-  // The store is per center: a center that has it switched off shows no
-  // Shop link at all, and one still pre-launch gets a "Soon" pill.
+  // A store that is switched off shows no Store link at all; one still
+  // pre-launch gets a "Pre-book" pill — not "Soon", which told a visitor
+  // to go away and come back when the page is asking them to act.
   const { loading: shopLoading, enabled: shopEnabled, comingSoon: shopComingSoon } = useMarketplaceStatus();
 
   useEffect(() => {
@@ -56,8 +57,8 @@ export default function Navbar() {
     { href: '/slots', label: 'Book Slot', icon: Calendar },
     { href: '/bookings', label: 'My Bookings', icon: ClipboardList },
     { href: '/packages', label: 'Packages', icon: Package },
-    // Only marked "Soon" once the status is known — the optimistic default
-    // would flash the pill on a live store and then pull it.
+    // Only marked "Pre-book" once the status is known — the optimistic
+    // default would flash the pill on a live store and then pull it.
     ...(shopEnabled ? [{ href: SHOP_PATH, label: STORE_NAV_LABEL, icon: ShoppingBag, soon: !shopLoading && shopComingSoon }] : []),
     { href: '/wallet', label: 'Wallet', icon: Wallet },
     { href: '/notifications', label: 'Alerts', icon: Bell },
@@ -109,7 +110,7 @@ export default function Navbar() {
                   <Link
                     key={href}
                     href={href}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all lg:whitespace-nowrap ${
                       active
                         ? 'text-accent bg-accent/10'
                         : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -118,8 +119,8 @@ export default function Navbar() {
                     <Icon className="w-4 h-4" />
                     {label}
                     {soon && (
-                      <span className="px-1.5 py-px rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[9px] font-bold uppercase">
-                        Soon
+                      <span className="px-1.5 py-px rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[9px] font-bold uppercase whitespace-nowrap">
+                        Pre-book
                       </span>
                     )}
                   </Link>

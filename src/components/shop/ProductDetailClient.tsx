@@ -3,15 +3,15 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Copy, MapPin, MessageCircle, Minus, PackageSearch, Plus } from 'lucide-react';
+import { ArrowLeft, MapPin, MessageCircle, Minus, PackageSearch, Plus } from 'lucide-react';
 import { useCurrentUser } from '@/lib/current-user';
-import { useToast } from '@/components/ui/Toast';
 import { PageBackground } from '@/components/ui/PageBackground';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import {
   SHOP_PATH,
   buildEnquiryMessage,
+  buildShareText,
   buildWhatsAppLink,
   formatRupees,
   type MarketplaceProductView,
@@ -21,8 +21,12 @@ import { formatAddressLines } from '@/lib/addresses';
 import { ProductGallery } from './ProductGallery';
 import { PreBookBadge, PriceTag, StockPill } from './ShopBadges';
 import { PreBookAction } from './PreBookAction';
+import { ShareButton } from './ShareButton';
 import { DeliveryAddressHint, useDefaultAddress } from './DeliveryAddressHint';
 import { KisMarquee } from './KisMarquee';
+import { KisHighlights } from './KisHighlights';
+import { KisHowItWorks } from './KisHowItWorks';
+import { StoreSocialLinks } from './StoreSocialLinks';
 import { isKisModel } from '@/lib/kis-showcase';
 
 /** `GET /api/shop/products/[id]` */
@@ -58,7 +62,6 @@ interface ProductDetailClientProps {
  */
 export function ProductDetailClient({ id }: ProductDetailClientProps) {
   const router = useRouter();
-  const toast = useToast();
   // The mobile bottom nav renders only for a signed-in user (it reads the
   // same hook), so the sticky bar's offset follows it, not the API flag.
   const { user: navUser } = useCurrentUser();
@@ -71,7 +74,6 @@ export function ProductDetailClient({ id }: ProductDetailClientProps) {
   const [preBooking, setPreBooking] = useState<MyPreBookingView | null>(null);
   const [size, setSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(MIN_QTY);
-  const [copied, setCopied] = useState(false);
 
   const origin = useSyncExternalStore(subscribeNoop, getOrigin, getServerOrigin);
 
@@ -126,22 +128,6 @@ export function ProductDetailClient({ id }: ProductDetailClientProps) {
 
   const productUrl = data && origin ? `${origin}${SHOP_PATH}/${encodeURIComponent(data.product.id)}` : null;
 
-  const copyLink = async () => {
-    if (!productUrl) return;
-    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
-      toast.error('Copying isn’t available here', 'Long-press the address bar to copy the link instead.');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(productUrl);
-      setCopied(true);
-      toast.success('Link copied', 'Share it with a friend or on WhatsApp.');
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Couldn’t copy the link', 'Long-press the address bar to copy it instead.');
-    }
-  };
-
   return (
     <div className="max-w-2xl mx-auto px-4 py-5">
       <PageBackground />
@@ -175,8 +161,6 @@ export function ProductDetailClient({ id }: ProductDetailClientProps) {
           quantity={quantity}
           onQuantityChange={setQuantity}
           productUrl={productUrl}
-          copied={copied}
-          onCopyLink={copyLink}
           addressState={addressState}
           hasBottomNav={Boolean(navUser)}
         />
@@ -196,8 +180,6 @@ interface ProductDetailProps {
   quantity: number;
   onQuantityChange: (next: number) => void;
   productUrl: string | null;
-  copied: boolean;
-  onCopyLink: () => void;
   addressState: ReturnType<typeof useDefaultAddress>;
   hasBottomNav: boolean;
 }
@@ -211,8 +193,6 @@ function ProductDetail({
   quantity,
   onQuantityChange,
   productUrl,
-  copied,
-  onCopyLink,
   addressState,
   hasBottomNav,
 }: ProductDetailProps) {
@@ -264,16 +244,13 @@ function ProductDetail({
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate min-w-0">
             {metaLine}
           </p>
-          <button
-            type="button"
-            onClick={onCopyLink}
-            disabled={!productUrl}
-            aria-label="Copy link to this product"
-            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? 'Copied' : 'Copy link'}
-          </button>
+          {/* The phone's share sheet (WhatsApp one tap away), or a copy on desktop. */}
+          <ShareButton
+            title={product.name}
+            text={buildShareText({ product, comingSoon })}
+            url={productUrl}
+            className="shrink-0"
+          />
         </div>
 
         <h1 className="text-xl font-black text-white leading-snug mt-1 break-words">{product.name}</h1>
@@ -294,6 +271,10 @@ function ProductDetail({
             {config.pickupNote}
           </p>
         )}
+
+        {/* The reasons to buy, at a glance, before the spec table. Only
+            for the M&H 7000 — the copy is about that bat. */}
+        {showKisShoot && <KisHighlights variant="compact" className="mt-4" />}
 
         {product.sizes.length > 0 && (
           <div className="mt-4">
@@ -453,12 +434,20 @@ function ProductDetail({
       </div>
 
       {showKisShoot && (
-        <section className="md:col-span-2 mt-6 -mx-4 md:mx-0" aria-label="More photos of this bat">
-          <p className="px-4 md:px-0 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-            More from the shoot
-          </p>
-          <KisMarquee size="tall" duration={58} />
-        </section>
+        <>
+          <KisHowItWorks comingSoon={comingSoon} className="md:col-span-2 mt-6" />
+          <section className="md:col-span-2 mt-6 -mx-4 md:mx-0" aria-label="More photos of this bat">
+            <p className="px-4 md:px-0 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+              More from the shoot
+            </p>
+            <KisMarquee size="tall" duration={58} />
+          </section>
+          <StoreSocialLinks
+            enquiryPhone={enquiryPhone}
+            message={buildEnquiryMessage({ product, size, intent: 'ask', productUrl })}
+            className="md:col-span-2 mt-6"
+          />
+        </>
       )}
     </article>
   );

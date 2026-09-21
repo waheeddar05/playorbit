@@ -8,9 +8,9 @@ import { Calendar, Zap, Instagram, Phone, Target, Shield, Users, Star, ArrowRigh
 import LoginModal from './LoginModal';
 import { LandingShopSection } from './shop/LandingShopSection';
 import { KisMarquee } from './shop/KisMarquee';
-import { KIS_MODEL, KIS_RIBBON_PHOTOS } from '@/lib/kis-showcase';
+import { KIS_MODEL, KIS_RIBBON_PHOTOS, isKisModel } from '@/lib/kis-showcase';
 import { INSTAGRAM_URL } from '@/lib/client-constants';
-import { SHOP_PATH, STORE_NAV_LABEL, buildWhatsAppLink } from '@/lib/marketplace';
+import { SHOP_PATH, STORE_NAV_LABEL, buildWhatsAppLink, formatRupees } from '@/lib/marketplace';
 import { DEFAULT_POST_LOGIN_PATH, safeNextPath } from '@/lib/login-href';
 import { useMarketplaceStatus } from '@/lib/marketplace-status';
 import { useCenter } from '@/lib/center-context';
@@ -94,11 +94,14 @@ export default function LandingPageClient() {
   const { user: currentUser, loading: userLoading } = useCurrentUser();
   const { centers, currentCenter } = useCenter();
   const hasMultipleCenters = centers.length >= 2;
-  // The store is per center: hidden when switched off, amber while pre-launch.
-  // "Soon" is only shown once the status is known so a live store never
-  // flashes the label for a beat.
-  const { loading: shopLoading, enabled: shopEnabled, comingSoon: shopComingSoon } = useMarketplaceStatus();
+  // The store: hidden when switched off, amber while pre-launch. The
+  // "Pre-book" cue is only shown once the status is known so a live store
+  // never flashes the label for a beat.
+  const { status: shopStatus, loading: shopLoading, enabled: shopEnabled, comingSoon: shopComingSoon } = useMarketplaceStatus();
   const shopSoon = !shopLoading && shopComingSoon;
+  // The bat's live price for the ribbon label, off the catalog row so the
+  // landing page can never quote a number the product page disagrees with.
+  const shopBat = shopStatus?.featured.find(isKisModel) ?? shopStatus?.featured[0] ?? null;
 
   // "Ready to play?" contacts come from the selected center only —
   // not the platform-wide CONTACT_NUMBERS allowlist. Phones come from
@@ -210,7 +213,7 @@ export default function LandingPageClient() {
             )}
             {/* Store entry point — on every size, since a visitor can browse
                 the shop signed out. Compact on phones; the pre-launch cue is
-                the amber tint there and "· Soon" from sm up. */}
+                the amber tint there and "· Pre-book" from sm up. */}
             {shopEnabled && (
               <Link
                 href={SHOP_PATH}
@@ -222,7 +225,7 @@ export default function LandingPageClient() {
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
                 {STORE_NAV_LABEL}
-                {shopSoon && <span className="hidden sm:inline">&middot; Soon</span>}
+                {shopSoon && <span className="hidden sm:inline">&middot; Pre-book</span>}
               </Link>
             )}
             <button
@@ -321,6 +324,7 @@ export default function LandingPageClient() {
             >
               <ShoppingBag className="w-3 h-3" />
               Now in the store &mdash; {KIS_MODEL.fullName}
+              {shopBat && <span className="text-white"> &middot; {formatRupees(shopBat.price)}</span>}
             </Link>
             <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
           </div>
