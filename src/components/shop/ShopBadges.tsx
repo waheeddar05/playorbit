@@ -4,12 +4,19 @@ import { Clock, Star } from 'lucide-react';
 import { formatRupees, stockLabel, type MarketplaceProductView } from '@/lib/marketplace';
 
 /**
- * The store-wide pre-launch marker. `size="lg"` for page headers, where it
- * sits on the dark page background; the small one is a ribbon over a
- * product photo, so it gets an opaque dark backdrop — the translucent amber
- * alone was unreadable across pale willow and wood.
+ * The store-wide pre-launch marker.
+ *
+ * It used to read "Coming soon", which told a visitor to go away and
+ * come back. The same state now takes pre-bookings, so the ribbon names
+ * the thing they can do: "Pre-book" on a photo, "Pre-booking open" in a
+ * page header where there is room for the fuller phrase.
+ *
+ * `size="lg"` is for page headers, sitting on the dark page background;
+ * the small one is a ribbon over a product photo, so it gets an opaque
+ * dark backdrop — the translucent amber alone was unreadable across pale
+ * willow and wood.
  */
-export function ComingSoonBadge({ size = 'sm', className = '' }: { size?: 'sm' | 'lg'; className?: string }) {
+export function PreBookBadge({ size = 'sm', className = '' }: { size?: 'sm' | 'lg'; className?: string }) {
   const lg = size === 'lg';
   return (
     <span
@@ -20,7 +27,7 @@ export function ComingSoonBadge({ size = 'sm', className = '' }: { size?: 'sm' |
       } ${className}`}
     >
       <Clock className={lg ? 'w-3.5 h-3.5' : 'w-2.5 h-2.5'} />
-      Coming soon
+      {lg ? 'Pre-booking open' : 'Pre-book'}
     </span>
   );
 }

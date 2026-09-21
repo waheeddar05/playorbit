@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { SHOP_PATH, type MarketplaceProductView } from '@/lib/marketplace';
 import { ProductImage } from './ProductImage';
-import { ComingSoonBadge, FeaturedBadge, PriceTag } from './ShopBadges';
+import { PreBookBadge, FeaturedBadge, PriceTag } from './ShopBadges';
 
 interface ProductCardProps {
   product: MarketplaceProductView;
@@ -37,7 +37,7 @@ export function ProductCard({ product, comingSoon, href, className = '', priorit
       />
       {/* State ribbons over the photo */}
       <div className="absolute top-1.5 left-1.5 md:top-2.5 md:left-2.5 flex flex-col items-start gap-1">
-        {comingSoon && <ComingSoonBadge />}
+        {comingSoon && <PreBookBadge />}
         {product.isFeatured && !comingSoon && <FeaturedBadge />}
       </div>
       {soldOut && (

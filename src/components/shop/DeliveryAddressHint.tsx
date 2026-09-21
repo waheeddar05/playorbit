@@ -125,7 +125,7 @@ export function DeliveryAddressHint({ signedIn, state, className = '' }: Deliver
           <Link href={PROFILE_PATH} className="text-sm font-semibold text-accent hover:underline">
             Add a delivery address
           </Link>
-          <p className="text-[11px] text-slate-500 leading-snug">We’ll include it in your WhatsApp order.</p>
+          <p className="text-[11px] text-slate-500 leading-snug">We’ll include it in your WhatsApp message.</p>
         </div>
       </div>
     );

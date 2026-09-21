@@ -83,9 +83,14 @@ export interface MarketplaceConfig {
    */
   pickupNote: string;
   /**
-   * Pre-launch mode: products are browsable but not orderable. Cards carry
-   * a "Coming soon" ribbon and the product page offers "Notify me" instead
-   * of ordering. Flip off to open enquiries/orders over WhatsApp.
+   * Pre-launch mode. Products are browsable and **pre-bookable**: cards
+   * carry a "Pre-book" ribbon and the product page takes a quantity and a
+   * delivery address into a WhatsApp pre-booking, alongside "Notify me"
+   * for anyone not ready to commit. Flip off once stock is on the shelf
+   * and the same flow becomes a plain order.
+   *
+   * The field keeps its old name so no stored policy needs migrating; it
+   * is the *wording and commitment level* that differ, not the state.
    */
   comingSoon: boolean;
   /** Optional line shown under the store heading ("Launching Diwali 2026"). */
@@ -407,6 +412,25 @@ export function buildWhatsAppLink(phone: string | null | undefined, text: string
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
 
+/**
+ * What the buyer is actually sending.
+ *
+ * `ask` is a question and commits to nothing. `prebook` and `order` are
+ * both requests for a specific quantity at a specific address — the only
+ * difference is whether the bat is on the shelf yet — so they carry the
+ * same lines and differ in one word. This used to be a `comingSoon`
+ * boolean, which conflated "pre-launch" with "not buying", and that is
+ * precisely the pairing we no longer want: pre-launch is when we most
+ * want the pre-booking.
+ */
+export type EnquiryIntent = 'ask' | 'prebook' | 'order';
+
+const ENQUIRY_OPENING: Record<EnquiryIntent, string> = {
+  ask: `Hi PlayOrbit, I have a question about this product:`,
+  prebook: `Hi PlayOrbit, I'd like to pre-book this from your store:`,
+  order: `Hi PlayOrbit, I'd like to order this from your store:`,
+};
+
 export interface EnquiryMessageInput {
   product: Pick<MarketplaceProductView, 'name' | 'brand' | 'price'>;
   /** Size the buyer picked, if the product has sizes. */
@@ -416,24 +440,20 @@ export interface EnquiryMessageInput {
   addressLines?: string[] | null;
   /** Absolute product URL, when known. */
   productUrl?: string | null;
-  /** Coming-soon → "interested", otherwise a real order request. */
-  comingSoon: boolean;
+  intent: EnquiryIntent;
 }
 
-/** The prefilled WhatsApp text for the product page's enquiry / order button. */
+/** The prefilled WhatsApp text for the product page's ask / pre-book / order button. */
 export function buildEnquiryMessage(input: EnquiryMessageInput): string {
-  const { product, size, quantity = 1, addressLines, productUrl, comingSoon } = input;
+  const { product, size, quantity = 1, addressLines, productUrl, intent } = input;
   const title = product.brand ? `${product.name} (${product.brand})` : product.name;
+  const committing = intent !== 'ask';
   const lines: string[] = [];
-  lines.push(
-    comingSoon
-      ? `Hi PlayOrbit, I'm interested in this product from your store:`
-      : `Hi PlayOrbit, I'd like to order this from your store:`,
-  );
+  lines.push(ENQUIRY_OPENING[intent]);
   lines.push(`• ${title} — ${formatRupees(product.price)}`);
   if (size) lines.push(`Size: ${size}`);
-  if (!comingSoon) lines.push(`Qty: ${Math.max(1, Math.floor(quantity))}`);
-  if (!comingSoon && addressLines && addressLines.length > 0) {
+  if (committing) lines.push(`Qty: ${Math.max(1, Math.floor(quantity))}`);
+  if (committing && addressLines && addressLines.length > 0) {
     lines.push('');
     lines.push('Deliver to:');
     lines.push(...addressLines);

@@ -15,7 +15,7 @@ import { PageBackground } from '@/components/ui/PageBackground';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { ProductCard } from './ProductCard';
-import { ComingSoonBadge } from './ShopBadges';
+import { PreBookBadge } from './ShopBadges';
 import { CategoryChips } from './CategoryChips';
 import { ShopTeaser } from './ShopTeaser';
 import { KisSpotlight } from './KisSpotlight';
@@ -249,7 +249,7 @@ export function ShopPageClient() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-xl font-bold text-white leading-tight">{STORE_NAME}</h1>
-            {comingSoon && <ComingSoonBadge size="lg" />}
+            {comingSoon && <PreBookBadge size="lg" />}
           </div>
           {config?.launchNote && (
             <p className="text-xs text-amber-300/90 mt-1 leading-snug break-words">{config.launchNote}</p>
@@ -354,9 +354,6 @@ export function ShopPageClient() {
 
           {kisRow && (
             <div className="mt-6 -mx-4">
-              <p className="px-4 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 text-center">
-                Shot at the KIS press in Anantnag
-              </p>
               <KisMarquee size="tall" href={`${SHOP_PATH}/${kisRow.id}`} duration={58} />
             </div>
           )}

@@ -396,17 +396,17 @@ describe('buildEnquiryMessage', () => {
   const product = { name: 'Player Edition', brand: 'SG', price: 12500 };
   const address = ['Rahul', '12 MG Road', 'Pune, Maharashtra 411001', 'Phone: 9876543210'];
 
-  it('uses the "interested" wording while coming soon and never asks for quantity or delivery', () => {
+  it('asks a question without a quantity or a delivery address', () => {
     const text = buildEnquiryMessage({
       product,
       size: 'SH',
       quantity: 2,
       addressLines: address,
       productUrl: 'https://playorbit.in/shop/p1',
-      comingSoon: true,
+      intent: 'ask',
     });
     const lines = text.split('\n');
-    expect(lines[0]).toBe("Hi PlayOrbit, I'm interested in this product from your store:");
+    expect(lines[0]).toBe('Hi PlayOrbit, I have a question about this product:');
     expect(lines[1]).toBe('• Player Edition (SG) — ₹12,500');
     expect(lines).toContain('Size: SH');
     expect(text).not.toContain('Qty:');
@@ -415,28 +415,35 @@ describe('buildEnquiryMessage', () => {
     expect(lines[lines.length - 1]).toBe('https://playorbit.in/shop/p1');
   });
 
-  it('uses the order wording once open, with quantity and the delivery address', () => {
-    const text = buildEnquiryMessage({
+  it('pre-books with the quantity and the delivery address, exactly as an order does', () => {
+    const shared = {
       product,
       size: 'SH',
       quantity: 2,
       addressLines: address,
       productUrl: 'https://playorbit.in/shop/p1',
-      comingSoon: false,
-    });
-    const lines = text.split('\n');
-    expect(lines[0]).toBe("Hi PlayOrbit, I'd like to order this from your store:");
+    } as const;
+    const prebook = buildEnquiryMessage({ ...shared, intent: 'prebook' });
+    const order = buildEnquiryMessage({ ...shared, intent: 'order' });
+
+    const lines = prebook.split('\n');
+    expect(lines[0]).toBe("Hi PlayOrbit, I'd like to pre-book this from your store:");
     expect(lines).toContain('Qty: 2');
     const deliverAt = lines.indexOf('Deliver to:');
     expect(deliverAt).toBeGreaterThan(0);
     expect(lines.slice(deliverAt + 1, deliverAt + 1 + address.length)).toEqual(address);
     expect(lines[lines.length - 1]).toBe('https://playorbit.in/shop/p1');
+
+    // The two differ in one word and nothing else — a pre-booking we can
+    // fulfil carries the same detail as an order.
+    expect(order.split('\n')[0]).toBe("Hi PlayOrbit, I'd like to order this from your store:");
+    expect(order.split('\n').slice(1)).toEqual(lines.slice(1));
   });
 
   it('omits the size, address and URL lines when they are not supplied', () => {
     const text = buildEnquiryMessage({
       product: { name: 'Tennis ball (pack of 6)', brand: null, price: 450 },
-      comingSoon: false,
+      intent: 'order',
     });
     expect(text).toBe(
       ["Hi PlayOrbit, I'd like to order this from your store:", '• Tennis ball (pack of 6) — ₹450', 'Qty: 1'].join(
@@ -446,8 +453,8 @@ describe('buildEnquiryMessage', () => {
   });
 
   it('never sends a quantity below one or a fractional one', () => {
-    expect(buildEnquiryMessage({ product, quantity: 0, comingSoon: false })).toContain('Qty: 1');
-    expect(buildEnquiryMessage({ product, quantity: 2.7, comingSoon: false })).toContain('Qty: 2');
+    expect(buildEnquiryMessage({ product, quantity: 0, intent: 'prebook' })).toContain('Qty: 1');
+    expect(buildEnquiryMessage({ product, quantity: 2.7, intent: 'order' })).toContain('Qty: 2');
   });
 });
 

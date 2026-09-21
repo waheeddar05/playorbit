@@ -13,6 +13,12 @@ interface NotifyMeButtonProps {
   /** From the product API — never from a session hook. */
   signedIn: boolean;
   onChange: (interested: boolean) => void;
+  /**
+   * 'primary' while this is the only thing to do. On a product page that
+   * also takes pre-bookings it is the quieter of the two, so the accent
+   * button stays with the action that commits.
+   */
+  variant?: 'primary' | 'secondary';
   className?: string;
 }
 
@@ -22,7 +28,14 @@ interface NotifyMeButtonProps {
  * `/api/shop/products/[id]/interest`. Anonymous visitors (and a stale
  * session that the API answers with 401) are sent to sign in.
  */
-export function NotifyMeButton({ productId, interested, signedIn, onChange, className = '' }: NotifyMeButtonProps) {
+export function NotifyMeButton({
+  productId,
+  interested,
+  signedIn,
+  onChange,
+  variant = 'primary',
+  className = '',
+}: NotifyMeButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
   const toast = useToast();
@@ -80,7 +93,9 @@ export function NotifyMeButton({ productId, interested, signedIn, onChange, clas
       className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] ${
         interested
           ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
-          : 'bg-accent hover:bg-accent-light text-primary'
+          : variant === 'secondary'
+            ? 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-300'
+            : 'bg-accent hover:bg-accent-light text-primary'
       } ${className}`}
     >
       {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}

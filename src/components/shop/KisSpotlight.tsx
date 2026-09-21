@@ -7,7 +7,7 @@ import { SHOP_PATH, type MarketplaceProductView } from '@/lib/marketplace';
 import { KIS_HERO_PHOTOS, KIS_MODEL } from '@/lib/kis-showcase';
 import { usePrefersReducedMotion } from '@/lib/use-reduced-motion';
 import { KisFrame } from './KisFrame';
-import { ComingSoonBadge, PriceTag, StockPill } from './ShopBadges';
+import { PreBookBadge, PriceTag, StockPill } from './ShopBadges';
 
 /** How long each frame holds before the cross-fade. */
 const FRAME_MS = 5200;
@@ -165,7 +165,7 @@ export function KisSpotlight({
 
           <div className="mt-3 flex items-center gap-2.5 flex-wrap">
             {product ? <PriceTag product={product} size="lg" /> : null}
-            {comingSoon ? <ComingSoonBadge size="lg" /> : product ? <StockPill product={product} /> : null}
+            {comingSoon ? <PreBookBadge size="lg" /> : product ? <StockPill product={product} /> : null}
           </div>
 
           <p className="mt-3 text-xs md:text-sm text-slate-400 leading-relaxed max-w-md">{KIS_MODEL.blurb}</p>

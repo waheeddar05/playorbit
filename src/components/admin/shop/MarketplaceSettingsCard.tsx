@@ -7,10 +7,11 @@
  *
  * Reads `GET /api/admin/shop/settings`, writes `PUT`. The two toggles
  * are the launch levers: **Store enabled** shows or hides the shop
- * everywhere, **Coming soon mode** decides whether a product page offers
- * "Notify me" or "Order on WhatsApp". A save invalidates the client-side
- * status cache so the panel's own nav reflects the change without a
- * reload.
+ * everywhere, **Pre-book mode** decides whether the product page takes a
+ * pre-booking or a plain order — both collect a quantity and an address
+ * over WhatsApp, so the switch changes the wording and the promise, not
+ * whether a customer can act. A save invalidates the client-side status
+ * cache so the panel's own nav reflects the change without a reload.
  *
  * Nothing is editable until the stored config has been read back: the
  * form seeded with defaults and saved on top would silently overwrite a
@@ -166,8 +167,8 @@ export function MarketplaceSettingsCard({ onSaved }: Props) {
             <AdminToggle
               enabled={form.comingSoon}
               onToggle={() => set('comingSoon', !form.comingSoon)}
-              label="Coming soon mode"
-              description="Products are browsable and customers can tap Notify me. Switch off to accept WhatsApp orders."
+              label="Pre-book mode"
+              description="Pre-launch: customers pre-book on WhatsApp (nothing is charged) or tap Notify me. Switch off once you're selling from stock and the same flow becomes an order."
               icon={Clock}
               disabled={saving}
             />
@@ -244,7 +245,7 @@ export function MarketplaceSettingsCard({ onSaved }: Props) {
                 </span>
               ) : resolvedDigits ? (
                 <span className="text-slate-500">
-                  Ask / Order buttons will open WhatsApp at{' '}
+                  Ask / Pre-book / Order buttons will open WhatsApp at{' '}
                   <span className="text-slate-300 font-semibold tabular-nums">
                     {formatWhatsAppDigits(resolvedDigits)}
                   </span>
@@ -280,7 +281,7 @@ export function MarketplaceSettingsCard({ onSaved }: Props) {
   );
 }
 
-/** Compact "Enabled · Coming soon" line reflecting what is saved right now. */
+/** Compact "Enabled · Pre-booking open" line reflecting what is saved right now. */
 function LiveStatus({ config }: { config: MarketplaceConfig }) {
   return (
     <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
@@ -304,7 +305,7 @@ function LiveStatus({ config }: { config: MarketplaceConfig }) {
             : 'bg-accent/10 border-accent/25 text-accent'
         }`}
       >
-        {config.comingSoon ? 'Coming soon' : 'Open for orders'}
+        {config.comingSoon ? 'Pre-booking open' : 'Open for orders'}
       </span>
     </div>
   );

@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 import { ArrowRight, X } from 'lucide-react';
 import { SHOP_PATH } from '@/lib/marketplace';
 import { useMarketplaceStatus } from '@/lib/marketplace-status';
-import { ComingSoonBadge } from './ShopBadges';
+import { PreBookBadge } from './ShopBadges';
 import { KIS_MODEL, KIS_PROMO_PHOTO } from '@/lib/kis-showcase';
 import { KisFrame } from './KisFrame';
 
@@ -91,7 +91,7 @@ export function MarketplacePromoBanner() {
             hand-picked.
           </span>
           {comingSoon ? (
-            <ComingSoonBadge />
+            <PreBookBadge />
           ) : (
             <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
               Now open

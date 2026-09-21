@@ -18,7 +18,7 @@ import {
 } from '@/lib/marketplace';
 import { formatAddressLines } from '@/lib/addresses';
 import { ProductGallery } from './ProductGallery';
-import { ComingSoonBadge, PriceTag, StockPill } from './ShopBadges';
+import { PreBookBadge, PriceTag, StockPill } from './ShopBadges';
 import { NotifyMeButton } from './NotifyMeButton';
 import { DeliveryAddressHint, useDefaultAddress } from './DeliveryAddressHint';
 import { KisMarquee } from './KisMarquee';
@@ -116,9 +116,8 @@ export function ProductDetailClient({ id }: ProductDetailClientProps) {
     };
   }, [id, reloadKey]);
 
-  const comingSoon = data?.config.comingSoon ?? true;
   const signedIn = data?.signedIn ?? false;
-  const addressState = useDefaultAddress(Boolean(data) && signedIn && !comingSoon);
+  const addressState = useDefaultAddress(Boolean(data) && signedIn);
 
   const retry = () => setReloadKey((k) => k + 1);
 
@@ -216,28 +215,36 @@ function ProductDetail({
 }: ProductDetailProps) {
   const { product, config, enquiryPhone, signedIn } = data;
   const comingSoon = config.comingSoon;
-  const soldOut = !product.inStock || product.stockQty === 0;
+  // Stock only gates the button once the store is selling from stock. In
+  // pre-launch the shelf is empty by definition, so reading it here would
+  // mark the one bat we are taking pre-bookings for as sold out.
+  const soldOut = !comingSoon && (!product.inStock || product.stockQty === 0);
 
-  // "Ask" is the interested-wording message: used while coming soon, and
-  // for a sold-out product where an order can't be placed.
+  // A question, committing to nothing — the way out for someone who is
+  // not ready, and the only action left on a sold-out product.
   const askLink = buildWhatsAppLink(
     enquiryPhone,
-    buildEnquiryMessage({ product, size, comingSoon: true, productUrl }),
+    buildEnquiryMessage({ product, size, intent: 'ask', productUrl }),
   );
-  const orderLink =
-    !comingSoon && !soldOut
-      ? buildWhatsAppLink(
-          enquiryPhone,
-          buildEnquiryMessage({
-            product,
-            size,
-            quantity,
-            addressLines: addressState.address ? formatAddressLines(addressState.address) : null,
-            productUrl,
-            comingSoon: false,
-          }),
-        )
-      : null;
+  // The one committing action. Pre-launch takes the same quantity and
+  // address as a live order and differs by a single word, because a
+  // pre-booking we can actually fulfil is worth more than a mailing-list
+  // signup — which is what "Notify me" alone was collecting.
+  const commitIntent = comingSoon ? 'prebook' : 'order';
+  const commitLabel = comingSoon ? 'Pre-book on WhatsApp' : 'Order on WhatsApp';
+  const commitLink = !soldOut
+    ? buildWhatsAppLink(
+        enquiryPhone,
+        buildEnquiryMessage({
+          product,
+          size,
+          quantity,
+          addressLines: addressState.address ? formatAddressLines(addressState.address) : null,
+          productUrl,
+          intent: commitIntent,
+        }),
+      )
+    : null;
 
   const metaLine = product.brand ? `${product.brand} · ${product.categoryLabel}` : product.categoryLabel;
 
@@ -271,7 +278,7 @@ function ProductDetail({
 
         {comingSoon && (
           <div className="mt-2 flex items-center gap-2 flex-wrap">
-            <ComingSoonBadge size="lg" />
+            <PreBookBadge size="lg" />
             {config.launchNote && <span className="text-xs text-amber-300/90">{config.launchNote}</span>}
           </div>
         )}
@@ -340,7 +347,21 @@ function ProductDetail({
           </div>
         )}
 
-        {!comingSoon && <DeliveryAddressHint signedIn={signedIn} state={addressState} className="mt-4" />}
+        {!soldOut && <DeliveryAddressHint signedIn={signedIn} state={addressState} className="mt-4" />}
+
+        {comingSoon && !soldOut && (
+          <div className="mt-5 flex flex-col sm:flex-row gap-2">
+            <NotifyMeButton
+              productId={product.id}
+              interested={interested}
+              signedIn={signedIn}
+              onChange={onInterestedChange}
+              variant="secondary"
+              className="flex-1"
+            />
+            {askLink && <WhatsAppLink href={askLink} label="Ask a question" variant="secondary" />}
+          </div>
+        )}
 
         {/* Call to action — pinned above the bottom nav on phones, inline on desktop. */}
         <div
@@ -349,18 +370,7 @@ function ProductDetail({
           }`}
         >
           <div className="px-4 py-3">
-            {comingSoon ? (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <NotifyMeButton
-                  productId={product.id}
-                  interested={interested}
-                  signedIn={signedIn}
-                  onChange={onInterestedChange}
-                  className="flex-1"
-                />
-                {askLink && <WhatsAppLink href={askLink} label="Ask on WhatsApp" variant="secondary" />}
-              </div>
-            ) : soldOut ? (
+            {soldOut ? (
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
@@ -381,8 +391,8 @@ function ProductDetail({
                 </div>
                 <div className="flex items-center gap-2">
                   <QuantityStepper value={quantity} onChange={onQuantityChange} />
-                  {orderLink ? (
-                    <WhatsAppLink href={orderLink} label="Order on WhatsApp" variant="primary" />
+                  {commitLink ? (
+                    <WhatsAppLink href={commitLink} label={commitLabel} variant="primary" />
                   ) : (
                     <button
                       type="button"
@@ -390,13 +400,22 @@ function ProductDetail({
                       className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold bg-accent text-primary opacity-50 cursor-not-allowed"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      Order on WhatsApp
+                      {commitLabel}
                     </button>
                   )}
                 </div>
-                {!orderLink && (
+                {!commitLink && (
                   <p className="text-[11px] text-slate-500 mt-2">
-                    Ordering isn’t open yet — the store hasn’t set a WhatsApp number.
+                    {comingSoon ? 'Pre-booking' : 'Ordering'} isn’t open yet — the store hasn’t set a WhatsApp
+                    number.
+                  </p>
+                )}
+                {comingSoon && (
+                  // Say what a pre-booking is before they tap it: no card,
+                  // no charge, a conversation that ends in a bat held back
+                  // for them.
+                  <p className="text-[11px] text-slate-500 mt-2 leading-snug">
+                    Nothing is charged now — we confirm on WhatsApp and hold your bat.
                   </p>
                 )}
               </>
