@@ -25,7 +25,7 @@ describe('session cookie', () => {
     expect(cookie?.value).toBe('a.b.c');
     expect(cookie?.httpOnly).toBe(true);
     expect(cookie?.path).toBe('/');
-    expect(cookie?.maxAge).toBe(7 * 24 * 60 * 60);
+    expect(cookie?.maxAge).toBe(400 * 24 * 60 * 60);
   });
 
   it('clears with attributes that match the ones it was set with', () => {

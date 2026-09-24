@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { normalizeDisplayName } from '@/lib/display-name';
+import { renewSessionIfStale } from '@/lib/session-renewal';
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,11 +34,24 @@ export async function GET(req: NextRequest) {
     // the SUPER_ADMIN_EMAIL bootstrap fallback that the raw column misses.
     // This is what lets client gating work for WhatsApp logins, which have
     // no NextAuth session to read a role off.
-    return NextResponse.json(dbUser ? { ...dbUser, isSuperAdmin: user.isSuperAdmin } : null, {
+    const response = NextResponse.json(dbUser ? { ...dbUser, isSuperAdmin: user.isSuperAdmin } : null, {
       headers: {
         'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60',
       },
     });
+
+    // Keep an active WhatsApp session alive (see session-renewal.ts). This
+    // is best-effort: a failed renewal must not fail the profile read, since
+    // the current token is still valid.
+    if (dbUser) {
+      try {
+        await renewSessionIfStale(req, response, dbUser);
+      } catch (error) {
+        console.error('Session renewal error:', error);
+      }
+    }
+
+    return response;
   } catch (error) {
     console.error('Get user profile error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
