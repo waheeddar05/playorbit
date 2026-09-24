@@ -1,4 +1,5 @@
 import type { NextResponse } from 'next/server';
+import { SESSION_TTL_SECONDS } from '@/lib/session-ttl';
 
 /**
  * The OTP session cookie — one definition, so the route that issues it and
@@ -15,9 +16,6 @@ import type { NextResponse } from 'next/server';
  */
 export const SESSION_COOKIE_NAME = 'token';
 
-/** 7 days, matching the JWT's own expiry. */
-const MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
-
 const BASE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -29,7 +27,8 @@ const BASE_OPTIONS = {
 export function setSessionCookie(response: NextResponse, token: string) {
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     ...BASE_OPTIONS,
-    maxAge: MAX_AGE_SECONDS,
+    // Same lifetime as the JWT inside it, from one constant.
+    maxAge: SESSION_TTL_SECONDS,
   });
 }
 

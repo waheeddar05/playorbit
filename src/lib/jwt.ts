@@ -23,9 +23,9 @@
  */
 
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
+import { SESSION_TTL_SECONDS } from '@/lib/session-ttl';
 
 const ALGORITHM = 'HS256';
-const EXPIRES_IN = '7d';
 
 /**
  * Encoded once at module load. `TextEncoder` produces the same UTF-8 bytes
@@ -48,7 +48,7 @@ export async function signToken(payload: SessionTokenPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: ALGORITHM })
     .setIssuedAt()
-    .setExpirationTime(EXPIRES_IN)
+    .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
     .sign(secretKey);
 }
 
