@@ -22,7 +22,7 @@
  * nobody is signed out by this change.
  */
 
-import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
+import { SignJWT, jwtVerify, decodeJwt, errors, type JWTPayload } from 'jose';
 import { SESSION_TTL_SECONDS } from '@/lib/session-ttl';
 
 const ALGORITHM = 'HS256';
@@ -52,19 +52,40 @@ export async function signToken(payload: SessionTokenPayload): Promise<string> {
     .sign(secretKey);
 }
 
+/** Why a session token was rejected — logged by the auth gates, never shown to users. */
+export type TokenRejection = 'expired' | 'invalid';
+
+export type TokenInspection =
+  | { payload: SessionTokenPayload; rejection: null }
+  | { payload: null; rejection: TokenRejection; claims: SessionTokenPayload | null };
+
 /**
- * Verify a session token. Returns the claims, or `null` when the token is
- * missing, malformed, expired or not signed by us — callers treat `null` as
- * "not signed in".
+ * Verify a session token and, when it fails, say why. An expired token
+ * also carries its claims, so a log line can name whose session it was
+ * and how old; an invalid one carries none, since nothing in it is trusted.
  *
  * `algorithms` is pinned so a token can't ask to be verified under a weaker
  * algorithm than the one we sign with.
  */
-export async function verifyToken(token: string): Promise<SessionTokenPayload | null> {
+export async function inspectToken(token: string): Promise<TokenInspection> {
   try {
     const { payload } = await jwtVerify(token, secretKey, { algorithms: [ALGORITHM] });
-    return payload as SessionTokenPayload;
-  } catch {
-    return null;
+    return { payload: payload as SessionTokenPayload, rejection: null };
+  } catch (error) {
+    if (error instanceof errors.JWTExpired) {
+      // jose checks the signature before the claims, so an expired token
+      // is known to be ours and decoding it for its claims is safe.
+      return { payload: null, rejection: 'expired', claims: decodeJwt(token) as SessionTokenPayload };
+    }
+    return { payload: null, rejection: 'invalid', claims: null };
   }
+}
+
+/**
+ * Verify a session token. Returns the claims, or `null` when the token is
+ * missing, malformed, expired or not signed by us — callers treat `null` as
+ * "not signed in".
+ */
+export async function verifyToken(token: string): Promise<SessionTokenPayload | null> {
+  return (await inspectToken(token)).payload;
 }

@@ -36,6 +36,7 @@ type Middleware = typeof import('@/middleware');
 
 let signToken: Jwt['signToken'];
 let verifyToken: Jwt['verifyToken'];
+let inspectToken: Jwt['inspectToken'];
 let middleware: Middleware['middleware'];
 let NextRequest: typeof import('next/server').NextRequest;
 let legacySign: (payload: object, secret: string, opts: object) => string;
@@ -50,7 +51,7 @@ const SESSION = {
 };
 
 beforeAll(async () => {
-  ({ signToken, verifyToken } = await import('@/lib/jwt'));
+  ({ signToken, verifyToken, inspectToken } = await import('@/lib/jwt'));
   ({ middleware } = await import('@/middleware'));
   ({ NextRequest } = await import('next/server'));
   const jwt = (await import('jsonwebtoken')).default;
@@ -128,5 +129,52 @@ describe('middleware session gate', () => {
 
     expect(res.status).toBe(307);
     expect(res.headers.get('location')).toBe('https://www.playorbit.in/slots');
+  });
+});
+
+describe('inspectToken — why a session was refused', () => {
+  it('reports a valid token as accepted', async () => {
+    const result = await inspectToken(await signToken(SESSION));
+
+    expect(result.rejection).toBeNull();
+    expect(result.payload?.userId).toBe(SESSION.userId);
+  });
+
+  it('tells an expiry apart from a bad signature, with the expired claims', async () => {
+    const expired = await inspectToken(
+      legacySign(SESSION, process.env.JWT_SECRET as string, { expiresIn: -60 }),
+    );
+    expect(expired.payload).toBeNull();
+    expect(expired.rejection).toBe('expired');
+    expect(expired.rejection && expired.claims?.userId).toBe(SESSION.userId);
+
+    const forged = await inspectToken(legacySign(SESSION, 'not-our-secret', { expiresIn: '7d' }));
+    expect(forged.rejection).toBe('invalid');
+    // Nothing in a token we didn't sign is trusted, not even for a log line.
+    expect(forged.rejection && forged.claims).toBeNull();
+  });
+
+  it('reports garbage as invalid instead of throwing', async () => {
+    expect((await inspectToken('not.a.jwt')).rejection).toBe('invalid');
+  });
+});
+
+describe('middleware rejected-session log', () => {
+  it('logs a cookie it refuses, with the reason, but not a missing one', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const expired = legacySign(SESSION, process.env.JWT_SECRET as string, { expiresIn: -60 });
+      await middleware(requestWithToken('/slots', expired));
+      expect(warn).toHaveBeenCalledWith(
+        '[auth.gate] session cookie rejected:',
+        expect.objectContaining({ path: '/slots', reason: 'expired', userId: SESSION.userId }),
+      );
+
+      warn.mockClear();
+      await middleware(requestWithToken('/slots'));
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

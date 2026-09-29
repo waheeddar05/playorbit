@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { signToken } from '@/lib/jwt';
+import { inspectToken, signToken } from '@/lib/jwt';
 import { normalizeIndianMobile } from '@/lib/otp-delivery';
-import { setSessionCookie } from '@/lib/session-cookie';
+import { SESSION_COOKIE_NAME, setSessionCookie } from '@/lib/session-cookie';
 import { isReviewLoginMobile, REVIEW_ACCOUNT_EMAIL } from '@/lib/review-login';
 
 /**
@@ -142,6 +142,26 @@ export async function POST(req: NextRequest) {
       role: isReviewer ? 'USER' : promote ? 'ADMIN' : user.role,
       mobileVerified: true,
     });
+
+    // Sessions last 400 days and renew while in use, so a returning user
+    // logging in again means the browser lost or refused its cookie. Record
+    // which, and on what client: "none" is a cookie the browser dropped (or
+    // a new device), "expired"/"invalid" is one the server turned away.
+    // Diagnostic only: it must never be able to fail a login.
+    try {
+      const priorCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const prior = priorCookie ? await inspectToken(priorCookie) : null;
+      const priorClaims = prior ? (prior.payload ?? prior.claims) : null;
+      console.log('[otp.login] session issued:', {
+        userId: user.id,
+        priorCookie: !prior ? 'none' : prior.rejection ?? 'valid',
+        priorUserId: priorClaims?.userId ?? null,
+        priorIat: priorClaims?.iat ?? null,
+        userAgent: req.headers.get('user-agent'),
+      });
+    } catch (error) {
+      console.warn('[otp.login] prior-session diagnostic failed:', error);
+    }
 
     const response = NextResponse.json({ message: 'Login successful' });
     setSessionCookie(response, token);
