@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { verifyToken } from "@/lib/jwt";
+import { inspectToken, verifyToken } from "@/lib/jwt";
 import { NEXTAUTH_SECRET } from "@/lib/auth-secret";
 
 export async function middleware(req: NextRequest) {
@@ -117,7 +117,22 @@ export async function middleware(req: NextRequest) {
 
   // Check for custom OTP token in cookies
   const otpTokenStr = req.cookies.get("token")?.value;
-  const otpToken = otpTokenStr ? await verifyToken(otpTokenStr) : null;
+  const otpInspection = otpTokenStr ? await inspectToken(otpTokenStr) : null;
+  const otpToken = otpInspection?.payload ?? null;
+
+  // A browser that still holds a session cookie the gate refuses is the one
+  // "signed out on its own" case the server can see, and the only way to
+  // tell an expiry from a secret mismatch after the fact. A missing cookie
+  // is ordinary (every signed-out visitor, every bot) and not logged.
+  if (!token && otpInspection && otpInspection.rejection) {
+    console.warn("[auth.gate] session cookie rejected:", {
+      path: pathname,
+      reason: otpInspection.rejection,
+      userId: otpInspection.claims?.userId ?? null,
+      iat: otpInspection.claims?.iat ?? null,
+      exp: otpInspection.claims?.exp ?? null,
+    });
+  }
 
   if (!token && !otpToken) {
     const loginUrl = new URL("/", req.url);

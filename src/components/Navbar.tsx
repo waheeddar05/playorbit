@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { Shield, Power, LogIn, ArrowLeft, Calendar, ClipboardList, Package, Wallet, Bell, Headset } from 'lucide-react';
 import { CenterSelector } from './CenterSelector';
 import { useCenter } from '@/lib/center-context';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export default function Navbar() {
   // `session` is only consulted to decide which sign-out to run — a
@@ -42,6 +43,11 @@ export default function Navbar() {
   // so coach/sidearm users on /staff get the same chrome as operators did.
   const isInStaffMode = pathname.startsWith('/staff') || pathname.startsWith('/operator');
 
+  // Logout sits one thumb-width from Admin/Staff in the mobile header and
+  // is an unlabelled icon there, so it asks first: production logs showed
+  // sign-outs followed by a fresh OTP request 7-20 seconds later.
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+
   if (pathname === '/') return null;
 
   const desktopNavLinks = [
@@ -73,6 +79,7 @@ export default function Navbar() {
   };
 
   return (
+    <>
     <nav className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[#030712]/95 backdrop-blur-md shadow-lg shadow-black/20' : 'bg-transparent'
       }`}>
       <div className="max-w-5xl mx-auto px-4">
@@ -160,7 +167,8 @@ export default function Navbar() {
 
                 {/* Logout button - hidden on mobile in admin/staff mode since those layouts have their own */}
                 <button
-                  onClick={handleLogout}
+                  onClick={() => setConfirmingLogout(true)}
+                  aria-label="Logout"
                   className={`${(isInAdminMode || isInStaffMode) ? 'hidden md:flex' : 'flex'} items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer text-white/70 hover:text-red-400 hover:bg-white/10`}
                 >
                   <Power className="w-4 h-4" />
@@ -180,5 +188,19 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
+    {/* Outside <nav>: its backdrop-filter would trap a fixed-position overlay. */}
+    <ConfirmDialog
+      open={confirmingLogout}
+      title="Log out?"
+      message="You'll need a new WhatsApp code to sign back in."
+      confirmLabel="Log out"
+      variant="danger"
+      onConfirm={() => {
+        setConfirmingLogout(false);
+        handleLogout();
+      }}
+      onCancel={() => setConfirmingLogout(false)}
+    />
+    </>
   );
 }

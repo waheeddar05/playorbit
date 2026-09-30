@@ -12,12 +12,17 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/lib/current-user';
 import { Wrench, ArrowLeft, Power } from 'lucide-react';
+import { useState } from 'react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   // `session` only decides which sign-out to run — see Navbar.
   const { data: session } = useSession();
   const { refresh: refreshCurrentUser } = useCurrentUser();
   const router = useRouter();
+
+  // Same confirmation as the Navbar's logout — see there for why.
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   const handleLogout = async () => {
     if (session) {
@@ -57,7 +62,8 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
             User Mode
           </Link>
           <button
-            onClick={handleLogout}
+            onClick={() => setConfirmingLogout(true)}
+            aria-label="Logout"
             className="flex items-center gap-1.5 text-red-400/70 hover:text-red-400 transition-colors text-xs font-medium px-2.5 py-1.5 rounded-lg bg-white/[0.04] active:scale-95 cursor-pointer"
           >
             <Power className="w-3 h-3" />
@@ -90,7 +96,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
               User Mode
             </Link>
             <button
-              onClick={handleLogout}
+              onClick={() => setConfirmingLogout(true)}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer text-red-400/70 hover:bg-white/[0.04] hover:text-red-400"
             >
               <Power className="w-4 h-4" />
@@ -103,6 +109,19 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
           <div className="max-w-5xl mx-auto overflow-x-hidden">{children}</div>
         </main>
       </div>
+
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Log out?"
+        message="You'll need a new WhatsApp code to sign back in."
+        confirmLabel="Log out"
+        variant="danger"
+        onConfirm={() => {
+          setConfirmingLogout(false);
+          handleLogout();
+        }}
+        onCancel={() => setConfirmingLogout(false)}
+      />
     </div>
   );
 }
