@@ -37,6 +37,7 @@ import {
   Hand,
   GraduationCap,
   Package as PackageIcon,
+  RotateCw,
 } from 'lucide-react';
 
 /**
@@ -780,18 +781,36 @@ export default function ResourceSlotsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCenter?.id, currentUser]);
 
-  // Fetch availability whenever date / center changes
+  // Fetch availability whenever date / center changes (or the user taps
+  // Retry). Keyed on the center id, not the object: the center context
+  // hands out a new object on every refetch, which re-fired this effect
+  // and sent duplicate requests. The `cancelled` guard drops responses
+  // and timeouts from a superseded request — without it, a slow request
+  // for an earlier date timed out 15s later and painted "Request timed
+  // out" over a grid that had already loaded.
+  const currentCenterId = currentCenter?.id;
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
-    if (!currentCenter) return;
+    if (!currentCenterId) return;
+    let cancelled = false;
     setLoading(true);
     setError(null);
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     api
       .get<ResourceAvailabilityResponse>(`/api/slots/resource-availability?date=${dateStr}`)
-      .then((res) => setData(res))
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load slots'))
-      .finally(() => setLoading(false));
-  }, [selectedDate, currentCenter]);
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load slots');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate, currentCenterId, reloadKey]);
 
   // Fetch machines once per center (used for the MACHINE category picker).
   // Uses the public `/api/centers/[id]/machines` endpoint — the admin one
@@ -1961,7 +1980,15 @@ export default function ResourceSlotsPage() {
           </div>
         ) : error ? (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" /> {error}
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button
+              type="button"
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="flex items-center gap-1 rounded-lg border border-red-400/30 px-2.5 py-1 text-xs font-medium text-red-200 hover:bg-red-500/10"
+            >
+              <RotateCw className="w-3.5 h-3.5" /> Retry
+            </button>
           </div>
         ) : !data || data.slots.length === 0 ? (
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">

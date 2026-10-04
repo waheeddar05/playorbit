@@ -39,13 +39,40 @@ describe('api.get', () => {
     }
   });
 
-  it('throws ApiError on timeout', async () => {
-    mockFetch.mockImplementationOnce(() => new Promise((_, reject) => {
+  it('throws ApiError when the request and its one retry both time out', async () => {
+    const abort = () => new Promise((_, reject) => {
       const error = new DOMException('The operation was aborted', 'AbortError');
       setTimeout(() => reject(error), 10);
-    }));
+    });
+    mockFetch.mockImplementationOnce(abort).mockImplementationOnce(abort);
 
     await expect(api.get('/api/slow', { timeout: 5 })).rejects.toThrow('Request timed out');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries once after a timeout and returns the retried response', async () => {
+    mockFetch
+      .mockImplementationOnce(() => Promise.reject(new DOMException('aborted', 'AbortError')))
+      .mockResolvedValueOnce(jsonResponse({ slots: [1] }));
+
+    await expect(api.get('/api/slots')).resolves.toEqual({ slots: [1] });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries once after a network error', async () => {
+    mockFetch
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+    await expect(api.get('/api/x')).resolves.toEqual({ ok: true });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a server error response', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ error: 'boom' }, 500));
+
+    await expect(api.get('/api/x')).rejects.toThrow('boom');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });
 
