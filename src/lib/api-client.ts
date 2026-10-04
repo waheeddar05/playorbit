@@ -58,9 +58,28 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 // ─── Public API Methods ──────────────────────────────────
 
+/** A failure where the request may never have reached the server, or the
+ *  response never made it back: our own timeout, or fetch rejecting with a
+ *  network error. Mobile data drops these routinely mid-handoff. */
+function isTransientFailure(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status === 408;
+  return error instanceof TypeError;
+}
+
+const GET_RETRY_DELAY_MS = 500;
+
 export const api = {
+  /** GETs are idempotent, so a timeout or network failure is retried once
+   *  before surfacing. Server responses (4xx/5xx) are never retried. */
   get: async <T>(url: string, options?: FetchOptions): Promise<T> => {
-    const response = await fetchWithTimeout(url, { ...options, method: 'GET' });
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(url, { ...options, method: 'GET' });
+    } catch (error) {
+      if (!isTransientFailure(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, GET_RETRY_DELAY_MS));
+      response = await fetchWithTimeout(url, { ...options, method: 'GET' });
+    }
     return handleResponse<T>(response);
   },
 
