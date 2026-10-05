@@ -1,4 +1,6 @@
-const CACHE_NAME = 'playorbit-v8';
+// v9: API responses are no longer cached. The bump makes `activate`
+// delete v8, along with every API response already stored in it.
+const CACHE_NAME = 'playorbit-v9';
 
 // Only precache truly static/public assets (no auth-protected pages)
 const PRECACHE_ASSETS = [
@@ -50,19 +52,12 @@ self.addEventListener('fetch', (event) => {
   // offline page is a better failure than a stale, wrong-session one.
   if (request.mode === 'navigate') return;
 
-  // API calls: network-first with cache fallback
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
+  // Never touch API calls. They used to be cached network-first, which
+  // stored every signed-in user's profile, wallet and bookings in Cache
+  // Storage and, when the network failed, replayed a stale slot grid as
+  // if it were live availability. An API failure must surface as a
+  // failure so the page can say so and retry.
+  if (url.pathname.startsWith('/api/')) return;
 
   // Next.js hashed bundles: network-first (filenames change on each build,
   // so cache-first serves stale JS when a new deploy lands — this caused

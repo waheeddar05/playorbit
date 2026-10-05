@@ -165,11 +165,11 @@ if (!hasMembershipRole(user, center.id, 'ADMIN')) {
 
 `start_url` is **`/slots`**, not `/` — reopening the installed app should land on the booking screen, and a signed-out launch is bounced to `/` by the middleware anyway. `id` stays `/` so existing installs update in place instead of being treated as a new app.
 
-**The service worker must never handle navigations** (`if (request.mode === 'navigate') return;`). Every HTML document here depends on who is asking — `/` redirects a signed-in user to `/slots` and renders the landing page for everyone else — so a cached document replayed to the same browser in a different auth state shows a signed-in user the marketing page, and it also outlives the deploy whose JS bundles it references. The browser's own offline page is a better failure than a stale, wrong-session one. Only `/_next/static/`, `/icons/`, `/images/` and `/manifest.json` are cached; bump `CACHE_NAME` whenever the caching rules change, since the activate handler evicts by name.
+**The service worker must never handle navigations** (`if (request.mode === 'navigate') return;`). Every HTML document here depends on who is asking — `/` redirects a signed-in user to `/slots` and renders the landing page for everyone else — so a cached document replayed to the same browser in a different auth state shows a signed-in user the marketing page, and it also outlives the deploy whose JS bundles it references. The browser's own offline page is a better failure than a stale, wrong-session one. It never handles `/api/` either: cached API responses leaked per-user data into Cache Storage and replayed stale slot availability offline. Only `/_next/static/`, `/icons/`, `/images/` and `/manifest.json` are cached; bump `CACHE_NAME` whenever the caching rules change, since the activate handler evicts by name.
 
 ## Timezone Handling
 
-All times are IST (Asia/Kolkata). The `TZ` env var is set in npm scripts and in `src/lib/prisma.ts` (`process.env.TZ = 'Asia/Kolkata'`). PostgreSQL timezone is configured via connection string options parameter. Time slab determination uses `toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })`.
+All times are IST (Asia/Kolkata). The `TZ` env var is set in npm scripts and in `src/lib/prisma.ts` (`process.env.TZ = 'Asia/Kolkata'`). Database sessions run in **UTC** (the server default) and nothing may depend on the session TimeZone: every column is `timestamp without time zone` holding UTC. Production went through Accelerate, which ignored the old `-c TimeZone=Asia/Kolkata` startup option, so UTC is what production has always run; do not reintroduce that option. Time slab determination uses `toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })`.
 
 ## Testing
 
@@ -177,7 +177,7 @@ Tests use Vitest with jsdom environment. Path alias `@` maps to `./src`. Setup f
 
 ## Key Environment Variables
 
-`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `JWT_SECRET`, `FAST2SMS_API_KEY`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `SUPER_ADMIN_MOBILE` (super-admin bootstrap — the phone-keyed one that actually works), `SUPER_ADMIN_EMAIL`, `INITIAL_ADMIN_MOBILE`, `OTP_MAX_ATTEMPTS`, `OTP_GLOBAL_PER_MINUTE`, `GOOGLE_LOGIN_ENABLED` (off). See `.env.example` for full list.
+`POOLED_DATABASE_URL` (runtime queries via Prisma Postgres's PgBouncer pooler, `pooled.db.prisma.io`; never add `pgbouncer=true` — it costs ~300ms per query; when unset the app falls back to `PRISMA_DATABASE_URL`, the Accelerate URL retired 1 Dec 2026), `DATABASE_URL` / `POSTGRES_URL` (direct, for scripts and migrations), `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `JWT_SECRET`, `FAST2SMS_API_KEY`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `SUPER_ADMIN_MOBILE` (super-admin bootstrap — the phone-keyed one that actually works), `SUPER_ADMIN_EMAIL`, `INITIAL_ADMIN_MOBILE`, `OTP_MAX_ATTEMPTS`, `OTP_GLOBAL_PER_MINUTE`, `GOOGLE_LOGIN_ENABLED` (off). See `.env.example` for full list.
 
 `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` are now treated as the **fallback** for any center that hasn't configured its own keys. Each `Center` row may store `razorpayKeyId` / `razorpayKeySecret` / `razorpayWebhookSecret`; the payment helper picks center-specific keys when present (phase 6 — pending).
 
