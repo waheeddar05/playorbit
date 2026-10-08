@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { Building2, Check, ChevronDown, Loader2 } from 'lucide-react';
+import { useCenter } from '@/lib/center-context';
 
 type CenterOption = {
   id: string;
@@ -24,14 +25,22 @@ type Payload = {
  * - Shows the currently active center.
  * - Every admin sees every active center (centers are public; per-route
  *   permission checks handle access).
- * - Selecting a center calls /api/centers/select which sets the
- *   `selectedCenterId` cookie, then reloads so SSR routes pick it up.
+ * - Selecting a center goes through the center context's `switchTo()`,
+ *   which sets the `selectedCenterId` cookie and remounts the app — this
+ *   component included, hence the module-level payload cache below so
+ *   the sidebar doesn't flash "Loading…" after every switch.
  *
  * `compact` shrinks the trigger to a single-line pill suitable for the
  * mobile header where vertical space is at a premium.
  */
+/** Last /api/centers/me?audience=admin payload. The admin center list
+ *  doesn't depend on which center is selected, so a remount after a
+ *  switch can render from it immediately and refresh in the background. */
+let cachedPayload: Payload | null = null;
+
 export function CenterSwitcher({ compact = false }: { compact?: boolean } = {}) {
-  const [data, setData] = useState<Payload | null>(null);
+  const { currentCenterId, switchTo } = useCenter();
+  const [data, setData] = useState<Payload | null>(cachedPayload);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -42,7 +51,10 @@ export function CenterSwitcher({ compact = false }: { compact?: boolean } = {}) 
     // Super admins still see every active center.
     fetch('/api/centers/me?audience=admin')
       .then((r) => r.json())
-      .then((d) => { if (active) setData(d); })
+      .then((d) => {
+        if (Array.isArray(d?.centers)) cachedPayload = d;
+        if (active) setData(d);
+      })
       .catch(() => {});
     return () => { active = false; };
   }, []);
@@ -71,30 +83,21 @@ export function CenterSwitcher({ compact = false }: { compact?: boolean } = {}) 
     return null;
   }
 
-  const current = data.centers.find((c) => c.id === data.currentCenterId) ?? data.centers[0] ?? null;
+  // The context is authoritative for the selection; the payload's own
+  // currentCenterId is stale after a switch until the refetch lands.
+  const selectedId = currentCenterId ?? data.currentCenterId;
+  const current = data.centers.find((c) => c.id === selectedId) ?? data.centers[0] ?? null;
 
   const select = async (centerId: string) => {
-    if (centerId === data.currentCenterId) {
+    if (centerId === selectedId) {
       setOpen(false);
       return;
     }
     setBusy(true);
-    try {
-      const res = await fetch('/api/centers/select', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ centerId }),
-      });
-      if (res.ok) {
-        // Hard reload — admin pages may have rendered with the previous
-        // center on the server and need to re-run with the new cookie.
-        window.location.reload();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        alert(err?.error || 'Failed to switch center');
-        setBusy(false);
-      }
-    } catch {
+    // On success the app remounts, taking this instance with it.
+    const ok = await switchTo(centerId);
+    if (!ok) {
+      alert('Failed to switch center');
       setBusy(false);
     }
   };
@@ -150,7 +153,7 @@ export function CenterSwitcher({ compact = false }: { compact?: boolean } = {}) 
         >
           <div className="max-h-60 overflow-y-auto py-1">
             {data.centers.map((c) => {
-              const active = c.id === data.currentCenterId;
+              const active = c.id === selectedId;
               return (
                 <button
                   key={c.id}

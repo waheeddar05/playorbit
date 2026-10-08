@@ -7,8 +7,13 @@
  * - Fetches `/api/centers/me` once on mount.
  * - Exposes `useCenter()` so any component can read the current center
  *   and the list of available centers without re-fetching.
- * - `switchTo(id)` updates the cookie via `/api/centers/select` and
- *   reloads the page so SSR routes pick up the new selection.
+ * - `switchTo(id)` updates the cookie via `/api/centers/select`, then
+ *   remounts everything below the provider so every page re-runs its
+ *   mount-time fetches against the new center. No page here renders
+ *   center data on the server, so a full `window.location.reload()` —
+ *   which re-downloaded the document, re-hydrated the app and re-ran the
+ *   profile + centers bootstrap before any page could start loading —
+ *   bought nothing but a slow switch.
  *
  * This is intentionally lightweight — it does not include the kind of
  * data the API holds for the admin UI (booking model, Razorpay config).
@@ -17,6 +22,7 @@
 
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -89,7 +95,7 @@ interface CenterContextValue {
   isCoachAtCurrentCenter: boolean;
   /** True until the first /api/centers/me response. */
   loading: boolean;
-  /** Switches the cookie + reloads. Resolves true on success. */
+  /** Switches the cookie + remounts the app. Resolves true on success. */
   switchTo: (centerId: string) => Promise<boolean>;
   /** Forces a refetch of /api/centers/me (e.g. after creating a center). */
   refresh: () => Promise<void>;
@@ -107,6 +113,10 @@ export function CenterProvider({ children }: { children: ReactNode }) {
   const [sidearmCenterIds, setSidearmCenterIds] = useState<string[]>([]);
   const [coachCenterIds, setCoachCenterIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Bumped on every center switch; keys the subtree so it remounts.
+   *  Deliberately not keyed on currentCenterId, which goes null → id on
+   *  the first /api/centers/me and would remount the whole app on boot. */
+  const [generation, setGeneration] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -140,8 +150,11 @@ export function CenterProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ centerId }),
       });
       if (!res.ok) return false;
-      // Reload so SSR pages re-render with the new cookie.
-      window.location.reload();
+      // The response has set the cookie, so remounted pages fetch for
+      // the new center. Centers and memberships don't change with the
+      // selection — only which one is current.
+      setCurrentCenterId(centerId);
+      setGeneration((g) => g + 1);
       return true;
     } catch {
       return false;
@@ -216,7 +229,11 @@ export function CenterProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <CenterContext.Provider value={value}>{children}</CenterContext.Provider>;
+  return (
+    <CenterContext.Provider value={value}>
+      <Fragment key={generation}>{children}</Fragment>
+    </CenterContext.Provider>
+  );
 }
 
 export function useCenter(): CenterContextValue {
