@@ -16,13 +16,14 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Package, Plus, Pencil, Loader2, Trash2, ToggleLeft, ToggleRight, Sun, Moon, Clock, Calendar, Zap } from 'lucide-react';
+import { Package, Plus, Pencil, Loader2, Trash2, ToggleLeft, ToggleRight, Sun, Moon, Clock, Calendar, Zap, RotateCcw } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCenter } from '@/lib/center-context';
 import { useAdminRole } from '@/lib/useAdminRole';
 import { PACKAGE_WICKET_LABEL, PACKAGE_CATEGORY_LABEL, ballOptionsFromEffective, coerceBallTypeFromEffective, coerceBallTypeForMachineType } from '@/lib/package-admin-labels';
 import { LABEL_MAP } from '@/lib/client-constants';
+import { PackageFilters, usePackageFilters, type BookingCategory } from '@/components/packages/PackageFilters';
 
 const labelMap = LABEL_MAP;
 
@@ -64,6 +65,9 @@ interface PackageRow {
   name: string;
   category: string | null;
   machineRowId: string | null;
+  /** Legacy MachineId enum on ABCA-era packages; lets the Machine Type
+   *  filter match them through the machine's `legacyMachineId`. */
+  machineId?: string | null;
   ballType: string | null;
   wicketType: string | null;
   timingType: string;
@@ -154,6 +158,11 @@ export function ResourcePackageManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
+  const [enabledCategories, setEnabledCategories] = useState<BookingCategory[] | null>(null);
+  // Same filters, values and matching as the user Packages → Browse tab,
+  // so an admin can find exactly the package a customer is looking at.
+  const filters = usePackageFilters(packages, enabledCategories, machines);
+  const { hasActiveFilter, clearFilters, filteredPackages } = filters;
 
   const reload = async () => {
     if (!currentCenter) return;
@@ -176,6 +185,26 @@ export function ResourcePackageManagement() {
 
   useEffect(() => {
     reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCenter?.id]);
+
+  // The center's ENABLED_BOOKING_CATEGORIES decides which category cards
+  // the filter offers — the same `/api/packages` resolution the user
+  // Packages page uses. Fetched once per center rather than in reload(),
+  // which re-runs after every save.
+  useEffect(() => {
+    if (!currentCenter) return;
+    let cancelled = false;
+    fetch('/api/packages')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        setEnabledCategories(Array.isArray(data?.enabledCategories) ? data.enabledCategories : null);
+      })
+      .catch(() => {
+        if (!cancelled) setEnabledCategories(null);
+      });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCenter?.id]);
 
@@ -405,7 +434,9 @@ export function ResourcePackageManagement() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-          {packages.length} {packages.length === 1 ? 'Package' : 'Packages'}
+          {hasActiveFilter
+            ? `${filteredPackages.length} of ${packages.length} Packages`
+            : `${packages.length} ${packages.length === 1 ? 'Package' : 'Packages'}`}
         </h3>
         {!isModerator && (
         <button
@@ -746,15 +777,31 @@ export function ResourcePackageManagement() {
         </div>
       )}
 
+      {packages.length > 0 && (
+        <PackageFilters filters={filters} machines={machines} centerName={currentCenter?.name} />
+      )}
+
       {/* List */}
       {packages.length === 0 ? (
         <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-8 text-center">
           <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <p className="text-sm text-slate-500 italic">No packages yet. Click &lsquo;Create Package&rsquo; to start.</p>
         </div>
+      ) : filteredPackages.length === 0 ? (
+        <div className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-8 text-center">
+          <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+          <p className="text-sm font-medium text-slate-400 mb-1">No packages match these filters</p>
+          <button
+            onClick={clearFilters}
+            className="inline-flex items-center gap-1.5 mt-2 text-xs text-accent hover:text-accent-light transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Clear all filters
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {packages.map((p) => {
+          {filteredPackages.map((p) => {
             const cat = (p.category ?? 'MACHINE') as string;
             const machineName = p.machineRowId
               ? machines.find((m) => m.id === p.machineRowId)?.shortName ?? machines.find((m) => m.id === p.machineRowId)?.name
