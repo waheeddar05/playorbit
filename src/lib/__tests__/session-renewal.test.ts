@@ -34,6 +34,8 @@ const USER = {
   mobileNumber: '9876543210',
   role: 'USER',
   mobileVerified: true,
+  isSuperAdmin: false,
+  isStoreAdmin: false,
 };
 
 beforeAll(async () => {
@@ -121,6 +123,26 @@ describe('renewSessionIfStale', () => {
     await renewSessionIfStale(request(await tokenAged(2 * DAY)), res, reviewer);
 
     expect((await verifyToken(res.cookies.get('token')!.value))?.role).toBe('USER');
+  });
+
+  it('re-states the store grants, so a store admin keeps /admin/shop after renewal', async () => {
+    const res = NextResponse.json({});
+    const storeAdmin = { ...USER, isStoreAdmin: true };
+    await renewSessionIfStale(request(await tokenAged(2 * DAY)), res, storeAdmin);
+
+    const decoded = await verifyToken(res.cookies.get('token')!.value);
+    expect(decoded?.isStoreAdmin).toBe(true);
+    expect(decoded?.isSuperAdmin).toBe(false);
+  });
+
+  it('never carries store or super-admin grants onto the reviewer account', async () => {
+    const res = NextResponse.json({});
+    const reviewer = { ...USER, email: 'play-review@playorbit.invalid', isSuperAdmin: true, isStoreAdmin: true };
+    await renewSessionIfStale(request(await tokenAged(2 * DAY)), res, reviewer);
+
+    const decoded = await verifyToken(res.cookies.get('token')!.value);
+    expect(decoded?.isStoreAdmin).toBe(false);
+    expect(decoded?.isSuperAdmin).toBe(false);
   });
 
   it("does not extend a token that belongs to someone else", async () => {

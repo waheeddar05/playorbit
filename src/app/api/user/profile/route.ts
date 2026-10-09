@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from '@/lib/auth';
 import { normalizeDisplayName } from '@/lib/display-name';
 import { renewSessionIfStale } from '@/lib/session-renewal';
+import { normalizeEmail } from '@/lib/email';
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,18 +35,25 @@ export async function GET(req: NextRequest) {
     // the SUPER_ADMIN_EMAIL bootstrap fallback that the raw column misses.
     // This is what lets client gating work for WhatsApp logins, which have
     // no NextAuth session to read a role off.
-    const response = NextResponse.json(dbUser ? { ...dbUser, isSuperAdmin: user.isSuperAdmin } : null, {
-      headers: {
-        'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60',
+    const response = NextResponse.json(
+      dbUser ? { ...dbUser, isSuperAdmin: user.isSuperAdmin, isStoreAdmin: user.isStoreAdmin } : null,
+      {
+        headers: {
+          'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60',
+        },
       },
-    });
+    );
 
     // Keep an active WhatsApp session alive (see session-renewal.ts). This
     // is best-effort: a failed renewal must not fail the profile read, since
     // the current token is still valid.
     if (dbUser) {
       try {
-        await renewSessionIfStale(req, response, dbUser);
+        await renewSessionIfStale(req, response, {
+          ...dbUser,
+          isSuperAdmin: user.isSuperAdmin,
+          isStoreAdmin: user.isStoreAdmin,
+        });
       } catch (error) {
         console.error('Session renewal error:', error);
       }
@@ -66,7 +74,12 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const data: { name?: string; mobileNumber?: string; phonePromptDismissed?: boolean } = {};
+    const data: {
+      name?: string;
+      email?: string | null;
+      mobileNumber?: string;
+      phonePromptDismissed?: boolean;
+    } = {};
 
     // WhatsApp login supplies no name, so this is where a nameless account
     // gets one (see `src/components/NamePrompt.tsx`). Same validator the form
@@ -78,6 +91,41 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: name.error }, { status: 400 });
       }
       data.name = name.value;
+    }
+
+    // Email is optional contact information on a WhatsApp-keyed account
+    // (receipts, store enquiries), editable from /profile. Same validator
+    // as the form. An empty string clears it — except on an account with
+    // no mobile number, which would then be reachable by nothing at all.
+    if (body.email !== undefined) {
+      const email = normalizeEmail(body.email);
+      if (!email.ok) {
+        return NextResponse.json({ error: email.error }, { status: 400 });
+      }
+      if (email.value === null) {
+        const current = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { mobileNumber: true },
+        });
+        if (!current?.mobileNumber) {
+          return NextResponse.json(
+            { error: 'Add a mobile number before removing your email.' },
+            { status: 400 },
+          );
+        }
+      } else {
+        const existing = await prisma.user.findUnique({
+          where: { email: email.value },
+          select: { id: true },
+        });
+        if (existing && existing.id !== user.id) {
+          return NextResponse.json(
+            { error: 'This email is already linked to another account.' },
+            { status: 409 },
+          );
+        }
+      }
+      data.email = email.value;
     }
 
     if (body.mobileNumber) {

@@ -61,6 +61,13 @@ export async function middleware(req: NextRequest) {
     // public surface so a brand-new visitor can pick a center before sign-in.
     pathname === "/centers" ||
     pathname.startsWith("/api/centers") ||
+    // The store is a marketing surface too: anyone can browse /shop and
+    // its catalog API before signing in. Routes under /api/shop that need
+    // a user ("Notify me") check the session themselves and answer a JSON
+    // 401 instead of the HTML redirect a protected path would get.
+    pathname === "/shop" ||
+    pathname.startsWith("/shop/") ||
+    pathname.startsWith("/api/shop") ||
     // /loc/[slug] → per-center map redirect for the booking template's
     // "View Location" button; must be reachable without auth.
     pathname.startsWith("/loc/") ||
@@ -170,13 +177,36 @@ export async function middleware(req: NextRequest) {
   // the /admin/sidearm and /admin/coach pages (the layout gates every
   // other link away from them).
   if (pathname.startsWith("/admin")) {
-    if (
-      userRole !== "ADMIN" &&
-      userRole !== "MODERATOR" &&
-      userRole !== "SIDEARM_SPECIALIST" &&
-      userRole !== "COACH"
-    ) {
-      return NextResponse.redirect(new URL("/", req.url));
+    const isStorePath = pathname === "/admin/shop" || pathname.startsWith("/admin/shop/");
+    // Platform-level grants ride in the WhatsApp session token (set at
+    // OTP verify). A token issued before those claims existed carries
+    // neither, and is treated as "unknown" — the API guard decides.
+    const storeAdminClaim = otpToken?.isStoreAdmin === true;
+    const superAdminClaim = otpToken?.isSuperAdmin === true;
+    const claimsKnown =
+      typeof otpToken?.isStoreAdmin === "boolean" && typeof otpToken?.isSuperAdmin === "boolean";
+
+    const hasAdminRole =
+      userRole === "ADMIN" ||
+      userRole === "MODERATOR" ||
+      userRole === "SIDEARM_SPECIALIST" ||
+      userRole === "COACH";
+
+    if (!hasAdminRole) {
+      // A store admin who is otherwise a plain USER gets exactly one
+      // admin surface: the Cricket Store. Everything else under /admin
+      // bounces there, the same way a specialist only gets their tab.
+      if (!storeAdminClaim) {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+      if (!isStorePath) {
+        return NextResponse.redirect(new URL("/admin/shop", req.url));
+      }
+    } else if (isStorePath && claimsKnown && !storeAdminClaim && !superAdminClaim) {
+      // The store is not a center's: a center admin / specialist / coach
+      // without the store grant is turned away at the edge. The API
+      // rejects them regardless (requireShopAdmin).
+      return NextResponse.redirect(new URL("/admin", req.url));
     }
 
     // Moderators are restricted admins. They reach most of the panel but
@@ -202,6 +232,9 @@ export async function middleware(req: NextRequest) {
         "/admin/coach",
         "/admin/ground-staff",
         "/admin/offers",
+        // Marketplace (store catalog, prices, images) is pricing — full
+        // admins only, same as Offers.
+        "/admin/shop",
       ];
       if (moderatorBlockedPrefixes.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
         return NextResponse.redirect(new URL("/admin", req.url));

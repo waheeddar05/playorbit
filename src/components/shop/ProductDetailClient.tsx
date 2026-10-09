@@ -1,0 +1,534 @@
+'use client';
+
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, MapPin, MessageCircle, Minus, PackageSearch, Plus } from 'lucide-react';
+import { useCurrentUser } from '@/lib/current-user';
+import { PageBackground } from '@/components/ui/PageBackground';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import {
+  SHOP_PATH,
+  buildEnquiryMessage,
+  buildShareText,
+  buildWhatsAppLink,
+  formatRupees,
+  type MarketplaceProductView,
+  type MyPreBookingView,
+} from '@/lib/marketplace';
+import { formatAddressLines } from '@/lib/addresses';
+import { ProductGallery } from './ProductGallery';
+import { PreBookBadge, PriceTag, StockPill } from './ShopBadges';
+import { PreBookAction } from './PreBookAction';
+import { ShareButton } from './ShareButton';
+import { DeliveryAddressHint, useDefaultAddress } from './DeliveryAddressHint';
+import { KisMarquee } from './KisMarquee';
+import { KisHighlights } from './KisHighlights';
+import { KisHowItWorks } from './KisHowItWorks';
+import { StoreSocialLinks } from './StoreSocialLinks';
+import { isKisModel } from '@/lib/kis-showcase';
+
+/** `GET /api/shop/products/[id]` */
+interface ProductDetailResponse {
+  product: MarketplaceProductView;
+  config: { enabled: boolean; comingSoon: boolean; launchNote: string; pickupNote: string };
+  enquiryPhone: string | null;
+  interested: boolean;
+  /** The viewer's own standing pre-booking, or null. */
+  preBooking: MyPreBookingView | null;
+  signedIn: boolean;
+}
+
+const MIN_QTY = 1;
+const MAX_QTY = 10;
+
+// The page's absolute origin, for the link pasted into WhatsApp. Read
+// through useSyncExternalStore so the server render (no window) gets ''
+// and the client fills it in after hydration without an effect.
+const subscribeNoop = () => () => {};
+const getOrigin = () => window.location.origin;
+const getServerOrigin = () => '';
+
+interface ProductDetailClientProps {
+  id: string;
+}
+
+/**
+ * /shop/[id]. Everything that depends on who is looking — "Notify me",
+ * the delivery address, the sign-in nudges — keys off the API's
+ * `signedIn`, so an anonymous visitor gets the full page with the right
+ * calls to action rather than a login wall.
+ */
+export function ProductDetailClient({ id }: ProductDetailClientProps) {
+  const router = useRouter();
+  // The mobile bottom nav renders only for a signed-in user (it reads the
+  // same hook), so the sticky bar's offset follows it, not the API flag.
+  const { user: navUser } = useCurrentUser();
+
+  const [data, setData] = useState<ProductDetailResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [preBooking, setPreBooking] = useState<MyPreBookingView | null>(null);
+  const [size, setSize] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(MIN_QTY);
+
+  const origin = useSyncExternalStore(subscribeNoop, getOrigin, getServerOrigin);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    async function load() {
+      setLoading(true);
+      setError('');
+      setNotFound(false);
+      try {
+        const res = await fetch(`/api/shop/products/${encodeURIComponent(id)}`, {
+          signal: controller.signal,
+        });
+        if (res.status === 404) {
+          if (active) setNotFound(true);
+          return;
+        }
+        const isJson = res.headers.get('content-type')?.includes('application/json') ?? false;
+        const body: unknown = isJson ? await res.json() : null;
+        if (!res.ok) {
+          const message =
+            body && typeof body === 'object' && typeof (body as { error?: unknown }).error === 'string'
+              ? (body as { error: string }).error
+              : 'Could not load this product';
+          throw new Error(message);
+        }
+        if (!active) return;
+        const detail = body as ProductDetailResponse;
+        setData(detail);
+        setPreBooking(detail.preBooking);
+      } catch (err) {
+        if (!active || controller.signal.aborted) return;
+        setError(err instanceof Error ? err.message : 'Could not load this product');
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [id, reloadKey]);
+
+  const signedIn = data?.signedIn ?? false;
+  const addressState = useDefaultAddress(Boolean(data) && signedIn);
+
+  const retry = () => setReloadKey((k) => k + 1);
+
+  const productUrl = data && origin ? `${origin}${SHOP_PATH}/${encodeURIComponent(data.product.id)}` : null;
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-5">
+      <PageBackground />
+
+      <Link
+        href={SHOP_PATH}
+        className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors mb-3"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Back to shop
+      </Link>
+
+      {error ? (
+        <ErrorState message={error} onRetry={retry} />
+      ) : loading ? (
+        <ProductDetailSkeleton />
+      ) : notFound ? (
+        <EmptyState
+          icon={PackageSearch}
+          title="This product isn’t available"
+          description="It may have sold out, been removed, or isn’t published yet."
+          action={{ label: 'Back to shop', onClick: () => router.push(SHOP_PATH) }}
+        />
+      ) : data ? (
+        <ProductDetail
+          data={data}
+          preBooking={preBooking}
+          onPreBookingChange={setPreBooking}
+          size={size}
+          onSizeChange={setSize}
+          quantity={quantity}
+          onQuantityChange={setQuantity}
+          productUrl={productUrl}
+          addressState={addressState}
+          hasBottomNav={Boolean(navUser)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Loaded view ─────────────────────────────────────────────────────
+
+interface ProductDetailProps {
+  data: ProductDetailResponse;
+  preBooking: MyPreBookingView | null;
+  onPreBookingChange: (next: MyPreBookingView | null) => void;
+  size: string | null;
+  onSizeChange: (next: string | null) => void;
+  quantity: number;
+  onQuantityChange: (next: number) => void;
+  productUrl: string | null;
+  addressState: ReturnType<typeof useDefaultAddress>;
+  hasBottomNav: boolean;
+}
+
+function ProductDetail({
+  data,
+  preBooking,
+  onPreBookingChange,
+  size,
+  onSizeChange,
+  quantity,
+  onQuantityChange,
+  productUrl,
+  addressState,
+  hasBottomNav,
+}: ProductDetailProps) {
+  const { product, config, enquiryPhone, signedIn } = data;
+  const comingSoon = config.comingSoon;
+  // Stock only gates the button once the store is selling from stock. In
+  // pre-launch the shelf is empty by definition, so reading it here would
+  // mark the one bat we are taking pre-bookings for as sold out.
+  const soldOut = !comingSoon && (!product.inStock || product.stockQty === 0);
+
+  // A question, committing to nothing — the way out for someone who is
+  // not ready, and the only action left on a sold-out product.
+  const askLink = buildWhatsAppLink(
+    enquiryPhone,
+    buildEnquiryMessage({ product, size, intent: 'ask', productUrl }),
+  );
+  // Once the store sells from stock, ordering still runs over WhatsApp.
+  // Pre-booking does not: it is recorded in the app so the store has a
+  // list to work instead of a scroll of chat messages, and so the
+  // customer can see and cancel what they asked for.
+  const orderLink =
+    !comingSoon && !soldOut
+      ? buildWhatsAppLink(
+          enquiryPhone,
+          buildEnquiryMessage({
+            product,
+            size,
+            quantity,
+            addressLines: addressState.address ? formatAddressLines(addressState.address) : null,
+            productUrl,
+            intent: 'order',
+          }),
+        )
+      : null;
+
+  const metaLine = product.brand ? `${product.brand} · ${product.categoryLabel}` : product.categoryLabel;
+
+  // The M&H 7000's own shoot, under the buy bar. Gated on the row being
+  // that bat: this is KIS's photography of one specific model, and
+  // hanging it under a glove or a helmet would misrepresent both.
+  const showKisShoot = isKisModel(product);
+
+  return (
+    <article className="md:grid md:grid-cols-2 md:gap-6 md:items-start animate-fade-in">
+      <ProductGallery images={product.images} category={product.category} name={product.name} />
+
+      <div className="mt-4 md:mt-0 min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate min-w-0">
+            {metaLine}
+          </p>
+          {/* The phone's share sheet (WhatsApp one tap away), or a copy on desktop. */}
+          <ShareButton
+            title={product.name}
+            text={buildShareText({ product, comingSoon })}
+            url={productUrl}
+            className="shrink-0"
+          />
+        </div>
+
+        <h1 className="text-xl font-black text-white leading-snug mt-1 break-words">{product.name}</h1>
+
+        {comingSoon && (
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <PreBookBadge size="lg" />
+            {config.launchNote && <span className="text-xs text-amber-300/90">{config.launchNote}</span>}
+          </div>
+        )}
+
+        <PriceTag product={product} size="lg" className="mt-3" />
+        {!comingSoon && <StockPill product={product} className="mt-2" />}
+
+        {config.pickupNote && (
+          <p className="mt-3 flex items-start gap-1.5 text-xs text-slate-400 leading-snug">
+            <MapPin className="w-3.5 h-3.5 mt-px shrink-0 text-accent/70" aria-hidden="true" />
+            {config.pickupNote}
+          </p>
+        )}
+
+        {/* The reasons to buy, at a glance, before the spec table. Only
+            for the M&H 7000 — the copy is about that bat. */}
+        {showKisShoot && <KisHighlights variant="compact" className="mt-4" />}
+
+        {product.sizes.length > 0 && (
+          <div className="mt-4">
+            <p className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Size</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Size">
+              {product.sizes.map((s) => {
+                const active = size === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => onSizeChange(active ? null : s)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.98] ${
+                      active
+                        ? 'bg-accent/15 border-accent/40 text-accent'
+                        : 'bg-white/[0.04] border-white/[0.08] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {product.description && (
+          <div className="mt-4">
+            <p className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">About</p>
+            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line break-words">
+              {product.description}
+            </p>
+          </div>
+        )}
+
+        {product.specs.length > 0 && (
+          <div className="mt-4">
+            <p className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              Specifications
+            </p>
+            <dl className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden divide-y divide-white/[0.06]">
+              {product.specs.map((spec, i) => (
+                <div
+                  key={`${spec.label}-${i}`}
+                  className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 px-3 py-2 text-xs"
+                >
+                  <dt className="text-slate-400 break-words">{spec.label}</dt>
+                  <dd className="text-white font-medium break-words">{spec.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+
+        {!soldOut && <DeliveryAddressHint signedIn={signedIn} state={addressState} className="mt-4" />}
+
+        {comingSoon && !soldOut && askLink && (
+          <div className="mt-5 flex">
+            <WhatsAppLink href={askLink} label="Ask a question" variant="secondary" />
+          </div>
+        )}
+
+        {/* Call to action — pinned above the bottom nav on phones, inline on desktop. */}
+        <div
+          className={`sticky md:static z-30 -mx-4 md:mx-0 mt-5 bg-[#0f1d2f]/95 backdrop-blur-md border-t md:border border-white/[0.08] md:rounded-2xl ${
+            hasBottomNav ? 'bottom-[calc(60px_+_env(safe-area-inset-bottom))]' : 'bottom-0 safe-bottom'
+          }`}
+        >
+          <div className="px-4 py-3">
+            {soldOut ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold bg-white/[0.06] text-slate-500 cursor-not-allowed"
+                >
+                  Sold out
+                </button>
+                {askLink && <WhatsAppLink href={askLink} label="Ask on WhatsApp" variant="secondary" />}
+              </div>
+            ) : comingSoon ? (
+              // Pre-launch: pre-book in the app, nothing charged. Once a
+              // booking exists the quantity is part of it, so the stepper
+              // and the running total step aside for the receipt — the
+              // way to change the number is to cancel and book again.
+              preBooking ? (
+                <PreBookAction
+                  productId={product.id}
+                  productName={product.name}
+                  preBooking={preBooking}
+                  onChange={onPreBookingChange}
+                  quantity={quantity}
+                  size={size}
+                  signedIn={signedIn}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-3 mb-2 text-xs">
+                    <span className="text-slate-400 tabular-nums">
+                      {quantity} × {formatRupees(product.price)}
+                    </span>
+                    <span className="text-slate-300 tabular-nums">
+                      <span className="font-bold text-white">{formatRupees(product.price * quantity)}</span>{' '}
+                      <span className="text-slate-500">on collection</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <QuantityStepper value={quantity} onChange={onQuantityChange} />
+                    <PreBookAction
+                      productId={product.id}
+                      productName={product.name}
+                      preBooking={null}
+                      onChange={onPreBookingChange}
+                      quantity={quantity}
+                      size={size}
+                      signedIn={signedIn}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 leading-snug">
+                    Nothing to pay — we hold one for you and message you when it’s ready.
+                  </p>
+                </>
+              )
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-3 mb-2 text-xs">
+                  <span className="text-slate-400 tabular-nums">
+                    {quantity} × {formatRupees(product.price)}
+                  </span>
+                  <span className="font-bold text-white tabular-nums">{formatRupees(product.price * quantity)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <QuantityStepper value={quantity} onChange={onQuantityChange} />
+                  {orderLink ? (
+                    <WhatsAppLink href={orderLink} label="Order on WhatsApp" variant="primary" />
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold bg-accent text-primary opacity-50 cursor-not-allowed"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Order on WhatsApp
+                    </button>
+                  )}
+                </div>
+                {!orderLink && (
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    Ordering isn’t open yet — the store hasn’t set a WhatsApp number.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showKisShoot && (
+        <>
+          <KisHowItWorks comingSoon={comingSoon} className="md:col-span-2 mt-6" />
+          <section className="md:col-span-2 mt-6 -mx-4 md:mx-0" aria-label="More photos of this bat">
+            <p className="px-4 md:px-0 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+              More from the shoot
+            </p>
+            <KisMarquee size="tall" duration={58} />
+          </section>
+          <StoreSocialLinks
+            enquiryPhone={enquiryPhone}
+            message={buildEnquiryMessage({ product, size, intent: 'ask', productUrl })}
+            className="md:col-span-2 mt-6"
+          />
+        </>
+      )}
+    </article>
+  );
+}
+
+// ─── Small pieces ────────────────────────────────────────────────────
+
+function WhatsAppLink({
+  href,
+  label,
+  variant,
+}: {
+  href: string;
+  label: string;
+  variant: 'primary' | 'secondary';
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors active:scale-[0.98] ${
+        variant === 'primary'
+          ? 'bg-accent hover:bg-accent-light text-primary'
+          : 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-300'
+      }`}
+    >
+      <MessageCircle className="w-4 h-4" />
+      {label}
+    </a>
+  );
+}
+
+function QuantityStepper({ value, onChange }: { value: number; onChange: (next: number) => void }) {
+  return (
+    <div
+      className="inline-flex items-center rounded-xl border border-white/[0.1] bg-slate-900/60 overflow-hidden shrink-0"
+      role="group"
+      aria-label="Quantity"
+    >
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(MIN_QTY, value - 1))}
+        disabled={value <= MIN_QTY}
+        aria-label="Decrease quantity"
+        className="w-9 h-10 flex items-center justify-center text-slate-300 hover:bg-white/[0.06] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <Minus className="w-4 h-4" />
+      </button>
+      <span className="w-8 text-center text-sm font-bold text-white tabular-nums" aria-live="polite">
+        {value}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(MAX_QTY, value + 1))}
+        disabled={value >= MAX_QTY}
+        aria-label="Increase quantity"
+        className="w-9 h-10 flex items-center justify-center text-slate-300 hover:bg-white/[0.06] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <Plus className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+function ProductDetailSkeleton() {
+  return (
+    <div className="md:grid md:grid-cols-2 md:gap-6 animate-pulse" aria-hidden="true">
+      <div className="aspect-[4/5] max-h-[70vh] w-full rounded-2xl bg-white/[0.05] border border-white/[0.06]" />
+      <div className="mt-4 md:mt-0 space-y-3">
+        <div className="h-2.5 w-1/3 bg-white/[0.08] rounded" />
+        <div className="h-6 w-4/5 bg-white/10 rounded" />
+        <div className="h-7 w-1/3 bg-white/10 rounded" />
+        <div className="h-4 w-20 bg-white/[0.08] rounded-full" />
+        <div className="space-y-2 pt-2">
+          <div className="h-3 w-full bg-white/[0.06] rounded" />
+          <div className="h-3 w-11/12 bg-white/[0.06] rounded" />
+          <div className="h-3 w-3/4 bg-white/[0.06] rounded" />
+        </div>
+        <div className="h-11 w-full bg-white/[0.08] rounded-xl mt-4" />
+      </div>
+    </div>
+  );
+}

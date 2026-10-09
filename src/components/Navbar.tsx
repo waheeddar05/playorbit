@@ -6,10 +6,12 @@ import { useSession, signOut } from 'next-auth/react';
 import { useCurrentUser } from '@/lib/current-user';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Shield, Power, LogIn, ArrowLeft, Calendar, ClipboardList, Package, Wallet, Bell, Headset } from 'lucide-react';
+import { Shield, Power, LogIn, ArrowLeft, Calendar, ClipboardList, Package, Wallet, Bell, Headset, ShoppingBag, UserRound, type LucideIcon } from 'lucide-react';
 import { CenterSelector } from './CenterSelector';
 import { useCenter } from '@/lib/center-context';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useMarketplaceStatus } from '@/lib/marketplace-status';
+import { ADMIN_SHOP_PATH, PROFILE_PATH, SHOP_PATH, STORE_NAV_LABEL } from '@/lib/marketplace';
 
 export default function Navbar() {
   // `session` is only consulted to decide which sign-out to run — a
@@ -21,6 +23,10 @@ export default function Navbar() {
   const router = useRouter();
   const { canAccessAdminPanelAtCurrentCenter, isStaffAtCurrentCenter, loading: centerLoading } = useCenter();
   const [scrolled, setScrolled] = useState(false);
+  // A store that is switched off shows no Store link at all; one still
+  // pre-launch gets a "Pre-book" pill — not "Soon", which told a visitor
+  // to go away and come back when the page is asking them to act.
+  const { loading: shopLoading, enabled: shopEnabled, comingSoon: shopComingSoon } = useMarketplaceStatus();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -36,7 +42,10 @@ export default function Navbar() {
   // the buttons to avoid a flash for users without admin rights.
   // Moderators (restricted admins) reach the admin panel through this same
   // button — the panel itself hides the surfaces they can't use.
-  const showAdmin = isLoggedIn && !centerLoading && canAccessAdminPanelAtCurrentCenter;
+  // A store admin who holds no center role still needs a way into the
+  // panel — the middleware lands them on the Cricket Store.
+  const isStoreAdmin = currentUser?.isStoreAdmin === true;
+  const showAdmin = isLoggedIn && !centerLoading && (canAccessAdminPanelAtCurrentCenter || isStoreAdmin);
   const showStaff = isLoggedIn && !centerLoading && isStaffAtCurrentCenter;
   const isInAdminMode = pathname.startsWith('/admin');
   // /operator is a legacy redirect to /staff; treat both as "staff mode"
@@ -50,10 +59,13 @@ export default function Navbar() {
 
   if (pathname === '/') return null;
 
-  const desktopNavLinks = [
+  const desktopNavLinks: Array<{ href: string; label: string; icon: LucideIcon; soon?: boolean }> = [
     { href: '/slots', label: 'Book Slot', icon: Calendar },
     { href: '/bookings', label: 'My Bookings', icon: ClipboardList },
     { href: '/packages', label: 'Packages', icon: Package },
+    // Only marked "Pre-book" once the status is known — the optimistic
+    // default would flash the pill on a live store and then pull it.
+    ...(shopEnabled ? [{ href: SHOP_PATH, label: STORE_NAV_LABEL, icon: ShoppingBag, soon: !shopLoading && shopComingSoon }] : []),
     { href: '/wallet', label: 'Wallet', icon: Wallet },
     { href: '/notifications', label: 'Alerts', icon: Bell },
   ];
@@ -99,13 +111,13 @@ export default function Navbar() {
           {/* Desktop Navigation Links — hidden on mobile (BottomNav handles mobile) */}
           {isLoggedIn && !isInAdminMode && !isInStaffMode && (
             <div className="hidden md:flex items-center gap-1">
-              {desktopNavLinks.map(({ href, label, icon: Icon }) => {
+              {desktopNavLinks.map(({ href, label, icon: Icon, soon }) => {
                 const active = isNavActive(href);
                 return (
                   <Link
                     key={href}
                     href={href}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all lg:whitespace-nowrap ${
                       active
                         ? 'text-accent bg-accent/10'
                         : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -113,6 +125,11 @@ export default function Navbar() {
                   >
                     <Icon className="w-4 h-4" />
                     {label}
+                    {soon && (
+                      <span className="px-1.5 py-px rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[9px] font-bold uppercase whitespace-nowrap">
+                        Pre-book
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -140,11 +157,27 @@ export default function Navbar() {
                   </Link>
                 )}
 
+                {/* User mode: Profile — name and delivery addresses. Admin and
+                    staff layouts carry their own chrome, so it stays out of those. */}
+                {!isInAdminMode && !isInStaffMode && (
+                  <Link
+                    href={PROFILE_PATH}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      isNavActive(PROFILE_PATH)
+                        ? 'text-accent bg-accent/10'
+                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <UserRound className="w-4 h-4" />
+                    <span className="hidden md:inline">Profile</span>
+                  </Link>
+                )}
+
                 {/* User mode: Admin button — visible when the user is an ADMIN,
                     a MODERATOR, or a super admin at the currently-selected center. */}
                 {!isInAdminMode && showAdmin && (
                   <Link
-                    href="/admin"
+                    href={canAccessAdminPanelAtCurrentCenter ? '/admin' : ADMIN_SHOP_PATH}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all text-white/70 hover:text-white hover:bg-white/10"
                   >
                     <Shield className="w-4 h-4" />

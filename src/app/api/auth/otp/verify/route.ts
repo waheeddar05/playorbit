@@ -141,6 +141,8 @@ export async function POST(req: NextRequest) {
       // this account later can turn a published credential into an admin one.
       role: isReviewer ? 'USER' : promote ? 'ADMIN' : user.role,
       mobileVerified: true,
+      isSuperAdmin: promote || user.isSuperAdmin === true,
+      isStoreAdmin: user.isStoreAdmin === true,
     });
 
     // Sessions last 400 days and renew while in use, so a returning user

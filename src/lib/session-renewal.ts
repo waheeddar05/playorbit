@@ -34,6 +34,13 @@ export interface SessionUser {
   mobileNumber: string | null;
   role: string;
   mobileVerified: boolean;
+  /**
+   * Platform grants, re-stated on every renewal so the middleware can keep
+   * routing a store admin into /admin/shop. Pass the auth object's values:
+   * `isSuperAdmin` there folds in the SUPER_ADMIN_EMAIL fallback.
+   */
+  isSuperAdmin: boolean;
+  isStoreAdmin: boolean;
 }
 
 /**
@@ -59,6 +66,7 @@ export async function renewSessionIfStale(
     return false;
   }
 
+  const isReviewer = user.email === REVIEW_ACCOUNT_EMAIL;
   const token = await signToken({
     userId: user.id,
     name: user.name,
@@ -67,8 +75,10 @@ export async function renewSessionIfStale(
     // Same cap the verify route applies: the Play reviewer's published
     // credential must never become more than a customer session, whatever
     // happens to that row later.
-    role: user.email === REVIEW_ACCOUNT_EMAIL ? 'USER' : user.role,
+    role: isReviewer ? 'USER' : user.role,
     mobileVerified: user.mobileVerified,
+    isSuperAdmin: !isReviewer && user.isSuperAdmin,
+    isStoreAdmin: !isReviewer && user.isStoreAdmin,
   });
   setSessionCookie(response, token);
   return true;

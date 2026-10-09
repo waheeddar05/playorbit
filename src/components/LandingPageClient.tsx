@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Calendar, Zap, Instagram, Phone, Target, Shield, Users, Star, ArrowRight, MapPin, Building2, Mail, Crosshair, GraduationCap, LayoutGrid, Maximize2, Wallet } from 'lucide-react';
+import { Calendar, Zap, Instagram, Phone, Target, Shield, Users, Star, ArrowRight, MapPin, Building2, Mail, Crosshair, GraduationCap, LayoutGrid, Maximize2, Wallet, ShoppingBag, MessageCircle } from 'lucide-react';
 import LoginModal from './LoginModal';
+import { LandingShopSection } from './shop/LandingShopSection';
+import { KisMarquee } from './shop/KisMarquee';
+import { KIS_MODEL, KIS_RIBBON_PHOTOS, isKisModel } from '@/lib/kis-showcase';
 import { INSTAGRAM_URL } from '@/lib/client-constants';
+import { SHOP_PATH, STORE_NAV_LABEL, buildWhatsAppLink, formatRupees } from '@/lib/marketplace';
+import { DEFAULT_POST_LOGIN_PATH, safeNextPath } from '@/lib/login-href';
+import { useMarketplaceStatus } from '@/lib/marketplace-status';
 import { useCenter } from '@/lib/center-context';
 import { useCurrentUser } from '@/lib/current-user';
 
@@ -19,12 +25,83 @@ import { useCurrentUser } from '@/lib/current-user';
  */
 let autoRedirected = false;
 
+/**
+ * `/shop` sends a signed-out visitor here as `/?login=1` so the login modal
+ * opens on arrival. The flag is read straight off `window.location` through
+ * a tiny external store rather than `useSearchParams` (which would force a
+ * Suspense boundary around the whole page) or a mount effect with setState
+ * (which the react-hooks lint rules reject). The server snapshot is false,
+ * so the modal never renders during SSR/hydration.
+ */
+function subscribeToLocation(cb: () => void): () => void {
+  window.addEventListener('popstate', cb);
+  return () => window.removeEventListener('popstate', cb);
+}
+
+function getLoginRequestedSnapshot(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get('login') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function getLoginRequestedServerSnapshot(): boolean {
+  return false;
+}
+
+/**
+ * `/?login=1&next=/shop/abc` — where to go once signed in. Validated by
+ * `safeNextPath` so only a same-origin path ever gets through. A string
+ * snapshot (not an object) keeps useSyncExternalStore stable.
+ */
+function getNextPathSnapshot(): string {
+  try {
+    return safeNextPath(new URLSearchParams(window.location.search).get('next')) ?? DEFAULT_POST_LOGIN_PATH;
+  } catch {
+    return DEFAULT_POST_LOGIN_PATH;
+  }
+}
+
+function getNextPathServerSnapshot(): string {
+  return DEFAULT_POST_LOGIN_PATH;
+}
+
+/**
+ * One chip in the "Ready to play?" strip. A fixed width on phones so three
+ * sit per row and the text inside never has to truncate; natural width
+ * from `md` up where the whole strip fits on one line.
+ */
+const contactChipClass =
+  'flex flex-col items-center gap-0.5 md:gap-1.5 group active:scale-95 transition-transform w-[92px] md:w-auto md:min-w-[96px]';
+
 export default function LandingPageClient() {
   const [loginOpen, setLoginOpen] = useState(false);
+  // Once the visitor closes a `?login=1` modal it stays closed; the Login
+  // button still opens it through `loginOpen` as before.
+  const [loginRequestDismissed, setLoginRequestDismissed] = useState(false);
+  const loginRequested = useSyncExternalStore(
+    subscribeToLocation,
+    getLoginRequestedSnapshot,
+    getLoginRequestedServerSnapshot,
+  );
+  const postLoginPath = useSyncExternalStore(
+    subscribeToLocation,
+    getNextPathSnapshot,
+    getNextPathServerSnapshot,
+  );
   const router = useRouter();
   const { user: currentUser, loading: userLoading } = useCurrentUser();
   const { centers, currentCenter } = useCenter();
   const hasMultipleCenters = centers.length >= 2;
+  // The store: hidden when switched off, amber while pre-launch. The
+  // "Pre-book" cue is only shown once the status is known so a live store
+  // never flashes the label for a beat.
+  const { status: shopStatus, loading: shopLoading, enabled: shopEnabled, comingSoon: shopComingSoon } = useMarketplaceStatus();
+  const shopSoon = !shopLoading && shopComingSoon;
+  // The bat's live price for the ribbon label, off the catalog row so the
+  // landing page can never quote a number the product page disagrees with.
+  const shopBat = shopStatus?.featured.find(isKisModel) ?? shopStatus?.featured[0] ?? null;
 
   // "Ready to play?" contacts come from the selected center only —
   // not the platform-wide CONTACT_NUMBERS allowlist. Phones come from
@@ -48,6 +125,16 @@ export default function LandingPageClient() {
     return single.length > 0 ? [{ name: null, number: single }] : [];
   })();
 
+  // WhatsApp is the channel most visitors actually use (sign-in itself is
+  // WhatsApp-only), so the strip and the footer's Support link open a chat
+  // with the center's primary number. `buildWhatsAppLink` rejects anything
+  // that isn't an Indian mobile, so a center with no usable number simply
+  // gets no chip — same "missing field, no chip" rule as the rest.
+  const whatsAppHref = buildWhatsAppLink(
+    (currentCenter?.contactPhone ?? '').trim() || phoneContacts[0]?.number,
+    `Hi PlayOrbit, I'd like to book a session${currentCenter ? ` at ${currentCenter.shortName || currentCenter.name}` : ''}.`,
+  );
+
   // A signed-in visitor should never be looking at this page.
   //
   // `src/app/page.tsx` already redirects them on the server, but that read
@@ -60,8 +147,8 @@ export default function LandingPageClient() {
   useEffect(() => {
     if (userLoading || !currentUser || autoRedirected) return;
     autoRedirected = true;
-    router.replace('/slots');
-  }, [userLoading, currentUser, router]);
+    router.replace(postLoginPath);
+  }, [userLoading, currentUser, router, postLoginPath]);
 
   // Already signed in? Go straight to booking. Asking a returning user to
   // re-verify a number they already own is the wrong answer to "Book Now",
@@ -69,13 +156,20 @@ export default function LandingPageClient() {
   // it is a dead end rather than a blink.
   const openLogin = () => {
     if (currentUser) {
-      router.push('/slots');
+      router.push(postLoginPath);
       return;
     }
     if (userLoading) return; // don't flash the form before we know
     setLoginOpen(true);
   };
-  const closeLogin = () => setLoginOpen(false);
+  const closeLogin = () => {
+    setLoginOpen(false);
+    setLoginRequestDismissed(true);
+  };
+  // A `?login=1` arrival opens the modal only for a signed-out visitor — a
+  // signed-in one is already being redirected to /slots above.
+  const loginModalOpen =
+    loginOpen || (loginRequested && !loginRequestDismissed && !userLoading && !currentUser);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#030712] text-slate-200 selection:bg-accent/30 selection:text-white">
@@ -86,8 +180,12 @@ export default function LandingPageClient() {
         <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[30%] h-[30%] bg-cyan-500/4 rounded-full blur-[120px]"></div>
       </div>
 
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-white/5 px-4 md:px-6 py-1.5 md:py-2">
+      {/* Navigation — a fixed bar the whole page scrolls under, so it needs
+          a real backdrop: a near-opaque tint plus blur. The bat and machine
+          photos are bright, and at 20% black the buttons sat on top of the
+          content scrolling past. Tailwind's own backdrop utility rather
+          than `.glass-dark` so the (unlayered) class can't override the bg. */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#030712]/85 backdrop-blur-xl border-b border-white/5 px-4 md:px-6 py-1.5 md:py-2">
         <div className="max-w-7xl mx-auto flex justify-between items-center h-10 md:h-10">
           <div className="flex items-center gap-1.5 md:gap-2">
             <Image
@@ -111,6 +209,23 @@ export default function LandingPageClient() {
               >
                 <MapPin className="w-3.5 h-3.5" />
                 {centers.length} Locations
+              </Link>
+            )}
+            {/* Store entry point — on every size, since a visitor can browse
+                the shop signed out. Compact on phones; the pre-launch cue is
+                the amber tint there and "· Pre-book" from sm up. */}
+            {shopEnabled && (
+              <Link
+                href={SHOP_PATH}
+                className={`flex items-center gap-1.5 text-xs md:text-sm font-bold px-3 md:px-4 py-2 rounded-full border transition-all active:scale-95 cursor-pointer whitespace-nowrap ${
+                  shopSoon
+                    ? 'text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30'
+                    : 'text-accent bg-accent/10 hover:bg-accent/20 border-accent/25'
+                }`}
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                {STORE_NAV_LABEL}
+                {shopSoon && <span className="hidden sm:inline">&middot; Pre-book</span>}
               </Link>
             )}
             <button
@@ -192,6 +307,30 @@ export default function LandingPageClient() {
           )}
         </div>
       </section>
+
+      {/* KIS ribbon — the store sells one bat, so it gets a moving band of
+          its own photography directly under the hero, before anything else
+          on the page. Slim on purpose: it is a pointer into /shop, not the
+          campaign itself (that is the spotlight further down). Rendered
+          while the store status is still loading too, so it does not pop in
+          and shove the page down a beat after paint. */}
+      {(shopLoading || shopEnabled) && (
+        <section className="relative z-10 pt-3 pb-4 md:pt-6 md:pb-7 animate-fade-in delay-500">
+          <div className="max-w-6xl mx-auto px-4 md:px-6 mb-2 md:mb-3 flex items-center gap-3">
+            <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
+            <Link
+              href={SHOP_PATH}
+              className="inline-flex items-center gap-1.5 text-[9px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 hover:text-accent transition-colors whitespace-nowrap"
+            >
+              <ShoppingBag className="w-3 h-3" />
+              Now in the store &mdash; {KIS_MODEL.fullName}
+              {shopBat && <span className="text-white"> &middot; {formatRupees(shopBat.price)}</span>}
+            </Link>
+            <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
+          </div>
+          <KisMarquee size="slim" href={SHOP_PATH} duration={46} photos={KIS_RIBBON_PHOTOS} />
+        </section>
+      )}
 
       {/* Stats Section */}
       <section className="relative z-10 py-2 md:py-5 border-y border-white/5 glass-dark overflow-hidden">
@@ -306,14 +445,15 @@ export default function LandingPageClient() {
               </div>
             </div>
 
-            {/* Machine Card 4: Leverage Outdoor */}
+            {/* Machine Card 4: Leverage Outdoor — the full tripod shot, so the
+                two iWinner cards don't show the same close-up twice. */}
             <div className="group relative rounded-xl md:rounded-2xl overflow-hidden border border-white/[0.06] hover:border-accent/20 transition-all duration-500 bg-[#060d1b]/80 hover:shadow-[0_8px_40px_rgba(56,189,248,0.08)]">
               <div className="relative aspect-[4/3] bg-[#050b14] overflow-hidden">
                 <Image
-                  src="/images/leverage-tennis.jpeg"
-                  alt="iWinner outdoor tennis machine"
+                  src="/images/tennismachine.jpeg"
+                  alt="iWinner outdoor tennis machine on its tripod"
                   fill
-                  className="object-cover object-[center_25%] group-hover:scale-105 transition-transform duration-700 opacity-85 group-hover:opacity-100"
+                  className="object-cover object-[center_20%] group-hover:scale-105 transition-transform duration-700 opacity-85 group-hover:opacity-100"
                   loading="lazy"
                   sizes="(max-width: 768px) 50vw, 600px"
                 />
@@ -390,6 +530,9 @@ export default function LandingPageClient() {
         </div>
       </section>
 
+      {/* Shop — featured gear, or the launch line-up until products exist */}
+      <LandingShopSection />
+
       {/* Features Grid */}
       <section className="relative z-10 px-4 md:px-6 py-4 md:py-10 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/[0.02] to-transparent -z-10"></div>
@@ -438,42 +581,56 @@ export default function LandingPageClient() {
               Instagram handle, and the center's Google Maps link.
               Missing fields render no chip rather than a generic
               fallback. */}
-          {/* Single horizontal row. We let it scroll horizontally on
-              narrow screens (overflow-x-auto) rather than wrap so all
-              five entries — multiple phones + Instagram + Location —
-              stay in one line per the design requirement. The wrap
-              variant was rendering 2–3 rows on phone widths which
-              admins complained looked cluttered. */}
-          <div className="flex flex-nowrap items-start justify-center gap-3 md:gap-8 w-full overflow-x-auto -mx-2 px-2 snap-x">
+          {/* Fixed-width chips that wrap and stay centred. The previous
+              single scrolling row gave every chip `min-w-0`, so at phone
+              widths six of them shrank to ~44px and `truncate` cut the
+              phone numbers to "997501…" — the one thing a visitor came
+              here to read. Three chips per row on a phone, one row on
+              desktop; nothing here is ever truncated. */}
+          <div className="flex flex-wrap items-start justify-center gap-x-4 gap-y-4 md:gap-x-8">
             {phoneContacts.map((c, idx) => (
               <a
                 key={`${c.number}-${idx}`}
                 href={`tel:${c.number}`}
-                className="flex flex-col items-center gap-0.5 md:gap-1.5 group active:scale-95 transition-transform min-w-0"
+                className={contactChipClass}
               >
                 <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center group-hover:bg-accent group-hover:text-primary group-hover:border-accent/40 transition-all group-hover:shadow-[0_0_24px_rgba(56,189,248,0.25)] mb-0.5 md:mb-1 flex-shrink-0">
                   <Phone className="w-3.5 h-3.5 md:w-5 md:h-5" />
                 </div>
-                <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 truncate w-full text-center">
+                <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 w-full text-center leading-tight">
                   {c.name || currentCenter?.shortName || currentCenter?.name || 'Phone'}
                 </span>
-                <span className="text-white font-bold text-[9px] md:text-sm truncate w-full tabular-nums text-center">
+                <span className="text-white font-bold text-[10px] md:text-sm w-full tabular-nums whitespace-nowrap text-center">
                   {c.number}
                 </span>
               </a>
             ))}
+            {whatsAppHref && (
+              <a
+                href={whatsAppHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={contactChipClass}
+              >
+                <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 flex items-center justify-center group-hover:bg-[#25D366] group-hover:text-white group-hover:border-[#25D366]/40 transition-all group-hover:shadow-[0_0_24px_rgba(37,211,102,0.3)] mb-0.5 md:mb-1 flex-shrink-0">
+                  <MessageCircle className="w-3.5 h-3.5 md:w-5 md:h-5" />
+                </div>
+                <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 w-full text-center leading-tight">WhatsApp</span>
+                <span className="text-white font-bold text-[10px] md:text-sm w-full text-center whitespace-nowrap">Chat with us</span>
+              </a>
+            )}
             {centerEmail && (
               <a
                 href={`mailto:${centerEmail}`}
-                className="flex flex-col items-center gap-0.5 md:gap-1.5 group active:scale-95 transition-transform min-w-0"
+                className={contactChipClass}
               >
                 <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center group-hover:bg-accent group-hover:text-primary group-hover:border-accent/40 transition-all group-hover:shadow-[0_0_24px_rgba(56,189,248,0.25)] mb-0.5 md:mb-1 flex-shrink-0">
                   <Mail className="w-3.5 h-3.5 md:w-5 md:h-5" />
                 </div>
-                <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 truncate w-full text-center">
+                <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 w-full text-center leading-tight">
                   Email
                 </span>
-                <span className="text-white font-bold text-[9px] md:text-sm truncate w-full text-center">
+                <span className="text-white font-bold text-[10px] md:text-sm w-full text-center break-all leading-tight">
                   {centerEmail}
                 </span>
               </a>
@@ -482,26 +639,26 @@ export default function LandingPageClient() {
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col items-center gap-0.5 md:gap-1.5 group active:scale-95 transition-transform min-w-0"
+              className={contactChipClass}
             >
               <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center group-hover:bg-[#E1306C] group-hover:text-white group-hover:border-[#E1306C]/40 transition-all group-hover:shadow-[0_0_24px_rgba(225,48,108,0.3)] mb-0.5 md:mb-1 flex-shrink-0">
                 <Instagram className="w-3.5 h-3.5 md:w-5 md:h-5" />
               </div>
-              <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 truncate w-full text-center">Instagram</span>
-              <span className="text-white font-bold text-[9px] md:text-sm truncate w-full text-center">@playorbit.in</span>
+              <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 w-full text-center leading-tight">Instagram</span>
+              <span className="text-white font-bold text-[10px] md:text-sm w-full text-center whitespace-nowrap">@playorbit.in</span>
             </a>
             {centerMapUrl && (
               <a
                 href={centerMapUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-col items-center gap-0.5 md:gap-1.5 group active:scale-95 transition-transform min-w-0"
+                className={contactChipClass}
               >
                 <div className="w-9 h-9 md:w-12 md:h-12 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center group-hover:bg-accent group-hover:text-primary group-hover:border-accent/40 transition-all group-hover:shadow-[0_0_24px_rgba(56,189,248,0.25)] mb-0.5 md:mb-1 flex-shrink-0">
                   <MapPin className="w-3.5 h-3.5 md:w-5 md:h-5" />
                 </div>
-                <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 truncate w-full text-center">Location</span>
-                <span className="text-white font-bold text-[9px] md:text-sm truncate w-full text-center">Directions</span>
+                <span className="text-[8px] md:text-[11px] uppercase font-bold tracking-wider text-slate-600 w-full text-center leading-tight">Location</span>
+                <span className="text-white font-bold text-[10px] md:text-sm w-full text-center whitespace-nowrap">Directions</span>
               </a>
             )}
           </div>
@@ -523,23 +680,37 @@ export default function LandingPageClient() {
             />
           </div>
 
+          {/* Customer-facing links only. "Admin" used to sit here but only
+              opened the same login modal as Book Now — staff reach the
+              panel from the navbar once signed in. Support goes to
+              WhatsApp, falling back to email; with neither configured
+              the link is dropped rather than pointing at "#". */}
           <div className="flex items-center gap-6 md:gap-6">
             <button onClick={openLogin} className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-500 hover:text-accent transition-colors py-3 min-h-[44px] flex items-center cursor-pointer">Book Now</button>
-            <button onClick={openLogin} className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-500 hover:text-accent transition-colors py-3 min-h-[44px] flex items-center cursor-pointer">Admin</button>
-            <a href="#" className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-500 hover:text-accent transition-colors py-3 min-h-[44px] flex items-center">Support</a>
+            {shopEnabled && (
+              <Link href={SHOP_PATH} className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-500 hover:text-accent transition-colors py-3 min-h-[44px] flex items-center">
+                {STORE_NAV_LABEL}
+              </Link>
+            )}
+            {(whatsAppHref || centerEmail) && (
+              <a
+                href={whatsAppHref ?? `mailto:${centerEmail}`}
+                {...(whatsAppHref ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-500 hover:text-accent transition-colors py-3 min-h-[44px] flex items-center"
+              >
+                Support
+              </a>
+            )}
           </div>
 
           <div className="text-center md:text-right">
             <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-slate-700 leading-none">&copy; {new Date().getFullYear()} PlayOrbit. Designed for Champions.</p>
           </div>
         </div>
-        <div className="mt-2 md:mt-4 text-center">
-          <p className="text-xs font-bold text-slate-800 uppercase tracking-[0.3em]">Built with Excellence by Waheed</p>
-        </div>
       </footer>
 
       {/* Login Modal */}
-      <LoginModal isOpen={loginOpen} onClose={closeLogin} />
+      <LoginModal isOpen={loginModalOpen} onClose={closeLogin} redirectTo={postLoginPath} />
     </div>
   );
 }

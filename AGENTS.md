@@ -245,3 +245,6 @@ The legacy `getRazorpayInstance()` and `verifyPaymentSignature(...)` are depreca
 A `WALLET_SCOPE` policy ('CENTER' | 'GLOBAL') is reserved for future use — wallets stay per-center for now. To switch to global wallets later: relax `Wallet.centerId` to nullable, add a resolver that picks the right wallet based on the policy, and migrate existing per-center balances into a single global row per user.
 
 ## Imported Claude Cowork project instructions
+
+### Cricket Store
+The in-app store — bats, gloves, thigh guards and other gear. Customers see it as "Cricket Store" at `/shop` (browsable signed-out); the back office is Admin → Cricket Store at `/admin/shop`. One catalog for all of PlayOrbit — NOT center-scoped — run by store admins (`User.isStoreAdmin`, granted by super admins from Admin → Users or `make-admin.ts --store`) and super admins, never by center admins. Launch state is the global `MARKETPLACE_CONFIG` policy (`{ enabled, comingSoon, launchNote, pickupNote, enquiryPhone }`, default Coming soon, pickup at Toplay). Product photos are stored in Postgres and served by `/api/shop/images/[id]`. Users edit name, email and delivery addresses on `/profile`. See the "Cricket Store" section of `CLAUDE.md` for the full design.

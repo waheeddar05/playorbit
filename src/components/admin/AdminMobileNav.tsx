@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCurrentUser } from '@/lib/current-user';
-import { LayoutDashboard, CalendarCheck, Clock, Users, UserCog, SlidersHorizontal, Package, Tag, Building2, HardHat, BookOpenCheck, Bell } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, Clock, Users, UserCog, SlidersHorizontal, Package, Tag, Building2, HardHat, BookOpenCheck, Bell, Store } from 'lucide-react';
 import { useCenter } from '@/lib/center-context';
 
 type BookingModel = 'MACHINE_PITCH' | 'RESOURCE_BASED';
@@ -30,6 +30,8 @@ export function AdminMobileNav() {
     const isAdminLevel = isAdmin || isModerator;
     const isCenterAdmin =
       !isSuperAdmin && isAdmin && !!currentCenter;
+    // Store admins + super admins only — see the note in the desktop layout.
+    const canManageStore = isSuperAdmin || sessionUser?.isStoreAdmin === true;
 
     // We also allow Sidearm Specialists to access the /admin/sidearm page
     // so they can manage their own availability.
@@ -62,6 +64,9 @@ export function AdminMobileNav() {
         { href: '/admin/ground-staff', label: 'Ground', icon: HardHat, models: ['RESOURCE_BASED'], hidden: !isAdmin },
         { href: '/admin/packages', label: 'Packages', icon: Package, hidden: !isAdminLevel },
         { href: '/admin/offers', label: 'Offers', icon: Tag, hidden: !isAdmin },
+        // Cricket Store — store admins + super admins. Short "Store" label
+        // keeps the bottom-nav cell tidy; the page is titled "Cricket Store".
+        { href: '/admin/shop', label: 'Store', icon: Store, hidden: !canManageStore },
         // Ledger — manual revenue + expenses. Admins and moderators.
         { href: '/admin/ledger', label: 'Ledger', icon: BookOpenCheck, hidden: !isAdminLevel },
         // Alerts — the in-app inbox at /notifications, where center-wide
