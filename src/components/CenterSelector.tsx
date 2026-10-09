@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Building2, ChevronDown, Check } from 'lucide-react';
 import { useCenter } from '@/lib/center-context';
+
+/** Keep the dropdown at least this far inside the screen edge. */
+const VIEWPORT_MARGIN_PX = 8;
 
 /**
  * Compact center selector for the user-facing Navbar.
@@ -14,12 +17,16 @@ import { useCenter } from '@/lib/center-context';
  *   which sets the cookie and reloads the page.
  * - "See all centers" link at the bottom routes to /centers for the
  *   richer view (with geolocation, addresses, etc.).
+ * - The dropdown hangs from the pill's right edge, but flips to its left
+ *   edge when that would run off-screen — on a phone, an admin's navbar
+ *   (profile, admin, support, logout) pushes the pill to the left.
  */
 export function CenterSelector({ compact = false }: { compact?: boolean }) {
   const { centers, currentCenter, switchTo, loading } = useCenter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -29,6 +36,18 @@ export function CenterSelector({ compact = false }: { compact?: boolean }) {
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
+
+  // Measured before paint, so a flipped panel never flashes off-screen.
+  // Inline style, not state: React never sets `style` on the panel, and it
+  // unmounts on close, so the next open starts right-aligned again.
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!open || !panel) return;
+    if (panel.getBoundingClientRect().left < VIEWPORT_MARGIN_PX) {
+      panel.style.left = '0';
+      panel.style.right = 'auto';
+    }
+  }, [open]);
 
   if (loading || centers.length <= 1) return null;
 
@@ -75,7 +94,10 @@ export function CenterSelector({ compact = false }: { compact?: boolean }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 min-w-[12rem] rounded-xl bg-[#0b1726] border border-white/[0.10] shadow-2xl overflow-hidden z-50">
+        <div
+          ref={panelRef}
+          className="absolute right-0 top-full mt-1 min-w-[12rem] max-w-[calc(100vw-1rem)] rounded-xl bg-[#0b1726] border border-white/[0.10] shadow-2xl overflow-hidden z-50"
+        >
           <div className="py-1 max-h-72 overflow-y-auto" role="listbox">
             {centers.map((c) => {
               const active = c.id === currentCenter?.id;
