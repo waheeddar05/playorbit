@@ -5,6 +5,7 @@ import { inspectToken, signToken } from '@/lib/jwt';
 import { normalizeIndianMobile } from '@/lib/otp-delivery';
 import { SESSION_COOKIE_NAME, setSessionCookie } from '@/lib/session-cookie';
 import { isReviewLoginMobile, REVIEW_ACCOUNT_EMAIL } from '@/lib/review-login';
+import { CLIENT_CONTEXT_HEADER } from '@/lib/client-context';
 
 /**
  * POST /api/auth/otp/verify — step 2 of the WhatsApp login.
@@ -160,6 +161,8 @@ export async function POST(req: NextRequest) {
         priorUserId: priorClaims?.userId ?? null,
         priorIat: priorClaims?.iat ?? null,
         userAgent: req.headers.get('user-agent'),
+        // twa / ios-home-screen / installed-pwa / browser — see client-context.ts.
+        clientContext: req.headers.get(CLIENT_CONTEXT_HEADER)?.slice(0, 32) ?? null,
       });
     } catch (error) {
       console.warn('[otp.login] prior-session diagnostic failed:', error);

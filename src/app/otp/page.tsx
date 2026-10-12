@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldCheck, ArrowLeft } from 'lucide-react';
+import { CLIENT_CONTEXT_HEADER, clientContext } from '@/lib/client-context';
 
 export default function OtpPage() {
   const [otp, setOtp] = useState('');
@@ -33,7 +34,7 @@ export default function OtpPage() {
     try {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', [CLIENT_CONTEXT_HEADER]: clientContext() },
         body: JSON.stringify({ mobileNumber, otp }),
       });
 

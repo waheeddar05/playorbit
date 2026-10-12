@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { CLIENT_CONTEXT_HEADER, clientContext } from '@/lib/client-context';
 
 /**
  * WhatsApp login — the only way into PlayOrbit.
@@ -126,7 +127,7 @@ export default function LoginModal({ isOpen, onClose, redirectTo = '/slots' }: L
     try {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', [CLIENT_CONTEXT_HEADER]: clientContext() },
         body: JSON.stringify({ mobileNumber: mobile, otp }),
       });
       const data = await res.json().catch(() => ({}));

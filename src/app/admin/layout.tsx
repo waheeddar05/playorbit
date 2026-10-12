@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { useCurrentUser } from '@/lib/current-user';
 import { LayoutDashboard, CalendarCheck, Users, Clock, Wrench, Package, Zap, SlidersHorizontal, ArrowLeft, Power, DatabaseZap, UserCog, Tag, Building2, AlertTriangle, HardHat, BookOpenCheck, Bell, Store } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { AdminMobileNav } from '@/components/admin/AdminMobileNav';
 import { CenterSwitcher } from '@/components/admin/CenterSwitcher';
 import { useCenter } from '@/lib/center-context';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 const SUPER_ADMIN_EMAIL = 'waheeddar8@gmail.com';
 
@@ -38,6 +40,22 @@ export default function AdminLayout({
   // `isAdminLevel` is the gate for everything a moderator IS allowed to see.
   const isModerator = sessionUser?.role === 'MODERATOR';
   const isAdminLevel = isAdmin || isModerator;
+
+  // Same confirmation as the Navbar's logout — see there for why.
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+
+  // NextAuth's signOut() alone never ended a WhatsApp session: that is the
+  // httpOnly `token` cookie, which only /api/auth/logout can clear. The
+  // panel's Logout used to call signOut() only, so the middleware saw the
+  // still-valid token on /login and bounced the admin straight back in.
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Fall through — signOut() still clears any legacy session and leaves.
+    }
+    await signOut({ callbackUrl: '/' });
+  };
   const isCenterAdmin = !isSuperAdmin && isAdmin && !!currentCenter;
   // The Cricket Store is one catalog for all of PlayOrbit, run by store
   // admins (a platform-level flag) and super admins — never by center
@@ -165,7 +183,8 @@ export default function AdminLayout({
             User Mode
           </Link>
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={() => setConfirmingLogout(true)}
+            aria-label="Logout"
             className="flex items-center gap-1.5 text-red-400/70 hover:text-red-400 transition-colors text-xs font-medium px-2.5 py-1.5 rounded-lg bg-white/[0.04] active:scale-95 cursor-pointer"
           >
             <Power className="w-3 h-3" />
@@ -231,7 +250,7 @@ export default function AdminLayout({
               User Mode
             </Link>
             <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
+              onClick={() => setConfirmingLogout(true)}
               className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer text-red-400/70 hover:bg-white/[0.04] hover:text-red-400"
             >
               <Power className="w-4 h-4" />
@@ -247,6 +266,18 @@ export default function AdminLayout({
           </div>
         </main>
       </div>
+      <ConfirmDialog
+        open={confirmingLogout}
+        title="Log out?"
+        message="You'll need a new WhatsApp code to sign back in."
+        confirmLabel="Log out"
+        variant="danger"
+        onConfirm={() => {
+          setConfirmingLogout(false);
+          handleLogout();
+        }}
+        onCancel={() => setConfirmingLogout(false)}
+      />
     </div>
   );
 }
