@@ -5,6 +5,7 @@ import {
   coerceBallTypeForMachineType,
   ballOptionsFromEffective,
   coerceBallTypeFromEffective,
+  packageFormBallTypes,
   PACKAGE_BALL_OPTIONS,
   PACKAGE_BALL_TENNIS_OPTIONS,
 } from '@/lib/package-admin-labels';
@@ -113,5 +114,35 @@ describe('coerceBallTypeFromEffective', () => {
 
   it('defaults sensibly when nothing is pinned', () => {
     expect(coerceBallTypeFromEffective(null, null)).toBe('LEATHER');
+  });
+});
+
+describe('packageFormBallTypes', () => {
+  const iWinner = { effectiveBallTypes: ['TENNIS'] };
+  const yantra = { effectiveBallTypes: ['LEATHER', 'MACHINE'] };
+
+  it('offers a loaded pinned machine its own ball types', () => {
+    expect(packageFormBallTypes(iWinner, 'LEATHER')).toEqual(['TENNIS']);
+    expect(packageFormBallTypes(yantra, 'LEATHER')).toEqual(['LEATHER', 'MACHINE']);
+  });
+
+  it('keeps Tennis for a tennis package whose machine is not loaded', () => {
+    // Pinned to a deactivated iWinner: the form only loads active machines.
+    expect(packageFormBallTypes(undefined, 'TENNIS')).toEqual(['TENNIS']);
+  });
+
+  it('offers Leather/Machine for a leather package with no loaded machine', () => {
+    expect(packageFormBallTypes(undefined, 'LEATHER')).toEqual(['LEATHER', 'MACHINE']);
+    expect(packageFormBallTypes(null, null)).toEqual(['LEATHER', 'MACHINE']);
+  });
+
+  it('opens a tennis package saved without a ball type on Tennis', () => {
+    expect(coerceBallTypeFromEffective(packageFormBallTypes(iWinner, 'TENNIS'), null)).toBe('TENNIS');
+    expect(coerceBallTypeFromEffective(packageFormBallTypes(iWinner, 'TENNIS'), 'MACHINE')).toBe('TENNIS');
+  });
+
+  it('never changes a stored ball type the machine still offers', () => {
+    expect(coerceBallTypeFromEffective(packageFormBallTypes(yantra, 'LEATHER'), 'MACHINE')).toBe('MACHINE');
+    expect(coerceBallTypeFromEffective(packageFormBallTypes(undefined, 'TENNIS'), 'TENNIS')).toBe('TENNIS');
   });
 });

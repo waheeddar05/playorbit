@@ -21,7 +21,7 @@ import { useToast } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCenter } from '@/lib/center-context';
 import { useAdminRole } from '@/lib/useAdminRole';
-import { PACKAGE_WICKET_LABEL, PACKAGE_CATEGORY_LABEL, ballOptionsFromEffective, coerceBallTypeFromEffective, coerceBallTypeForMachineType } from '@/lib/package-admin-labels';
+import { PACKAGE_WICKET_LABEL, PACKAGE_CATEGORY_LABEL, ballOptionsFromEffective, coerceBallTypeFromEffective, packageFormBallTypes } from '@/lib/package-admin-labels';
 import { LABEL_MAP } from '@/lib/client-constants';
 import { PackageFilters, usePackageFilters, type BookingCategory } from '@/components/packages/PackageFilters';
 
@@ -69,6 +69,8 @@ interface PackageRow {
   /** Legacy MachineId enum on ABCA-era packages; lets the Machine Type
    *  filter match them through the machine's `legacyMachineId`. */
   machineId?: string | null;
+  /** 'LEATHER' | 'TENNIS' — which machine family the package redeems on. */
+  machineType?: string | null;
   ballType: string | null;
   wicketType: string | null;
   timingType: string;
@@ -88,6 +90,12 @@ interface PackageRow {
     machineUpgrades?: Record<string, number>;
   } | null;
   _count?: { userPackages: number };
+}
+
+/** A machine's family; with no loaded machine, the package's saved one. */
+function machineFamilyOf(machine: CenterMachineLite | undefined, fallback: string | null | undefined): 'LEATHER' | 'TENNIS' {
+  if (machine) return machine.machineType?.ballType === 'TENNIS' ? 'TENNIS' : 'LEATHER';
+  return fallback === 'TENNIS' ? 'TENNIS' : 'LEATHER';
 }
 
 const inputClass =
@@ -110,6 +118,11 @@ const emptyForm = {
   name: '',
   category: 'MACHINE' as string,
   machineRowId: '' as string,
+  // The package's machine family ('LEATHER' | 'TENNIS'). Follows the
+  // pinned machine when one is picked; kept from the saved package when
+  // its machine isn't in the (active-only) list, so editing a package
+  // pinned to a deactivated tennis machine still offers Tennis.
+  machineType: 'LEATHER' as string,
   timingType: 'DAY' as string,
   totalSessions: 4,
   validityDays: 30,
@@ -244,14 +257,16 @@ export function ResourcePackageManagement() {
       // the server-side compatibility check; everything else stays
       // LEATHER (the placeholder the resource model has always used).
       const submitMachine = machines.find((m) => m.id === form.machineRowId);
-      const submitMachineType = submitMachine?.machineType?.ballType === 'TENNIS' ? 'TENNIS' : 'LEATHER';
-      // Keep the ball type compatible with the pinned machine. A tennis
-      // machine (iWinner/Master 200) only supports Machine/Tennis, but a
-      // stale <select> value can leave `form.ballType` on an option the
-      // machine doesn't offer (e.g. 'LEATHER'). Coerce here so the saved
-      // value always matches the machine — and never trips the server's
-      // machine/ball-type check.
-      const submitBallType = coerceBallTypeForMachineType(submitMachineType, form.ballType);
+      const submitMachineType = machineFamilyOf(submitMachine, form.machineType);
+      // Save exactly what the Ball Type dropdown offers. A stale <select>
+      // value can leave `form.ballType` on an option the machine doesn't
+      // offer (e.g. 'MACHINE' on an iWinner, which offers Tennis only);
+      // coercing to the offered set means the saved value is always the one
+      // the admin saw selected.
+      const submitBallType = coerceBallTypeFromEffective(
+        packageFormBallTypes(submitMachine, submitMachineType),
+        form.ballType,
+      );
 
       // Assemble `extraChargeRules`:
       //   - timingUpgrade: applies only when timingType=DAY
@@ -362,13 +377,20 @@ export function ResourcePackageManagement() {
     // editing a saved package round-trips the same values back into
     // the inputs.
     const rules = p.extraChargeRules ?? null;
+    const pinned = machines.find((m) => m.id === p.machineRowId);
+    const machineType = machineFamilyOf(pinned, p.machineType);
     setEditingId(p.id);
     setShowForm(true);
     setForm({
       name: p.name,
       category: (p.category ?? 'MACHINE') as string,
       machineRowId: p.machineRowId ?? '',
-      ballType: (p.ballType ?? 'MACHINE') as string,
+      machineType,
+      // Open on the value that will be saved: the stored ball type when the
+      // machine offers it, otherwise its first offered one. A tennis package
+      // saved with no ball type therefore opens on Tennis, not on a hidden
+      // 'MACHINE' the dropdown can't show.
+      ballType: coerceBallTypeFromEffective(packageFormBallTypes(pinned, machineType), p.ballType),
       wicketType: (p.wicketType ?? 'ASTRO') as string,
       timingType: p.timingType ?? 'DAY',
       totalSessions: p.totalSessions,
@@ -411,11 +433,12 @@ export function ResourcePackageManagement() {
   // Ball Type options follow the *pinned* machine's actual supported
   // ball types. A tennis machine (e.g. Master 200) supports tennis only,
   // so its dropdown shows just "Tennis"; a leather machine shows
-  // "Leather" / "Machine". With no machine pinned we fall back to the
-  // broad Machine / Leather set.
+  // "Leather" / "Machine". With no loaded machine the package's own
+  // machine family decides (see packageFormBallTypes).
   const selectedMachine = machines.find((m) => m.id === form.machineRowId);
-  const ballTypeOptions = ballOptionsFromEffective(selectedMachine?.effectiveBallTypes);
-  const isTennisMachine = selectedMachine?.machineType?.ballType === 'TENNIS';
+  const formMachineType = machineFamilyOf(selectedMachine, form.machineType);
+  const ballTypeOptions = ballOptionsFromEffective(packageFormBallTypes(selectedMachine, formMachineType));
+  const isTennisMachine = formMachineType === 'TENNIS';
 
   // Other active machines of the SAME ball type as the pinned machine —
   // the valid cross-machine redemption targets. Only relevant when this
@@ -503,7 +526,7 @@ export function ResourcePackageManagement() {
               <label className="block text-[11px] font-medium text-slate-400 mb-1">Category *</label>
               <select
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value, machineRowId: '', ballType: 'MACHINE' })}
+                onChange={(e) => setForm({ ...form, category: e.target.value, machineRowId: '', machineType: 'LEATHER', ballType: 'MACHINE' })}
                 className={inputClass}
               >
                 {CATEGORY_OPTIONS.map((c) => (
@@ -524,14 +547,28 @@ export function ResourcePackageManagement() {
                 value={form.machineRowId}
                 onChange={(e) => {
                   const m = machines.find((mm) => mm.id === e.target.value);
+                  const machineType = machineFamilyOf(m, form.machineType);
                   // Auto-clear an incompatible ball type when pinning a
                   // machine that doesn't support the current selection
                   // (e.g. Leather → a tennis machine that only offers Tennis).
-                  setForm({ ...form, machineRowId: e.target.value, ballType: coerceBallTypeFromEffective(m?.effectiveBallTypes, form.ballType) });
+                  setForm({
+                    ...form,
+                    machineRowId: e.target.value,
+                    machineType,
+                    ballType: coerceBallTypeFromEffective(packageFormBallTypes(m, machineType), form.ballType),
+                  });
                 }}
                 className={inputClass}
               >
                 <option value="" className="bg-[#1a2a40]">Any machine of this category</option>
+                {/* A package pinned to a machine that has since been
+                    deactivated keeps its pin; say so instead of letting the
+                    select fall back to showing "Any machine". */}
+                {form.machineRowId && !selectedMachine && (
+                  <option value={form.machineRowId} className="bg-[#1a2a40]">
+                    Current machine (inactive)
+                  </option>
+                )}
                 {machines.map((m) => (
                   <option key={m.id} value={m.id} className="bg-[#1a2a40]">
                     {m.shortName ?? m.name}

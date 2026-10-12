@@ -138,6 +138,28 @@ export function ballOptionsFromEffective(
  * option. Used to auto-clear an incompatible selection when the pinned
  * machine changes.
  */
+/**
+ * The ball types the package create/edit form offers, as one rule for both
+ * modes: Gravity/Yantra offer Leather + Machine, Master 200/iWinner offer
+ * Tennis.
+ *
+ * A pinned machine the form has loaded decides through its effective ball
+ * types. When it hasn't — the package is pinned to a machine that has since
+ * been deactivated (the form only loads active ones), or pinned to none —
+ * the package's own stored `machineType` decides. Falling straight back to
+ * Leather/Machine there is what hid Tennis when editing a tennis package,
+ * and the save then rewrote it as a leather one.
+ */
+export function packageFormBallTypes(
+  pinned: { effectiveBallTypes?: string[] | null } | null | undefined,
+  packageMachineType: string | null | undefined,
+): string[] {
+  if (pinned?.effectiveBallTypes && pinned.effectiveBallTypes.length > 0) {
+    return pinned.effectiveBallTypes;
+  }
+  return packageMachineType === 'TENNIS' ? ['TENNIS'] : ['LEATHER', 'MACHINE'];
+}
+
 export function coerceBallTypeFromEffective(
   effectiveBallTypes: string[] | null | undefined,
   currentBallType: string | null | undefined,
