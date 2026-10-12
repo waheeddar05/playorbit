@@ -158,11 +158,13 @@ export default function Navbar() {
                 )}
 
                 {/* User mode: Profile — name and delivery addresses. Admin and
-                    staff layouts carry their own chrome, so it stays out of those. */}
+                    staff layouts carry their own chrome, so it stays out of those.
+                    Desktop only: on a phone it lives under the bottom bar's More,
+                    which leaves the header room for the center selector. */}
                 {!isInAdminMode && !isInStaffMode && (
                   <Link
                     href={PROFILE_PATH}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       isNavActive(PROFILE_PATH)
                         ? 'text-accent bg-accent/10'
                         : 'text-white/70 hover:text-white hover:bg-white/10'

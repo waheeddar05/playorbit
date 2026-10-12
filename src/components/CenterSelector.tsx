@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Building2, ChevronDown, Check } from 'lucide-react';
+import { MapPin, ChevronDown, Check } from 'lucide-react';
 import { useCenter } from '@/lib/center-context';
 
 /** Keep the dropdown at least this far inside the screen edge. */
@@ -66,31 +66,39 @@ export function CenterSelector({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="relative" ref={ref}>
+      {/* The selector decides every slot, price and package the user sees,
+          so it reads as a control rather than a caption: an accent-ringed
+          pill, a "Center" label over the name, and the location count. */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 rounded-lg font-medium transition-all cursor-pointer ${
-          compact
-            ? 'px-2 py-1.5 text-[11px] bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.08]'
-            : 'px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] text-slate-200 hover:text-white hover:bg-white/[0.08]'
-        }`}
+        className={`flex items-center rounded-xl font-medium transition-all cursor-pointer border border-accent/50 bg-accent/10 text-white shadow-[0_0_14px_rgba(56,189,248,0.25)] hover:bg-accent/20 hover:border-accent active:scale-95 ${
+          open ? 'bg-accent/20 border-accent' : ''
+        } ${compact ? 'gap-1.5 pl-2 pr-1.5 py-1' : 'gap-2 px-3 py-1.5'}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`Current location: ${label}. ${centers.length} locations available — switch center`}
       >
-        <Building2 className={compact ? 'w-3 h-3 text-accent' : 'w-3.5 h-3.5 text-accent'} />
-        <span className="truncate max-w-[7rem]">{label}</span>
+        <MapPin className={`flex-shrink-0 text-accent ${compact ? 'w-4 h-4' : 'w-[18px] h-[18px]'}`} />
+        <span className="flex flex-col items-start leading-none min-w-0">
+          <span className={`uppercase tracking-wider font-bold text-accent/80 ${compact ? 'text-[8px]' : 'text-[9px]'}`}>
+            Center
+          </span>
+          <span className={`truncate font-semibold text-white mt-0.5 ${compact ? 'text-xs max-w-[6.5rem]' : 'text-sm max-w-[9rem]'}`}>
+            {label}
+          </span>
+        </span>
         {/* Count chip — the always-visible cue that PlayOrbit is multi-location.
             Survives dismissal of the MultiCenterBanner so "there are N centers"
             is never fully hidden while 2+ exist. */}
         <span
-          className={`flex items-center justify-center rounded-full bg-accent/20 text-accent font-bold leading-none ${
-            compact ? 'text-[9px] min-w-[14px] h-[14px] px-1' : 'text-[10px] min-w-[16px] h-4 px-1'
+          className={`flex items-center justify-center rounded-full bg-accent text-primary font-bold leading-none ${
+            compact ? 'text-[9px] min-w-[15px] h-[15px] px-1' : 'text-[10px] min-w-[16px] h-4 px-1'
           }`}
           aria-hidden="true"
         >
           {centers.length}
         </span>
-        <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-accent transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
