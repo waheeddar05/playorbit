@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
       });
       validatedMachineRowIds = rows.map((r) => r.id);
     }
-    const validBookingCategories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH'];
+    const validBookingCategories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH'];
     const validatedCategories: string[] = Array.isArray(categories)
       ? (categories as unknown[]).filter(
           (c): c is string => typeof c === 'string' && validBookingCategories.includes(c),

@@ -42,6 +42,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   COACHING: 'Personal Coaching',
   NET: 'Cricket Nets',
   FULL_COURT: 'Full Indoor Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   CORPORATE_BATCH: 'Corporate Batch',
   MATCH_SIMULATION: 'Match Simulation',
 };
@@ -50,7 +51,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 // path runs the same evaluateBlockForBooking check, so an admin can
 // take a corporate-batch or match-simulation session off the schedule
 // (e.g. for a holiday) without touching the config.
-const ALL_CATEGORIES = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'] as const;
+const ALL_CATEGORIES = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'] as const;
 
 type TabId = 'block' | 'active';
 

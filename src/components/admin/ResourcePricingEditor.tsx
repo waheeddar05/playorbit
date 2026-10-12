@@ -17,6 +17,7 @@ import { useCenter } from '@/lib/center-context';
  *       SIDEARM:        { morning, evening },
  *       COACHING:       { morning, evening },
  *       FULL_COURT:     { morning, evening },
+ *       FULL_OUTDOOR_COURT: { morning, evening },
  *       CORPORATE_BATCH:{ morning, evening },
  *       NET:            { morning, evening },
  *     },
@@ -29,7 +30,7 @@ import { useCenter } from '@/lib/center-context';
  */
 
 type SlabRates = { morning: number; evening: number };
-type CategoryKey = 'MACHINE' | 'SIDEARM' | 'COACHING' | 'FULL_COURT' | 'CORPORATE_BATCH' | 'NET';
+type CategoryKey = 'MACHINE' | 'SIDEARM' | 'COACHING' | 'FULL_COURT' | 'FULL_OUTDOOR_COURT' | 'CORPORATE_BATCH' | 'NET';
 type PitchKey = 'ASTRO' | 'CEMENT' | 'NATURAL';
 /** Ball types stored in policy JSON. '*' is the legacy "any ball"
  *  catchall — kept in the data shape for back-compat but never shown
@@ -62,7 +63,7 @@ interface ResourcePricingValue {
    * Category-level defaults. MACHINE/SIDEARM/NET/CORPORATE_BATCH keep
    * the legacy flat {morning, evening} shape because admins configure
    * those via more-specific per-pitch / per-machine matrices below.
-   * COACHING + FULL_COURT use pair-shaped {single, consecutive} so the
+   * COACHING + FULL_COURT + FULL_OUTDOOR_COURT use pair-shaped {single, consecutive} so the
    * 'Other categories' editor can offer 4 cells per category (matches
    * the cricket-net / sidearm UX requested by admins).
    */
@@ -74,6 +75,7 @@ interface ResourcePricingValue {
    *  no engine change needed on top of the per-category fallback. */
   coachingRate?: PairSlabRates;
   fullCourtRate?: PairSlabRates;
+  fullOutdoorCourtRate?: PairSlabRates;
   /** Coarse legacy override per machine type — used as fallback when
    *  `machinePricing` doesn't have an entry for a (pitch, ball) combo. */
   machineTypeOverrides?: Record<string, SlabRates>;
@@ -119,6 +121,7 @@ const CATEGORY_LABELS: Record<CategoryKey, string> = {
   SIDEARM: 'Sidearm',
   COACHING: 'Personal Coaching',
   FULL_COURT: 'Full Indoor Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   CORPORATE_BATCH: 'Corporate Batch',
   NET: 'Net Only',
 };
@@ -129,6 +132,7 @@ const CATEGORY_ORDER: CategoryKey[] = [
   'COACHING',
   'NET',
   'FULL_COURT',
+  'FULL_OUTDOOR_COURT',
   'CORPORATE_BATCH',
 ];
 
@@ -149,6 +153,8 @@ const DEFAULT_VALUE: ResourcePricingValue = {
     SIDEARM:        { morning: 700, evening: 900 },
     COACHING:       { morning: 1000, evening: 1200 },
     FULL_COURT:     { morning: 2400, evening: 3200 },
+    // Same default the engine charges when a center has no outdoor rate.
+    FULL_OUTDOOR_COURT: { morning: 2400, evening: 3200 },
     CORPORATE_BATCH:{ morning: 1500, evening: 1800 },
     NET:            { morning: 400, evening: 500 },
   },
@@ -213,6 +219,7 @@ function normalize(raw: Partial<ResourcePricingValue> | null | undefined): Resou
     SIDEARM:         safeRate((base as Record<string, SlabRates>).SIDEARM         ?? DEFAULT_VALUE.categoryRates.SIDEARM),
     COACHING:        safeRate((base as Record<string, SlabRates>).COACHING        ?? DEFAULT_VALUE.categoryRates.COACHING),
     FULL_COURT:      safeRate((base as Record<string, SlabRates>).FULL_COURT      ?? DEFAULT_VALUE.categoryRates.FULL_COURT),
+    FULL_OUTDOOR_COURT: safeRate((base as Record<string, SlabRates>).FULL_OUTDOOR_COURT ?? DEFAULT_VALUE.categoryRates.FULL_OUTDOOR_COURT),
     CORPORATE_BATCH: safeRate((base as Record<string, SlabRates>).CORPORATE_BATCH ?? DEFAULT_VALUE.categoryRates.CORPORATE_BATCH),
     NET:             safeRate((base as Record<string, SlabRates>).NET             ?? DEFAULT_VALUE.categoryRates.NET),
   };
@@ -234,6 +241,10 @@ function normalize(raw: Partial<ResourcePricingValue> | null | undefined): Resou
       raw?.fullCourtRate
       ?? (raw?.categoryRates as Record<string, unknown> | undefined)?.FULL_COURT,
     ),
+    // Lifted from the filled categoryRates (not the raw one) so a config
+    // saved before the outdoor court existed shows the default rate the
+    // engine actually charges, rather than 0.
+    fullOutdoorCourtRate: safePairRates(raw?.fullOutdoorCourtRate ?? filled.FULL_OUTDOOR_COURT),
     machineTypeOverrides: overrides,
     machinePricing: (raw?.machinePricing ?? {}) as ResourcePricingValue['machinePricing'],
     machineRowPricing: (raw?.machineRowPricing ?? {}) as ResourcePricingValue['machineRowPricing'],
@@ -526,6 +537,30 @@ export function ResourcePricingEditor({
             setValue((prev) => ({
               ...prev,
               fullCourtRate: { ...cell, [slab]: { ...cell[slab], [kind]: n } },
+            }));
+          };
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2.5">
+              <LabeledPriceInput label="Morning Slot 1" value={cell.morning.single} onChange={(n) => update('morning', 'single', n)} />
+              <LabeledPriceInput label="Morning Slot 2" value={cell.morning.consecutive} onChange={(n) => update('morning', 'consecutive', n)} />
+              <LabeledPriceInput label="Evening Slot 1" value={cell.evening.single} onChange={(n) => update('evening', 'single', n)} />
+              <LabeledPriceInput label="Evening Slot 2" value={cell.evening.consecutive} onChange={(n) => update('evening', 'consecutive', n)} />
+            </div>
+          );
+        })()}
+      </Section>
+
+      <Section title="Full Outdoor Court Booking">
+        <p className="text-[10px] text-slate-500 leading-relaxed mb-2.5">
+          Flat rate for the Full Outdoor Court category (every natural turf wicket).
+          &ldquo;Slot 2&rdquo; is the TOTAL for a back-to-back pair.
+        </p>
+        {(() => {
+          const cell = value.fullOutdoorCourtRate ?? safePairRates(value.categoryRates?.FULL_OUTDOOR_COURT);
+          const update = (slab: 'morning' | 'evening', kind: 'single' | 'consecutive', n: number) => {
+            setValue((prev) => ({
+              ...prev,
+              fullOutdoorCourtRate: { ...cell, [slab]: { ...cell[slab], [kind]: n } },
             }));
           };
           return (

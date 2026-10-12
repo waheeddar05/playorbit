@@ -55,7 +55,7 @@ import {
  * Body:
  * {
  *   slots: [{ date: 'YYYY-MM-DD', startTime, endTime }],
- *   category: 'MACHINE' | 'SIDEARM' | 'COACHING' | 'FULL_COURT'
+ *   category: 'MACHINE' | 'SIDEARM' | 'COACHING' | 'FULL_COURT' | 'FULL_OUTDOOR_COURT'
  *           | 'CORPORATE_BATCH' | 'NET' | 'MATCH_SIMULATION',
  *   playerName,
  *   resourceIds?: string[],   // optional pin (otherwise engine picks)
@@ -86,7 +86,7 @@ const SlotSchema = z.object({
 
 export const ResourceBookingBodySchema = z.object({
   slots: z.array(SlotSchema).min(1).max(8),
-  category: z.enum(['MACHINE', 'SIDEARM', 'COACHING', 'FULL_COURT', 'CORPORATE_BATCH', 'NET', 'MATCH_SIMULATION']),
+  category: z.enum(['MACHINE', 'SIDEARM', 'COACHING', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'NET', 'MATCH_SIMULATION']),
   playerName: z.string().min(1).max(120),
   /** Match Practice → Corporate Batch purchase mode. Required for
    *  CORPORATE_BATCH bookings; ignored for every other category.
@@ -573,6 +573,19 @@ async function executeResourceBookingCore(
   // is a flat per-mode fee. They share this function's payment / wallet /
   // refund machinery but skip the resource-planning pipeline entirely.
   const isMatchPractice = isMatchPracticeCategory(body.category);
+
+  // Full Outdoor Court is played on natural turf, always. Stamp the pitch
+  // server-side so the booking row, NATURAL pitch-scoped blocks and the
+  // pricing lookup all see it, whatever the client sent.
+  if (body.category === 'FULL_OUTDOOR_COURT') {
+    if (body.pitchType && body.pitchType !== 'NATURAL') {
+      throw new ResourceBookingServiceError(
+        'Full outdoor court bookings are on natural turf only',
+        400,
+      );
+    }
+    body = { ...body, pitchType: 'NATURAL' };
+  }
 
   // Admin can book on behalf of another user.
   const isAdmin = user.role === 'ADMIN' || user.isSuperAdmin;

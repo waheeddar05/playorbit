@@ -208,7 +208,7 @@ export async function GET(req: NextRequest) {
         try {
           // Match Practice categories included — corporate-batch seats and
           // match-simulation seats count like any other booking.
-          const categories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'] as const;
+          const categories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'] as const;
           const results = await Promise.all(categories.map(async (cat) => {
             const [todayCount, upcomingCount] = await Promise.all([
               prisma.booking.count({

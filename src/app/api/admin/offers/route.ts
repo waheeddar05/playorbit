@@ -23,7 +23,7 @@ const CreateOfferSchema = z.object({
   pitchTypes: z.array(z.enum(['ASTRO', 'CEMENT', 'NATURAL'])).optional().default([]),
   // RESOURCE_BASED targeting (Toplay et al.).
   machineRowIds: z.array(z.string()).optional().default([]),
-  categories: z.array(z.enum(['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH'])).optional().default([]),
+  categories: z.array(z.enum(['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH'])).optional().default([]),
   discountType: z.enum(['PERCENTAGE', 'FIXED']),
   discountValue: z.number().positive('Discount value must be positive'),
   isActive: z.boolean().optional().default(true),

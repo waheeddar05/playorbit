@@ -477,6 +477,8 @@ model Booking {
   //   SIDEARM        — sidearm staff bowls; consumes 1 net + 1 staff.
   //   COACHING       — personal coaching; consumes 1 net + 1 coach.
   //   FULL_COURT     — full indoor court; consumes ALL indoor nets.
+  //   FULL_OUTDOOR_COURT — full outdoor court; consumes ALL natural-turf
+  //                    wickets (TURF_WICKET). Same flow as FULL_COURT.
   //   CORPORATE_BATCH — corporate group session; admin-only.
   // Defaults to MACHINE so every existing ABCA booking is unaffected.
   category BookingCategory @default(MACHINE)
@@ -560,6 +562,11 @@ enum BookingCategory {
   // (capacity per configured session, no machine/pitch/operator).
   // Sessions are defined in the MATCH_SIMULATION_CONFIG center policy.
   MATCH_SIMULATION
+  // Full Outdoor Court — the outdoor twin of FULL_COURT. Consumes every
+  // active natural-turf wicket (Resource.type = TURF_WICKET), never an
+  // Astro net. Same booking flow, pricing shape and block semantics as
+  // FULL_COURT; only the resource pool differs.
+  FULL_OUTDOOR_COURT
 }
 
 // How a CORPORATE_BATCH booking row was purchased. Corporate batch is a
@@ -1225,6 +1232,7 @@ enum LedgerRevenueCategory {
   CORPORATE_BATCH
   MATCH_SIMULATION
   OTHER
+  FULL_OUTDOOR_COURT
 }
 
 enum LedgerExpenseCategory {

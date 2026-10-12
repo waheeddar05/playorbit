@@ -20,6 +20,7 @@ type CategoryId =
   // Practice tab (MATCH_PRACTICE below), configured in the Match
   // Practice card on this page.
   | 'FULL_COURT'
+  | 'FULL_OUTDOOR_COURT'
   | 'MATCH_PRACTICE';
 
 const ALL_CATEGORIES: Array<{ id: CategoryId; label: string; sub: string }> = [
@@ -28,6 +29,7 @@ const ALL_CATEGORIES: Array<{ id: CategoryId; label: string; sub: string }> = [
   { id: 'SIDEARM',         label: 'Sidearm',              sub: 'Bowled by staff' },
   { id: 'COACHING',        label: 'Personal Coaching',    sub: 'With a coach' },
   { id: 'FULL_COURT',      label: 'Full Indoor Court',    sub: 'All indoor nets' },
+  { id: 'FULL_OUTDOOR_COURT', label: 'Full Outdoor Court', sub: 'All natural turf wickets' },
   { id: 'MATCH_PRACTICE',  label: 'Match Practice',       sub: 'Corporate batch & match sims' },
 ];
 

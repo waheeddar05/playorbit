@@ -71,7 +71,7 @@ export async function PUT(
       }
     }
 
-    const validBookingCategories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH'];
+    const validBookingCategories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH'];
     let validatedCategories: string[] | undefined = undefined;
     if (categories !== undefined) {
       validatedCategories = Array.isArray(categories)

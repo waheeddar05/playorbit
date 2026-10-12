@@ -931,6 +931,7 @@ export default function AdminUsers() {
                                   {booking.category === 'SIDEARM' ? 'Sidearm'
                                     : booking.category === 'COACHING' ? 'Coaching'
                                     : booking.category === 'FULL_COURT' ? 'Full Court'
+                                    : booking.category === 'FULL_OUTDOOR_COURT' ? 'Full Outdoor Court'
                                     : booking.category === 'CORPORATE_BATCH' ? 'Corporate'
                                     : booking.category === 'NET' ? 'Net only'
                                     : booking.category}

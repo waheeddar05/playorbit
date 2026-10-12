@@ -21,7 +21,7 @@ type Category = 'all' | 'today' | 'upcoming' | 'previous' | 'lastMonth';
 // except cancelled" status the API understands (used by the dashboard's
 // Booking Distribution click-through).
 const URL_STATUS_VALUES = new Set(['ACTIVE', 'BOOKED', 'IN_PROGRESS', 'DONE', 'CANCELLED']);
-const URL_CATEGORY_FILTER_VALUES = new Set(['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION']);
+const URL_CATEGORY_FILTER_VALUES = new Set(['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION']);
 
 function sanitizeStatusParam(value: string | null): string {
   return value && URL_STATUS_VALUES.has(value) ? value : '';
@@ -207,7 +207,7 @@ function AdminBookingsContent() {
   // immediately removes the option here. Falls back to the
   // full default list if the policy isn't set.
   useEffect(() => {
-    const DEFAULT_LIST = ['MACHINE', 'NET', 'SIDEARM', 'COACHING', 'FULL_COURT'];
+    const DEFAULT_LIST = ['MACHINE', 'NET', 'SIDEARM', 'COACHING', 'FULL_COURT', 'FULL_OUTDOOR_COURT'];
     fetch('/api/admin/policies?scope=center')
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
@@ -221,7 +221,7 @@ function AdminBookingsContent() {
           setBookableCategories(DEFAULT_LIST);
         }
       })
-      .catch(() => setBookableCategories(['MACHINE', 'NET', 'SIDEARM', 'COACHING', 'FULL_COURT']));
+      .catch(() => setBookableCategories(['MACHINE', 'NET', 'SIDEARM', 'COACHING', 'FULL_COURT', 'FULL_OUTDOOR_COURT']));
   }, []);
 
   useEffect(() => {
@@ -795,6 +795,7 @@ function AdminBookingsContent() {
                       : c === 'SIDEARM' ? 'Sidearm'
                       : c === 'COACHING' ? 'Personal Coaching'
                       : c === 'FULL_COURT' ? 'Full Indoor Court'
+                      : c === 'FULL_OUTDOOR_COURT' ? 'Full Outdoor Court'
                       : c === 'CORPORATE_BATCH' ? 'Corporate Batch'
                       : c === 'MATCH_SIMULATION' ? 'Match Simulation'
                       : c}

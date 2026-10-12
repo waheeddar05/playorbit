@@ -108,6 +108,8 @@ export type BookableCategoryId =
   // omitted from the user/admin-facing category lists — corporate
   // batch is now booked through the MATCH_PRACTICE tab below.
   | 'FULL_COURT'
+  // Outdoor twin of FULL_COURT — every natural-turf wicket at once.
+  | 'FULL_OUTDOOR_COURT'
   // UI-level umbrella tab for Match Practice (Corporate Batch + Match
   // Simulation). NOT a BookingCategory enum value — bookings made from
   // this tab persist as CORPORATE_BATCH or MATCH_SIMULATION rows. The
@@ -121,6 +123,7 @@ export const ALL_BOOKABLE_CATEGORIES: BookableCategoryId[] = [
   'SIDEARM',
   'COACHING',
   'FULL_COURT',
+  'FULL_OUTDOOR_COURT',
   'MATCH_PRACTICE',
 ];
 

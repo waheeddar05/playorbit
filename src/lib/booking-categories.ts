@@ -27,6 +27,7 @@ export const BOOKING_CATEGORIES = [
   'SIDEARM',
   'COACHING',
   'FULL_COURT',
+  'FULL_OUTDOOR_COURT',
   'CORPORATE_BATCH',
   'MATCH_SIMULATION',
 ] as const;
@@ -39,6 +40,7 @@ export const BOOKING_CATEGORY_LABELS: Record<BookingCategoryId, string> = {
   SIDEARM: 'Sidearm',
   COACHING: 'Personal Coaching',
   FULL_COURT: 'Full Indoor Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   CORPORATE_BATCH: 'Corporate Batch',
   MATCH_SIMULATION: 'Match Simulation',
 };

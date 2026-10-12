@@ -12,6 +12,7 @@
  *   - SIDEARM         — consumes 1 net + 1 SIDEARM_SPECIALIST user
  *   - COACHING        — consumes 1 net + 1 COACH user
  *   - FULL_COURT      — consumes ALL active indoor nets
+ *   - FULL_OUTDOOR_COURT — consumes ALL active natural-turf wickets
  *   - CORPORATE_BATCH — consumes the configured number of nets, admin only
  *
  * Availability for a given time window = "all required resources free".
@@ -503,7 +504,23 @@ interface OccupancySnapshot {
    * net at this slot."
    */
   hasFullCourtBooking: boolean;
+  /**
+   * Outdoor twin of `hasFullCourtBooking`: true when any non-cancelled
+   * FULL_OUTDOOR_COURT booking overlaps the slot. Locks every natural-turf
+   * wicket regardless of remaining capacity; the indoor (Astro) and
+   * cement pools are unaffected. Optional so snapshot producers that
+   * predate the category keep compiling — absent reads as false.
+   */
+  hasFullOutdoorCourtBooking?: boolean;
 }
+
+/**
+ * Every BookingCategory value. A catchall block (and a pitch-only block,
+ * per pitch) blocks all of them.
+ */
+const ALL_BOOKING_CATEGORIES: BookingCategory[] = [
+  'MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION',
+];
 
 /**
  * Compute who/what is busy at the given slot window. Cancelled bookings
@@ -559,6 +576,7 @@ export async function getOccupancyForSlot(
   const busyStaffIds = new Set<string>();
   const busyMachineIds = new Set<string>();
   let hasFullCourtBooking = false;
+  let hasFullOutdoorCourtBooking = false;
 
   for (const b of bookings) {
     if (!overlaps(b.startTime, b.endTime, slot.startTime, slot.endTime)) continue;
@@ -569,6 +587,7 @@ export async function getOccupancyForSlot(
     if (b.assignedStaffId) busyStaffIds.add(b.assignedStaffId);
     if (b.assignedMachineId) busyMachineIds.add(b.assignedMachineId);
     if (b.category === 'FULL_COURT') hasFullCourtBooking = true;
+    if (b.category === 'FULL_OUTDOOR_COURT') hasFullOutdoorCourtBooking = true;
   }
 
   // Default `claimedResourceIds` treats any load as claimed (capacity=1
@@ -576,7 +595,15 @@ export async function getOccupancyForSlot(
   // `withCapacityDerivedClaims` when they assemble the SlotAvailability.
   const claimedResourceIds = new Set<string>(resourceLoad.keys());
 
-  return { resourceLoad, claimedResourceIds, busyCoachIds, busyStaffIds, busyMachineIds, hasFullCourtBooking };
+  return {
+    resourceLoad,
+    claimedResourceIds,
+    busyCoachIds,
+    busyStaffIds,
+    busyMachineIds,
+    hasFullCourtBooking,
+    hasFullOutdoorCourtBooking,
+  };
 }
 
 /**
@@ -632,6 +659,10 @@ export interface SlotAvailability {
   freeSidearmStaff: CenterMembershipUserRow[];
   /** Whether a FULL_COURT booking is achievable (every indoor net free + no reservation holding astro nets). */
   fullCourtAvailable: boolean;
+  /** Whether a FULL_OUTDOOR_COURT booking is achievable: the center has at
+   *  least one natural-turf wicket and every one of them is at zero load
+   *  (no booking, no reservation, no other full-outdoor-court booking). */
+  fullOutdoorCourtAvailable: boolean;
   /** Total wickets held right now by recurring reservations (corporate
    *  batch + match simulation), summed across every pitch type. */
   corporateBatchNetsHeld: number;
@@ -652,6 +683,15 @@ export interface SlotAvailability {
  * Unknown / null pitch falls back to NET so the legacy code path
  * (no pitch picked) still works.
  */
+/**
+ * The resources a Full Outdoor Court booking takes: every natural-turf
+ * wicket (TURF_WICKET) — the same set the NATURAL pitch pool draws from.
+ * Never an Astro net or a cement wicket.
+ */
+export function naturalTurfWickets(resources: ResourceLite[]): ResourceLite[] {
+  return resources.filter((r) => resourceMatchesPitch(r, 'NATURAL'));
+}
+
 function resourceMatchesPitch(r: ResourceLite, pitch: string | null | undefined): boolean {
   if (!pitch) return r.type === 'NET';
   switch (pitch) {
@@ -761,6 +801,12 @@ export function computeSlotAvailability(inputs: AvailabilityInputs): SlotAvailab
   if (occupancy.hasFullCourtBooking) {
     for (const n of indoorNets) occupancy.claimedResourceIds.add(n.id);
   }
+  // Same lock for the outdoor court: an overlapping FULL_OUTDOOR_COURT
+  // booking claims every natural-turf wicket outright.
+  const naturalWickets = naturalTurfWickets(resources);
+  if (occupancy.hasFullOutdoorCourtBooking) {
+    for (const w of naturalWickets) occupancy.claimedResourceIds.add(w.id);
+  }
 
   // A resource with remaining capacity (load < capacity) is still "free".
   // Reservation wickets were consumed as load above, so these lists are the
@@ -795,6 +841,12 @@ export function computeSlotAvailability(inputs: AvailabilityInputs): SlotAvailab
     && everyIndoorEmpty
     && !occupancy.hasFullCourtBooking;
 
+  // Full outdoor court mirrors the rule above on the natural-turf pool.
+  const fullOutdoorCourtAvailable =
+    naturalWickets.length > 0
+    && naturalWickets.every((w) => (occupancy.resourceLoad.get(w.id) ?? 0) === 0)
+    && !occupancy.hasFullOutdoorCourtBooking;
+
   // Per-pitch free pools. Each pitch keeps its own list so a booking for
   // NATURAL consumes outdoor turf capacity, not indoor net capacity. Every
   // pool reads the capacity-aware free list, which already reflects the
@@ -817,6 +869,7 @@ export function computeSlotAvailability(inputs: AvailabilityInputs): SlotAvailab
     freeCoaches,
     freeSidearmStaff: freeStaff,
     fullCourtAvailable,
+    fullOutdoorCourtAvailable,
     corporateBatchNetsHeld: totalHeld,
     reservedByPitch: reservedHeld,
   };
@@ -1123,8 +1176,7 @@ export function applyBlocksToAvailability(
     if (!hasAnyAxis) {
       // Block every booking-category we know about. The frontend uses
       // this to grey out every tab in the slot picker.
-      const ALL_CATS: BookingCategory[] = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'];
-      addToPitch(null, ALL_CATS, []);
+      addToPitch(null, ALL_BOOKING_CATEGORIES, []);
 
       // Catchall — claims the whole indoor pool too.
       indoorPoolFullyClaimed = true;
@@ -1144,8 +1196,7 @@ export function applyBlocksToAvailability(
       && b.resourceIds.length === 0
       && b.netCount == null; // a count block reserves units, it isn't a full-pitch block
     if (isPitchOnlyBlock && b.pitchType) {
-      const ALL_CATS: BookingCategory[] = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'];
-      for (const c of ALL_CATS) blockedByPitch[b.pitchType].categories.add(c);
+      for (const c of ALL_BOOKING_CATEGORIES) blockedByPitch[b.pitchType].categories.add(c);
     }
 
     // FULL_COURT is an INDEPENDENT category. Blocking it takes only the
@@ -1189,6 +1240,24 @@ export function applyBlocksToAvailability(
   const fullCourtBlocked = blockedCategories.has('FULL_COURT')
     || indoorPoolFullyClaimed;
 
+  // Full Outdoor Court is blocked exactly when a booking for it would be
+  // refused: run the booking-time evaluator against the resources the
+  // booking would claim (every natural wicket — all free whenever the
+  // court is available) on the NATURAL pitch. That covers category,
+  // NATURAL pitch-only, pinned-wicket and catchall blocks with the same
+  // rules planBooking applies, so the grid can't offer a slot the
+  // booking endpoint then rejects.
+  const fullOutdoorCourtBlocked = availability.fullOutdoorCourtAvailable
+    && evaluateBlockForBooking(
+      blocks,
+      {
+        category: 'FULL_OUTDOOR_COURT',
+        resourceIds: availability.freeByPitch.NATURAL.map((r) => r.id),
+        pitchType: 'NATURAL',
+      },
+      audience,
+    ) !== null;
+
   const filteredAvailability: SlotAvailability = {
     ...availability,
     freeIndoorNets: freeIndoor,
@@ -1201,6 +1270,7 @@ export function applyBlocksToAvailability(
         : availability.freeByPitch.NATURAL.filter((r) => !blockedResourceIds.has(r.id)),
     },
     fullCourtAvailable: availability.fullCourtAvailable && !fullCourtBlocked,
+    fullOutdoorCourtAvailable: availability.fullOutdoorCourtAvailable && !fullOutdoorCourtBlocked,
   };
 
   // Cascade: when a FULL_COURT or catchall block hits, suppress every
@@ -1364,6 +1434,7 @@ export interface PlannedAssignment {
   coachId: string | null;
   staffId: string | null;
   // Ground-staff member handling a facility booking (NET / FULL_COURT /
+  // FULL_OUTDOOR_COURT /
   // CORPORATE_BATCH). Null for MACHINE/SIDEARM/COACHING.
   groundStaffId: string | null;
 }
@@ -1426,7 +1497,8 @@ export async function planBooking(
   ]);
   // Default facility assignee — the top-priority active ground-staff
   // member who is available for this slot (falls back to top-priority,
-  // then null). Used for NET / FULL_COURT / CORPORATE_BATCH; null when the
+  // then null). Used for NET / FULL_COURT / FULL_OUTDOOR_COURT /
+  // CORPORATE_BATCH; null when the
   // center has no ground staff configured.
   const defaultGroundStaffId = pickGroundStaffForSlot(groundStaff, slot);
   const audience = context.audience ?? 'ALL';
@@ -1439,6 +1511,9 @@ export async function planBooking(
   // Pre-flight category-level block check. Refuses early when an
   // entire category is blocked at this slot — the resource-specific
   // checks downstream catch the more granular cases.
+  // A Full Outdoor Court booking always sits on natural turf, whatever the
+  // caller sent, so NATURAL pitch-scoped blocks bite it.
+  const effectivePitch = plan.category === 'FULL_OUTDOOR_COURT' ? 'NATURAL' : (plan.pitchType ?? null);
   const categoryBlock = evaluateBlockForBooking(
     blocks,
     {
@@ -1448,7 +1523,7 @@ export async function planBooking(
       // Pitch axis: a machine+pitch block (e.g. "Yantra on Natural Turf")
       // must only bite the matching pitch. Without this the pitch axis
       // could never match and pitch-scoped blocks were silently ignored.
-      pitchType: plan.pitchType ?? null,
+      pitchType: effectivePitch,
     },
     audience,
   );
@@ -1577,6 +1652,32 @@ export async function planBooking(
         groundStaffId: defaultGroundStaffId,
       };
     }
+    case 'FULL_OUTDOOR_COURT': {
+      // Outdoor twin of FULL_COURT: claims every natural-turf wicket.
+      const wickets = naturalTurfWickets(resources);
+      if (wickets.length === 0) {
+        throw new BookingResourceError(
+          'No natural turf wickets are configured at this center',
+          409,
+        );
+      }
+      if (!availability.fullOutdoorCourtAvailable) {
+        throw new BookingResourceError(
+          availability.reservedByPitch.NATURAL > 0
+            ? 'Full outdoor court is unavailable during a match practice window'
+            : 'Full outdoor court requires every natural turf wicket to be free',
+          409,
+        );
+      }
+      return {
+        category: 'FULL_OUTDOOR_COURT',
+        resourceIds: wickets.map((r) => r.id),
+        machineId: null,
+        coachId: null,
+        staffId: null,
+        groundStaffId: defaultGroundStaffId,
+      };
+    }
     case 'CORPORATE_BATCH': {
       // LEGACY PATH — user-facing corporate-batch bookings are now
       // seat-based enrollments handled by src/lib/match-practice.ts;
@@ -1653,7 +1754,7 @@ export async function planBooking(
       category: resolved.category,
       machineRowId: resolved.machineId,
       resourceIds: resolved.resourceIds,
-      pitchType: plan.pitchType ?? null,
+      pitchType: effectivePitch,
     },
     audience,
   );

@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
     // category loses its last axis and becomes a catchall that blocks
     // EVERY booking in the window (the bug that hit MATCH_SIMULATION
     // when it wasn't listed).
-    const validBookingCategories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'];
+    const validBookingCategories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'];
     const validatedCategories: string[] = Array.isArray(categories)
       ? categories.filter((c) => typeof c === 'string' && validBookingCategories.includes(c))
       : [];
@@ -668,7 +668,7 @@ export async function PUT(req: NextRequest) {
     if (Array.isArray(categories)) {
       // Same list as POST — a stripped category can silently widen the
       // block into a catchall (see the comment there).
-      const validBookingCategories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'];
+      const validBookingCategories = ['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION'];
       updateData.categories = categories.filter(
         (c: unknown): c is string => typeof c === 'string' && validBookingCategories.includes(c),
       );

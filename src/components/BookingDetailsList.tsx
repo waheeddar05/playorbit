@@ -14,6 +14,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   NET: 'Cricket Nets',
   COACHING: 'Personal Coaching',
   FULL_COURT: 'Full Indoor Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   CORPORATE_BATCH: 'Corporate Batch',
   MATCH_SIMULATION: 'Match Simulation',
 };
@@ -206,6 +207,7 @@ export function BookingDetailsList({
   const showGroundStaffRow =
     category === 'NET'
     || category === 'FULL_COURT'
+    || category === 'FULL_OUTDOOR_COURT'
     || category === 'CORPORATE_BATCH'
     || category === 'MATCH_SIMULATION';
 

@@ -8,7 +8,8 @@
  *
  * UX:
  *   1. Pick a date.
- *   2. Pick a booking category (Machine / Sidearm / Coaching / Full Court).
+ *   2. Pick a booking category (Machine / Sidearm / Coaching / Full Indoor
+ *      Court / Full Outdoor Court).
  *   3. (Conditional) Pick a machine / coach / sidearm specialist member.
  *   4. Tap one or more slots. Each slot becomes its own Booking row.
  *   5. Confirm → POST /api/slots/book-resource.
@@ -32,6 +33,7 @@ import {
   Users,
   UserCog,
   LayoutGrid,
+  Sun,
   Target,
   Goal,
   Hand,
@@ -73,6 +75,7 @@ type Category =
   | 'SIDEARM'
   | 'COACHING'
   | 'FULL_COURT'
+  | 'FULL_OUTDOOR_COURT'
   | 'NET'
   | 'CORPORATE_BATCH'
   // UI umbrella tab for Match Practice (Corporate Batch enrollments +
@@ -117,12 +120,16 @@ interface ResourceSlot {
   freeCoaches: PersonLite[];
   freeSidearmStaff: PersonLite[];
   fullCourtAvailable: boolean;
+  /** Every natural-turf wicket free and no block on the outdoor court.
+   *  Already block-aware server-side. */
+  fullOutdoorCourtAvailable: boolean;
   corporateBatchHolds: number;
   prices: {
     MACHINE: number;
     SIDEARM: number;
     COACHING: number;
     FULL_COURT: number;
+    FULL_OUTDOOR_COURT: number;
     NET: number;
     CORPORATE_BATCH: number;
   };
@@ -200,6 +207,8 @@ interface ClientPricingConfig {
   coachingRate?: ClientPerSlabRates;
   /** Category-level FULL_COURT rate as a pair-shaped {single, consecutive}. */
   fullCourtRate?: ClientPerSlabRates;
+  /** Category-level FULL_OUTDOOR_COURT rate, same pair shape. */
+  fullOutdoorCourtRate?: ClientPerSlabRates;
 }
 
 interface ResourceAvailabilityResponse {
@@ -303,6 +312,7 @@ const CATEGORIES: Array<{ key: Category; label: string; icon: typeof Settings2; 
   // CORPORATE_BATCH as a standalone tab stays hidden — corporate batch
   // enrollments are booked through the Match Practice tab above.
   { key: 'FULL_COURT',      label: 'Full Indoor Court',   icon: LayoutGrid, sub: 'All indoor nets' },
+  { key: 'FULL_OUTDOOR_COURT', label: 'Full Outdoor Court', icon: Sun,      sub: 'All natural turf wickets' },
   { key: 'SIDEARM',         label: 'Sidearm',             icon: Users,      sub: 'Bowled by a specialist' },
   { key: 'COACHING',        label: 'Personal Coaching',   icon: UserCog,    sub: 'With a coach' },
 ];
@@ -851,8 +861,10 @@ export default function ResourceSlotsPage() {
     let blockedCats = s.blockedCategories ?? [];
     let blockedRows = s.blockedMachineRowIds ?? [];
 
-    if (pitchType && s.blockedByPitch?.[pitchType]) {
-      const perPitch = s.blockedByPitch[pitchType];
+    // Full Outdoor Court has no pitch picker — it is always natural turf.
+    const blockPitch = cat === 'FULL_OUTDOOR_COURT' ? 'NATURAL' : pitchType;
+    if (blockPitch && s.blockedByPitch?.[blockPitch]) {
+      const perPitch = s.blockedByPitch[blockPitch];
       blockedCats = perPitch.categories;
       blockedRows = perPitch.machineRowIds;
     }
@@ -960,6 +972,10 @@ export default function ResourceSlotsPage() {
           reason: s.corporateBatchHolds > 0 ? 'Corporate batch holds the indoor pool' : 'Not Available',
         };
       }
+      return { ok: true };
+    }
+    if (cat === 'FULL_OUTDOOR_COURT') {
+      if (!s.fullOutdoorCourtAvailable) return { ok: false, reason: 'Not Available' };
       return { ok: true };
     }
     if (cat === 'NET') {
@@ -1170,6 +1186,13 @@ export default function ResourceSlotsPage() {
     }
     if (category === 'FULL_COURT') {
       const r = pickClientRate(cfg.fullCourtRate?.[slab], consecutive);
+      if (r != null) return r;
+    }
+    if (category === 'FULL_OUTDOOR_COURT') {
+      // Server cascade: fullOutdoorCourtRate → categoryRates → default.
+      // The last two land in s.prices (server-computed) via the fallback
+      // below, so a config without an outdoor rate still prices correctly.
+      const r = pickClientRate(cfg.fullOutdoorCourtRate?.[slab], consecutive);
       if (r != null) return r;
     }
 
@@ -2038,7 +2061,9 @@ export default function ResourceSlotsPage() {
               // the user knows the slot was specifically taken off the
               // schedule (vs. just being booked out).
               const isBlocked = isUnavailable && (
-                (slot.blockedCategories ?? []).includes(category)
+                (category === 'FULL_OUTDOOR_COURT'
+                  ? (slot.blockedByPitch?.NATURAL?.categories ?? []).includes(category)
+                  : (slot.blockedCategories ?? []).includes(category))
                 || (category === 'MACHINE' && !!machineId && (slot.blockedMachineRowIds ?? []).includes(machineId))
               );
               const statusLabel = isBlocked

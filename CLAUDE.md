@@ -251,6 +251,7 @@ Centers with `bookingModel = RESOURCE_BASED` (e.g. Toplay) use a different booki
 - `SIDEARM` — sidearm-staff session: 1 net + 1 SIDEARM_STAFF user.
 - `COACHING` — personal coaching: 1 net + 1 COACH user.
 - `FULL_COURT` — full indoor court: every active indoor net.
+- `FULL_OUTDOOR_COURT` — full outdoor court: every active **natural-turf wicket** (`Resource.type = TURF_WICKET`), never an Astro net or cement wicket. A clone of `FULL_COURT` in every respect except the pool — same booking flow, ground-staff assignment, package/offer/discount/block targeting and pair-shaped pricing (`fullOutdoorCourtRate`, edited under Admin → Settings → pricing). The engine mirrors the indoor rules on the natural pool: `fullOutdoorCourtAvailable` needs every natural wicket at zero load (bookings, reservations and count blocks included), an overlapping outdoor-court booking locks the whole natural pool (`hasFullOutdoorCourtBooking`), and its grid availability is decided by running `evaluateBlockForBooking` against the wickets it would claim, so the grid can't offer a slot the booking route refuses. `/api/slots/book-resource` stamps `pitchType = NATURAL` on every outdoor-court booking, so NATURAL pitch-scoped blocks bite it. A pricing config saved before the category existed has no outdoor rate; `getResourceSlotPrice` then charges the code default (₹2400 / ₹3200) rather than ₹0. Centers with a saved `ENABLED_BOOKING_CATEGORIES` list don't show the tab until an admin ticks **Full Outdoor Court**; a center with no natural wickets shows it as Not Available.
 - `CORPORATE_BATCH` — seat-based Match Practice enrollment (see "Match Practice" below).
 - `MATCH_SIMULATION` — seat-based Match Practice group session (see below).
 
@@ -268,7 +269,7 @@ ABCA's existing rows default to `MACHINE` and have no `BookingResourceAssignment
 
 **User UI**: `/slots` page now routes via `SlotsRouter` based on `currentCenter.bookingModel`:
 - `MACHINE_PITCH` → existing `SlotsContent` (legacy ABCA flow, untouched).
-- `RESOURCE_BASED` → `src/app/slots/ResourceSlotsPage.tsx` — date picker, category tabs (Machine / Sidearm / Coaching / Full Court / Match Practice), per-category secondary picker (machine / coach / staff), slot grid with per-slot bookability + price, multi-slot selection, sticky booking bar, confirm dialog, submits to `/api/slots/book-resource`.
+- `RESOURCE_BASED` → `src/app/slots/ResourceSlotsPage.tsx` — date picker, category tabs (Machine / Sidearm / Coaching / Full Indoor Court / Full Outdoor Court / Match Practice), per-category secondary picker (machine / coach / staff), slot grid with per-slot bookability + price, multi-slot selection, sticky booking bar, confirm dialog, submits to `/api/slots/book-resource`.
 
 ### Operator availability & capacity
 
@@ -290,7 +291,7 @@ One page, one tab per `CenterMembership` role the user holds (admins see all fou
 | Tab | Shows | Scoped by assignee? |
 |---|---|---|
 | Operator | `category = MACHINE` — every bowling-machine session at the center | ❌ no |
-| Ground Staff | every facility category: `NET`, `FULL_COURT`, `MATCH_SIMULATION`, `CORPORATE_BATCH` | ❌ no |
+| Ground Staff | every facility category: `NET`, `FULL_COURT`, `FULL_OUTDOOR_COURT`, `MATCH_SIMULATION`, `CORPORATE_BATCH` | ❌ no |
 | Sidearm | `category = SIDEARM` | ✅ `assignedStaffId = viewer` |
 | Coach | `category = COACHING` | ✅ `assignedCoachId = viewer` |
 
@@ -354,7 +355,7 @@ Admin → **Ledger** (`/admin/ledger`) records money the booking engine never se
 - **Manual Revenue** (`kind = REVENUE`) — walk-in cash, off-platform transfers. Fields: `revenueCategory`, `customerName`.
 - **Expenses** (`kind = EXPENSE`) — `expenseCategory` (`REPAIRS_MAINTENANCE`, `BALLS`, `STAFF_PAYMENTS`, `UTILITIES_CONSUMABLES`, `MISCELLANEOUS`), `expenseSubcategory` (TEXT code validated against the catalog in `src/lib/ledger.ts`, so it grows without a migration), `description`, `paidTo`.
 
-`LedgerRevenueCategory` mirrors `BookingCategory` **one-for-one** — `MACHINE`, `NET`, `SIDEARM`, `COACHING`, `FULL_COURT`, `CORPORATE_BATCH`, `MATCH_SIMULATION` — plus `OTHER` for income with no service behind it. Corporate Batch and Match Simulation are listed individually, *not* as the `MATCH_PRACTICE` UI umbrella (which isn't a `BookingCategory` and has no dashboard bucket). A test in `ledger.test.ts` asserts this parity, so adding a booking category fails loudly until the ledger follows.
+`LedgerRevenueCategory` mirrors `BookingCategory` **one-for-one** — `MACHINE`, `NET`, `SIDEARM`, `COACHING`, `FULL_COURT`, `FULL_OUTDOOR_COURT`, `CORPORATE_BATCH`, `MATCH_SIMULATION` — plus `OTHER` for income with no service behind it. Corporate Batch and Match Simulation are listed individually, *not* as the `MATCH_PRACTICE` UI umbrella (which isn't a `BookingCategory` and has no dashboard bucket). A test in `ledger.test.ts` asserts this parity, so adding a booking category fails loudly until the ledger follows.
 
 Shared columns (both kinds): `amount`, `entryDate`/`entryTime` (when the money actually moved), `paymentMethod` (`LedgerPaymentMethod`: `CASH` / `ONLINE` / `OTHER`), `remarks`, `collectedById`, `recordedById`.
 

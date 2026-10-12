@@ -48,6 +48,7 @@ describe('applyBlocksToAvailability', () => {
     freeCoaches: [],
     freeSidearmStaff: [],
     fullCourtAvailable: true,
+    fullOutdoorCourtAvailable: true,
     corporateBatchNetsHeld: 0,
     reservedByPitch: { ASTRO: 0, CEMENT: 0, NATURAL: 0 },
   };

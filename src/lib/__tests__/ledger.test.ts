@@ -193,6 +193,7 @@ describe('revenue categories mirror the booking categories', () => {
     'COACHING',
     'NET',
     'FULL_COURT',
+    'FULL_OUTDOOR_COURT',
     'CORPORATE_BATCH',
     'MATCH_SIMULATION',
   ];

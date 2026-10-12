@@ -43,6 +43,9 @@ export interface ResourcePricingConfig {
     SIDEARM: PerSlabRates;
     COACHING: PerSlabRates;
     FULL_COURT: PerSlabRates;
+    /** Full Outdoor Court. Optional because configs saved before the
+     *  category existed don't carry it; the engine treats it as 0. */
+    FULL_OUTDOOR_COURT?: PerSlabRates;
     CORPORATE_BATCH: PerSlabRates;
     /** Bare-net booking — no machine, no staff, no coach. Cheapest tier. */
     NET: PerSlabRates;
@@ -89,6 +92,8 @@ export interface ResourcePricingConfig {
   /** Same pattern for Full Indoor Court. Lets admins price the
    *  back-to-back court rental at a discount. */
   fullCourtRate?: PerSlabRates;
+  /** Same pattern for Full Outdoor Court. */
+  fullOutdoorCourtRate?: PerSlabRates;
   /** Free-form notes the admin can leave for themselves. Not rendered. */
   notes?: string;
 }
@@ -129,6 +134,7 @@ export const DEFAULT_RESOURCE_PRICING: ResourcePricingConfig = {
     SIDEARM:        { morning: 700, evening: 900 },
     COACHING:       { morning: 1000, evening: 1200 },
     FULL_COURT:     { morning: 2400, evening: 3200 },
+    FULL_OUTDOOR_COURT: { morning: 2400, evening: 3200 },
     CORPORATE_BATCH:{ morning: 1500, evening: 1800 },
     NET:            { morning: 400, evening: 500 },
   },
@@ -146,7 +152,7 @@ export async function getResourcePricingConfig(centerId: string): Promise<Resour
 }
 
 export interface PriceLookup {
-  category: 'MACHINE' | 'SIDEARM' | 'COACHING' | 'FULL_COURT' | 'CORPORATE_BATCH' | 'NET';
+  category: 'MACHINE' | 'SIDEARM' | 'COACHING' | 'FULL_COURT' | 'FULL_OUTDOOR_COURT' | 'CORPORATE_BATCH' | 'NET';
   /** Required when category=MACHINE — used to apply Yantra/Leverage overrides. */
   machineTypeCode?: string | null;
   /** Specific Machine row (Machine.id). Most-specific override axis;
@@ -182,7 +188,7 @@ export interface PriceLookup {
  *   sidearmPricing[pitch] (or netPricing[pitch]) →
  *   categoryRates.{SIDEARM | NET}
  *
- * Other categories: categoryRates.{COACHING | FULL_COURT | CORPORATE_BATCH}.
+ * Other categories: categoryRates.{COACHING | FULL_COURT | FULL_OUTDOOR_COURT | CORPORATE_BATCH}.
  *
  * `isConsecutive` selects the `consecutive` field from `{single, consecutive}`
  * pair-shaped rates; flat numbers are unaffected.
@@ -269,6 +275,14 @@ export async function getResourceSlotPrice(args: PriceLookup): Promise<number> {
     const r = pickRate(pricing.fullCourtRate?.[slab], cons);
     if (r != null) return r;
   }
+  if (args.category === 'FULL_OUTDOOR_COURT') {
+    const r = pickRate(pricing.fullOutdoorCourtRate?.[slab], cons)
+      ?? pickRate(pricing.categoryRates.FULL_OUTDOOR_COURT?.[slab], cons);
+    if (r != null) return r;
+    // A config saved before this category existed has no rate for it at
+    // all. Charge the default rather than letting the court go for ₹0.
+    return pickRate(DEFAULT_RESOURCE_PRICING.categoryRates.FULL_OUTDOOR_COURT?.[slab], cons) ?? 0;
+  }
 
   return pickRate(pricing.categoryRates[args.category]?.[slab], cons) ?? 0;
 }
@@ -327,6 +341,10 @@ export function representativeCategoryBase(
     }
     case 'FULL_COURT':
       return pickRate(pricing.fullCourtRate?.[slab], false) ?? 0;
+    case 'FULL_OUTDOOR_COURT':
+      return pickRate(pricing.fullOutdoorCourtRate?.[slab], false)
+        ?? pickRate(DEFAULT_RESOURCE_PRICING.categoryRates.FULL_OUTDOOR_COURT?.[slab], false)
+        ?? 0;
     default:
       return 0;
   }

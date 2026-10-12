@@ -61,6 +61,7 @@ const RESOURCE_CATEGORY_OPTIONS = [
   { id: 'COACHING', label: 'Personal Coaching' },
   { id: 'NET', label: 'Cricket Nets' },
   { id: 'FULL_COURT', label: 'Full Indoor Court' },
+  { id: 'FULL_OUTDOOR_COURT', label: 'Full Outdoor Court' },
 ];
 
 // Full label lookup for displaying an offer's targeted categories on its card.
@@ -73,6 +74,7 @@ const RESOURCE_CATEGORY_LABELS: Record<string, string> = {
   COACHING: 'Personal Coaching',
   NET: 'Cricket Nets',
   FULL_COURT: 'Full Indoor Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   CORPORATE_BATCH: 'Corporate Batch',
   MATCH_SIMULATION: 'Match Simulation',
 };

@@ -62,7 +62,7 @@ function timeStrToMinutes(s: string): number {
  * Per slot, returns:
  *   - free indoor nets, free outdoor resources
  *   - free coaches, free sidearm specialist
- *   - whether full court is available
+ *   - whether full court (indoor) / full outdoor court is available
  *   - whether corporate batch is holding capacity
  *   - per-category prices (machine / sidearm / coaching / full-court)
  *
@@ -226,6 +226,7 @@ export async function GET(req: NextRequest) {
         // this directly reduces the slot's operator-assisted capacity.
         const busyOperatorIds = new Set<string>();
         let hasFullCourtBooking = false;
+        let hasFullOutdoorCourtBooking = false;
         for (const b of bookings) {
           if (slot.startTime >= b.endTime || b.startTime >= slot.endTime) continue;
           if (b.operatorId && b.status === 'BOOKED') busyOperatorIds.add(b.operatorId);
@@ -238,6 +239,8 @@ export async function GET(req: NextRequest) {
           // FULL_COURT booking overlapping the slot locks the entire
           // indoor net pool — see resource-booking.ts computeSlotAvailability.
           if (b.category === 'FULL_COURT') hasFullCourtBooking = true;
+          // Outdoor twin: locks every natural-turf wicket.
+          if (b.category === 'FULL_OUTDOOR_COURT') hasFullOutdoorCourtBooking = true;
         }
         // Seed the legacy `claimedResourceIds` view; computeSlotAvailability
         // overwrites it with a capacity-aware version below.
@@ -273,6 +276,7 @@ export async function GET(req: NextRequest) {
             busyStaffIds,
             busyMachineIds,
             hasFullCourtBooking,
+            hasFullOutdoorCourtBooking,
           },
           reservedByPitch,
           // Pass the slot so coaches/specialists outside their weekly
@@ -299,7 +303,7 @@ export async function GET(req: NextRequest) {
         //   - operatorCount=0 → nobody available: self-operate (tennis)
         //     or unbookable (leather).
         //   - busyOperators >= operatorCount → MACHINE is at capacity.
-        // SIDEARM / COACHING / FULL_COURT don't consume operators, so
+        // SIDEARM / COACHING / FULL_COURT / FULL_OUTDOOR_COURT don't consume operators, so
         // this gating only affects the MACHINE category in the UI.
         const operatorsOnDuty = operatorsAvailableForSlot(operatorRoster, slotWindow);
         const operatorCount = operatorsOnDuty.length;
@@ -337,6 +341,12 @@ export async function GET(req: NextRequest) {
           }),
           FULL_COURT: await getResourceSlotPrice({
             category: 'FULL_COURT',
+            startTime: slot.startTime,
+            pricingConfig,
+            timeSlabConfig,
+          }),
+          FULL_OUTDOOR_COURT: await getResourceSlotPrice({
+            category: 'FULL_OUTDOOR_COURT',
             startTime: slot.startTime,
             pricingConfig,
             timeSlabConfig,
@@ -558,6 +568,9 @@ export async function GET(req: NextRequest) {
           })),
           fullCourtAvailable:
             availability.fullCourtAvailable && !blockedCategories.has('FULL_COURT'),
+          // Already block-aware: applyBlocksToAvailability runs the
+          // booking-time block evaluator for the outdoor court.
+          fullOutdoorCourtAvailable: availability.fullOutdoorCourtAvailable,
           corporateBatchHolds: availability.corporateBatchNetsHeld,
           // Per-pitch breakdown of the wickets held by recurring
           // reservations (corporate batch + match simulation) at this slot.

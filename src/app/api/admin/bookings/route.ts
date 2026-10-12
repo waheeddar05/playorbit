@@ -219,7 +219,7 @@ export async function GET(req: NextRequest) {
     // fixes the leak.
     const categoryFilter = searchParams.get('categoryFilter');
     if (categoryFilter) {
-      const validCategories = new Set(['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION']);
+      const validCategories = new Set(['MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION']);
       if (validCategories.has(categoryFilter)) {
         where.category = categoryFilter;
       }

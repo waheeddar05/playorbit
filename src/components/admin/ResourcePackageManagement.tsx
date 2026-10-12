@@ -33,6 +33,7 @@ const CATEGORY_OPTIONS = [
   { id: 'COACHING', label: 'Personal Coaching' },
   { id: 'NET', label: 'Cricket Nets' },
   { id: 'FULL_COURT', label: 'Full Indoor Court' },
+  { id: 'FULL_OUTDOOR_COURT', label: 'Full Outdoor Court' },
 ];
 
 // Standardized timing labels — plain "Day" / "Evening" with "Any time"

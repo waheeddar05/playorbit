@@ -23,7 +23,7 @@ import {
  * `EnabledCategoriesEditor`. Legacy ABCA packages without an explicit
  * category are treated as `MACHINE` for filtering / display.
  */
-export type BookingCategory = 'MACHINE' | 'NET' | 'SIDEARM' | 'COACHING' | 'FULL_COURT';
+export type BookingCategory = 'MACHINE' | 'NET' | 'SIDEARM' | 'COACHING' | 'FULL_COURT' | 'FULL_OUTDOOR_COURT';
 
 export type TimingFilter = 'DAY' | 'EVENING';
 
@@ -69,6 +69,7 @@ export const CATEGORY_CARDS: Array<{
   { id: 'NET',        label: 'Cricket Net',      icon: LayoutGrid, dot: 'bg-cyan-500' },
   { id: 'SIDEARM',    label: 'Sidearm',          icon: Users,      dot: 'bg-emerald-500' },
   { id: 'FULL_COURT', label: 'Full Indoor Court',icon: LayoutGrid, dot: 'bg-purple-500' },
+  { id: 'FULL_OUTDOOR_COURT', label: 'Full Outdoor Court', icon: Sun, dot: 'bg-lime-500' },
   { id: 'COACHING',   label: 'Personal Coaching',icon: UserCog,    dot: 'bg-amber-500' },
 ];
 
@@ -79,7 +80,10 @@ export const CATEGORY_CARDS: Array<{
  */
 export function packageCategory(pkg: { category?: string | null }): BookingCategory {
   const c = pkg.category;
-  if (c === 'NET' || c === 'SIDEARM' || c === 'COACHING' || c === 'FULL_COURT') return c;
+  if (
+    c === 'NET' || c === 'SIDEARM' || c === 'COACHING'
+    || c === 'FULL_COURT' || c === 'FULL_OUTDOOR_COURT'
+  ) return c;
   return 'MACHINE';
 }
 

@@ -79,6 +79,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   SIDEARM: 'Sidearm',
   NET: 'Cricket Net',
   FULL_COURT: 'Full Indoor Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   COACHING: 'Personal Coaching',
   CORPORATE_BATCH: 'Corporate Batch',
   MATCH_SIMULATION: 'Match Simulation',
@@ -95,6 +96,7 @@ const CATEGORY_LABELS_SHORT: Record<string, string> = {
   SIDEARM: 'Sidearm',
   NET: 'Net',
   FULL_COURT: 'Full Court',
+  FULL_OUTDOOR_COURT: 'Outdoor Court',
   COACHING: 'Coaching',
   // Two short words so the tick wraps them onto two lines — a single
   // "Corporate" is the one word wider than a 7-bar phone column.
@@ -121,7 +123,7 @@ function useIsCompactScreen(query = '(max-width: 639px)') {
 // categories included so corporate-batch enrollments and
 // match-simulation seats show up in the counts.
 const DASHBOARD_CATEGORIES = [
-  'MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION',
+  'MACHINE', 'SIDEARM', 'COACHING', 'NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'CORPORATE_BATCH', 'MATCH_SIMULATION',
 ];
 
 // Buckets on the Revenue by Category chart. Manual revenue from the

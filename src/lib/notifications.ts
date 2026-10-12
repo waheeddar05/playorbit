@@ -483,6 +483,7 @@ const DETAIL_CATEGORY_LABELS: Record<BookingCategory, string> = {
   COACHING: 'Personal Coaching',
   NET: 'Cricket Nets',
   FULL_COURT: 'Full Indoor Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   CORPORATE_BATCH: 'Corporate Batch',
   MATCH_SIMULATION: 'Match Simulation',
 };
@@ -578,7 +579,7 @@ function buildBookingDetailSegments(b: BookingDetailFields): string[] {
   } else if (b.category === 'COACHING' && b.assignedCoach?.name) {
     segments.push(`Coach: ${b.assignedCoach.name}`);
   } else if (
-    (b.category === 'NET' || b.category === 'FULL_COURT' || b.category === 'CORPORATE_BATCH') &&
+    (b.category === 'NET' || b.category === 'FULL_COURT' || b.category === 'FULL_OUTDOOR_COURT' || b.category === 'CORPORATE_BATCH') &&
     b.assignedGroundStaff?.name
   ) {
     segments.push(`Ground Staff: ${b.assignedGroundStaff.name}`);
@@ -1025,7 +1026,7 @@ const STAFF_ROLE_LABELS: Record<MembershipRole, string> = MEMBERSHIP_ROLE_LABELS
 // covers the floor). MACHINE is excluded — its operator is the on-ground
 // contact. Used to decide when to additionally ping the center's
 // GROUND_STAFF member about a booking.
-const GROUND_STAFF_CATEGORIES: BookingCategory[] = ['NET', 'FULL_COURT', 'SIDEARM', 'COACHING', 'CORPORATE_BATCH', 'MATCH_SIMULATION'];
+const GROUND_STAFF_CATEGORIES: BookingCategory[] = ['NET', 'FULL_COURT', 'FULL_OUTDOOR_COURT', 'SIDEARM', 'COACHING', 'CORPORATE_BATCH', 'MATCH_SIMULATION'];
 
 /** Human-readable labels for each booking category. */
 const CATEGORY_LABELS: Record<BookingCategory, string> = {
@@ -1033,6 +1034,7 @@ const CATEGORY_LABELS: Record<BookingCategory, string> = {
   SIDEARM: 'Sidearm Session',
   COACHING: 'Personal Coaching',
   FULL_COURT: 'Full Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   CORPORATE_BATCH: 'Corporate Batch',
   NET: 'Net Practice',
   MATCH_SIMULATION: 'Match Simulation',
@@ -1891,6 +1893,7 @@ const CUSTOMER_CATEGORY_LABELS: Record<BookingCategory, string> = {
   COACHING: 'Personal Coaching',
   NET: 'Cricket Net',
   FULL_COURT: 'Full Indoor Court',
+  FULL_OUTDOOR_COURT: 'Full Outdoor Court',
   CORPORATE_BATCH: 'Corporate Batch',
   MATCH_SIMULATION: 'Match Simulation',
 };
@@ -2021,7 +2024,9 @@ export async function notifyCustomerNewBooking(bookingIds: string[]): Promise<vo
     const facility =
       primary.category === 'FULL_COURT'
         ? 'Full Court'
-        : pitchLabel || resourceName || primary.center?.name || '—';
+        : primary.category === 'FULL_OUTDOOR_COURT'
+          ? 'Full Outdoor Court'
+          : pitchLabel || resourceName || primary.center?.name || '—';
 
     // On-ground contact ({{6}}/{{7}}): the relevant assigned person for
     // the category. Net / Full Court / Corporate Batch are handled by the
