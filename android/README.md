@@ -43,6 +43,10 @@ Expect versionCode/targetSdk as intended and the upload key
   into `app/build.gradle` (e.g. `splashScreenFadeOutDuration: ,`) and fails with a
   Groovy parse error rather than a validation message.
 - `appVersionName` alone leaves `versionName ""`; set `appVersion` too.
+- Bubblewrap's current template pulls `androidbrowserhelper:2.7.4`, which declares
+  minSdk 24 and fails the manifest merge against our `minSdkVersion 23`. After
+  `update`, pin `app/build.gradle` back to `androidbrowserhelper:2.6.2` (what 1.0.1 and
+  1.0.2 shipped with) rather than raising minSdk and dropping Android 6 devices.
 
 The Digital Asset Links fingerprint served by
 `src/app/.well-known/assetlinks.json/route.ts` is the Play **app signing** key
