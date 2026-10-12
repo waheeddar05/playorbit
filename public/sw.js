@@ -1,6 +1,8 @@
 // v9: API responses are no longer cached. The bump makes `activate`
 // delete v8, along with every API response already stored in it.
-const CACHE_NAME = 'playorbit-v9';
+// v10: the app icons were re-rendered with the logo inset. Icons are served
+// cache-first, so without the bump installed apps keep the old ones.
+const CACHE_NAME = 'playorbit-v10';
 
 // Only precache truly static/public assets (no auth-protected pages)
 const PRECACHE_ASSETS = [
