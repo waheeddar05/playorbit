@@ -422,6 +422,7 @@ export default function ResourceSlotsPage() {
   const { initiatePayment, processing: paymentProcessing } = useRazorpay(
     {
       onFailure: (msg) => toast.error(msg),
+      onPending: (msg) => toast.info(msg),
     },
     !!paymentConfig?.paymentEnabled,
   );
