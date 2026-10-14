@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import { differenceInDays, startOfDay, format } from 'date-fns';
 import { useRazorpay, usePaymentConfig } from '@/lib/useRazorpay';
+import { PAYMENT_FULFILLED_EVENT } from '@/lib/pending-payment';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { LABEL_MAP } from '@/lib/client-constants';
 import { ContactFooter } from '@/components/ContactFooter';
@@ -122,6 +123,9 @@ export default function PackagesPage() {
     onFailure: (error) => {
       setMessage({ text: error || 'Payment failed', type: 'error' });
     },
+    onPending: (text) => {
+      setMessage({ text, type: 'success' });
+    },
   }, paymentConfig?.paymentEnabled ?? false);
 
   const fetchPackages = async () => {
@@ -182,6 +186,16 @@ export default function PackagesPage() {
     if (tab === 'my' && currentUser) fetchMyPackages();
     if (tab === 'browse') fetchPackages();
   }, [tab, currentUser]);
+
+  // A package paid for while the app was backgrounded gets activated by
+  // PendingPaymentWatcher; show it without a manual refresh.
+  useEffect(() => {
+    const onFulfilled = () => {
+      if (currentUser) fetchMyPackages();
+    };
+    window.addEventListener(PAYMENT_FULFILLED_EVENT, onFulfilled);
+    return () => window.removeEventListener(PAYMENT_FULFILLED_EVENT, onFulfilled);
+  }, [currentUser]);
 
   // Fetch the center's active machines once (and on center switch). Used
   // to power the Bowling Machine sub-filter chip row. Same public endpoint

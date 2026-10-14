@@ -7,6 +7,7 @@ import { CancellationDialog } from '@/components/ui/CancellationDialog';
 import { BookingCard } from '@/components/BookingCard';
 import { useToast } from '@/components/ui/Toast';
 import { usePaymentConfig } from '@/lib/useRazorpay';
+import { PAYMENT_FULFILLED_EVENT } from '@/lib/pending-payment';
 import { DEFAULT_BOOKING_NOTICE } from '@/lib/client-constants';
 
 
@@ -141,6 +142,14 @@ export default function BookingsPage() {
 
   useEffect(() => {
     fetchBookings();
+  }, [fetchBookings]);
+
+  // A booking paid for while the app was backgrounded is confirmed by
+  // PendingPaymentWatcher, possibly after this page has already loaded.
+  useEffect(() => {
+    const onFulfilled = () => fetchBookings();
+    window.addEventListener(PAYMENT_FULFILLED_EVENT, onFulfilled);
+    return () => window.removeEventListener(PAYMENT_FULFILLED_EVENT, onFulfilled);
   }, [fetchBookings]);
 
   // Self-heal: when the user opens "My Bookings", reconcile any of their
