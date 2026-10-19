@@ -268,7 +268,42 @@ export function verifyPaymentSignature(params: {
 }
 
 /**
+ * A rejected Razorpay API call. The SDK rejects with a plain
+ * `{ statusCode, error: { code, description } }` object rather than an
+ * Error, so `err.message` on it is undefined and callers end up showing
+ * "Unknown error". This wraps it with the description Razorpay sent.
+ */
+export class RazorpayApiError extends Error {
+  readonly statusCode?: number;
+  readonly code?: string;
+
+  constructor(message: string, statusCode?: number, code?: string) {
+    super(message);
+    this.name = 'RazorpayApiError';
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+
+  /**
+   * Razorpay debits refunds from the merchant's account balance, which
+   * the daily settlement sweeps out. A low-volume account can therefore
+   * have less balance than a refund needs until new payments are captured.
+   */
+  get isInsufficientBalance(): boolean {
+    return /not have enough balance/i.test(this.message);
+  }
+}
+
+function toRazorpayApiError(err: unknown): Error {
+  if (err instanceof Error) return err;
+  const e = err as { statusCode?: number; error?: { code?: string; description?: string } } | null;
+  const description = e?.error?.description || 'Unknown Razorpay error';
+  return new RazorpayApiError(description, e?.statusCode, e?.error?.code);
+}
+
+/**
  * Initiate a refund on Razorpay using the center's account.
+ * Throws `RazorpayApiError` with Razorpay's own description on rejection.
  */
 export async function initiateRefund(params: {
   centerId: string;
@@ -286,8 +321,11 @@ export async function initiateRefund(params: {
     refundParams.notes = params.notes;
   }
 
-  const refund = await razorpay.payments.refund(params.paymentId, refundParams);
-  return refund;
+  try {
+    return await razorpay.payments.refund(params.paymentId, refundParams);
+  } catch (err) {
+    throw toRazorpayApiError(err);
+  }
 }
 
 /**

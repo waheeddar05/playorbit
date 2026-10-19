@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser, hasMembershipRole } from '@/lib/auth';
-import { initiateRefund } from '@/lib/razorpay';
+import { initiateRefund, RazorpayApiError } from '@/lib/razorpay';
 import { creditWallet } from '@/lib/wallet';
 import { notify } from '@/lib/notifications';
 import { formatIST } from '@/lib/time';
@@ -127,9 +127,17 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (err: any) {
-        console.error('Razorpay refund failed:', err);
+        console.error(`Razorpay refund failed: booking=${bookingId} payment=${payment.id} amount=${refundAmount}`, err);
+        if (err instanceof RazorpayApiError && err.isInsufficientBalance) {
+          return NextResponse.json({
+            error:
+              `Razorpay refused: this center's Razorpay account balance is lower than ₹${refundAmount}. ` +
+              `Nothing was refunded. Refund to the customer's wallet instead, or add funds in the Razorpay dashboard and try again.`,
+            code: 'RAZORPAY_INSUFFICIENT_BALANCE',
+          }, { status: 502 });
+        }
         return NextResponse.json({
-          error: `Razorpay refund failed: ${err?.message || 'Unknown error'}`,
+          error: `Razorpay refund failed: ${err?.message || 'Unknown error'}. Nothing was refunded.`,
         }, { status: 502 });
       }
 
