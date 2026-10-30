@@ -36,11 +36,13 @@ import type { LedgerEntry, LedgerListResponse } from '@/components/admin/ledger/
 import {
   LEDGER_EXPENSE_CATEGORIES,
   LEDGER_EXPENSE_CATEGORY_LABELS,
+  LEDGER_EXPENSE_SUBCATEGORIES,
   LEDGER_PAYMENT_METHODS,
   LEDGER_PAYMENT_METHOD_LABELS,
   LEDGER_REVENUE_CATEGORIES,
   LEDGER_REVENUE_CATEGORY_LABELS,
   ledgerCategoryLabel,
+  type LedgerExpenseCategoryId,
   type LedgerKind,
   type LedgerPaymentMethodId,
 } from '@/lib/ledger';
@@ -78,6 +80,10 @@ export default function AdminLedgerPage() {
   const [from, setFrom] = useState(range.from);
   const [to, setTo] = useState(range.to);
   const [category, setCategory] = useState('');
+  // Expenses only, and only once a category with subcategories is
+  // picked — the codes are per-category, so it is cleared whenever the
+  // category (or the tab) changes.
+  const [subcategory, setSubcategory] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [recordedById, setRecordedById] = useState('');
   // Who handled the money. Same column on both tabs, labelled "Collected
@@ -111,13 +117,25 @@ export default function AdminLedgerPage() {
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     if (category) params.set('category', category);
+    if (subcategory) params.set('subcategory', subcategory);
     if (paymentMethod) params.set('paymentMethod', paymentMethod);
     if (recordedById) params.set('recordedById', recordedById);
     if (collectedById) params.set('collectedById', collectedById);
     if (debouncedSearch) params.set('q', debouncedSearch);
     params.set('page', String(page));
     return params.toString();
-  }, [kind, from, to, category, paymentMethod, recordedById, collectedById, debouncedSearch, page]);
+  }, [
+    kind,
+    from,
+    to,
+    category,
+    subcategory,
+    paymentMethod,
+    recordedById,
+    collectedById,
+    debouncedSearch,
+    page,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -150,6 +168,7 @@ export default function AdminLedgerPage() {
     if (next === kind) return;
     setKind(next);
     setCategory('');
+    setSubcategory('');
     setPage(1);
   };
 
@@ -185,12 +204,22 @@ export default function AdminLedgerPage() {
     ? LEDGER_REVENUE_CATEGORIES.map((c) => ({ value: c, label: LEDGER_REVENUE_CATEGORY_LABELS[c] }))
     : LEDGER_EXPENSE_CATEGORIES.map((c) => ({ value: c, label: LEDGER_EXPENSE_CATEGORY_LABELS[c] }));
 
+  // Subcategory choices for the selected expense category. Empty for
+  // revenue, for "All", and for Miscellaneous (which has none) — in all
+  // three cases the picker is not rendered.
+  const subcategoryOptions =
+    !isRevenue && category
+      ? (LEDGER_EXPENSE_SUBCATEGORIES[category as LedgerExpenseCategoryId] ?? [])
+      : [];
+  const showSubcategory = subcategoryOptions.length > 0;
+
   const entries = data?.entries ?? [];
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const filtersDirty =
     from !== range.from ||
     to !== range.to ||
     !!category ||
+    !!subcategory ||
     !!paymentMethod ||
     !!recordedById ||
     !!collectedById ||
@@ -200,6 +229,7 @@ export default function AdminLedgerPage() {
     setFrom(range.from);
     setTo(range.to);
     setCategory('');
+    setSubcategory('');
     setPaymentMethod('');
     setRecordedById('');
     setCollectedById('');
@@ -250,7 +280,11 @@ export default function AdminLedgerPage() {
 
       {/* Filters */}
       <div className="bg-white/[0.03] backdrop-blur-sm rounded-xl border border-white/[0.07] p-4 space-y-3">
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div
+          className={`grid grid-cols-2 lg:grid-cols-3 gap-3 ${
+            showSubcategory ? 'xl:grid-cols-7' : 'xl:grid-cols-6'
+          }`}
+        >
           <div>
             <label className={filterLabelClass}>From</label>
             <input
@@ -281,6 +315,7 @@ export default function AdminLedgerPage() {
               value={category}
               onChange={(e) => {
                 setCategory(e.target.value);
+                setSubcategory('');
                 setPage(1);
               }}
               className={controlClass}
@@ -293,6 +328,26 @@ export default function AdminLedgerPage() {
               ))}
             </select>
           </div>
+          {showSubcategory && (
+            <div>
+              <label className={filterLabelClass}>Subcategory</label>
+              <select
+                value={subcategory}
+                onChange={(e) => {
+                  setSubcategory(e.target.value);
+                  setPage(1);
+                }}
+                className={controlClass}
+              >
+                <option value="">All</option>
+                {subcategoryOptions.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className={filterLabelClass}>Payment Method</label>
             <select
