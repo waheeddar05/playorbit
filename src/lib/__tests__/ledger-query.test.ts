@@ -65,3 +65,44 @@ describe('buildLedgerWhere — collectedById', () => {
     expect(whereOf('kind=EXPENSE&collectedById=usr_raj').centerId).toBe(CENTER);
   });
 });
+
+describe('buildLedgerWhere — expense subcategory', () => {
+  it('filters Expenses by category and subcategory together', () => {
+    expect(
+      whereOf('kind=EXPENSE&category=REPAIRS_MAINTENANCE&subcategory=NET_REPAIR'),
+    ).toMatchObject({
+      centerId: CENTER,
+      kind: 'EXPENSE',
+      expenseCategory: 'REPAIRS_MAINTENANCE',
+      expenseSubcategory: 'NET_REPAIR',
+    });
+  });
+
+  it('scopes a shared code like OTHER to the selected category', () => {
+    expect(whereOf('kind=EXPENSE&category=BALLS&subcategory=OTHER')).toMatchObject({
+      expenseCategory: 'BALLS',
+      expenseSubcategory: 'OTHER',
+    });
+  });
+
+  it('is absent when unset or empty', () => {
+    expect(whereOf('kind=EXPENSE&category=BALLS').expenseSubcategory).toBeUndefined();
+    expect(whereOf('kind=EXPENSE&category=BALLS&subcategory=').expenseSubcategory).toBeUndefined();
+  });
+
+  it('rejects a subcategory from a different category', () => {
+    expect(build('kind=EXPENSE&category=BALLS&subcategory=NET_REPAIR')).toHaveProperty('error');
+  });
+
+  it('rejects a subcategory under Miscellaneous, which has none', () => {
+    expect(build('kind=EXPENSE&category=MISCELLANEOUS&subcategory=OTHER')).toHaveProperty('error');
+  });
+
+  it('rejects a subcategory without a category', () => {
+    expect(build('kind=EXPENSE&subcategory=NET_REPAIR')).toHaveProperty('error');
+  });
+
+  it('rejects a subcategory on Manual Revenue', () => {
+    expect(build('kind=REVENUE&category=SIDEARM&subcategory=OTHER')).toHaveProperty('error');
+  });
+});

@@ -15,8 +15,9 @@ import {
  *
  * Takes the exact same query params as the list endpoint and reuses its
  * `where` builder, so the file always contains precisely the rows the
- * admin is looking at (same kind, date range, category, payment method,
- * recorded-by and search filters) — just unpaginated.
+ * admin is looking at (same kind, date range, category, subcategory,
+ * payment method, collected-by, recorded-by and search filters) — just
+ * unpaginated.
  */
 
 function istDate(d: Date | null): string {

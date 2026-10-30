@@ -13,8 +13,10 @@ import { prisma } from '@/lib/prisma';
 import { dateStringToUTC } from '@/lib/time';
 import {
   LEDGER_EXPENSE_CATEGORIES,
+  LEDGER_EXPENSE_SUBCATEGORIES,
   LEDGER_PAYMENT_METHODS,
   LEDGER_REVENUE_CATEGORIES,
+  type LedgerExpenseCategoryId,
 } from '@/lib/ledger';
 
 export const LEDGER_PAGE_SIZE = 50;
@@ -84,6 +86,10 @@ const ListQuerySchema = z.object({
   // One `category` param covers both kinds; validated against the
   // relevant enum below once we know the kind.
   category: z.string().optional(),
+  // Expense subcategory code. Only meaningful under an expense category
+  // — the codes are per-category (several share `OTHER`), so it is
+  // validated against the selected category's catalog below.
+  subcategory: z.string().optional(),
   paymentMethod: z.enum(LEDGER_PAYMENT_METHODS).optional(),
   recordedById: z.string().optional(),
   // Who physically handled the money — surfaced as "Collected By" on the
@@ -112,8 +118,18 @@ export function buildLedgerWhere(centerId: string, params: URLSearchParams): Led
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message || 'Invalid filters' };
   }
-  const { kind, from, to, category, paymentMethod, recordedById, collectedById, q, page } =
-    parsed.data;
+  const {
+    kind,
+    from,
+    to,
+    category,
+    subcategory,
+    paymentMethod,
+    recordedById,
+    collectedById,
+    q,
+    page,
+  } = parsed.data;
 
   const where: Prisma.LedgerEntryWhereInput = { centerId, kind };
 
@@ -136,6 +152,22 @@ export function buildLedgerWhere(centerId: string, params: URLSearchParams): Led
       }
       where.expenseCategory = category as Prisma.LedgerEntryWhereInput['expenseCategory'];
     }
+  }
+
+  if (subcategory) {
+    // A subcategory code means nothing on its own (`OTHER` exists under
+    // every expense category), so it requires an expense category and
+    // must belong to that category's catalog. Rejecting rather than
+    // ignoring keeps the list and the CSV from silently disagreeing with
+    // what the filter bar shows.
+    if (kind !== 'EXPENSE' || !category) {
+      return { error: 'Subcategory filter needs an expense category' };
+    }
+    const options = LEDGER_EXPENSE_SUBCATEGORIES[category as LedgerExpenseCategoryId] ?? [];
+    if (!options.some((o) => o.value === subcategory)) {
+      return { error: 'Unknown subcategory for this expense category' };
+    }
+    where.expenseSubcategory = subcategory;
   }
 
   if (paymentMethod) where.paymentMethod = paymentMethod;
