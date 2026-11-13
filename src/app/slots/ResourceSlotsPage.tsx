@@ -70,8 +70,9 @@ import { DEFAULT_BOOKING_NOTICE } from '@/lib/client-constants';
 import { computeSlotDiscount, type OfferDescriptor } from '@/lib/offer-calc';
 import {
   applySelfOperateAdjustment,
-  formatSelfOperateAdjustment,
-  normalizeSelfOperateAdjustment,
+  isSelfOperateAllowed,
+  resolveSelfOperateAdjustment,
+  selfOperateBadgeLabel,
 } from '@/lib/self-operate-adjustment';
 import MatchPracticePanel from './MatchPracticePanel';
 
@@ -214,9 +215,12 @@ interface ClientPricingConfig {
   fullCourtRate?: ClientPerSlabRates;
   /** Category-level FULL_OUTDOOR_COURT rate, same pair shape. */
   fullOutdoorCourtRate?: ClientPerSlabRates;
-  /** Signed ₹/slot added to a MACHINE booking when the player picks
-   *  Self Operate. See src/lib/self-operate-adjustment.ts. */
+  /** Signed ₹/slot added to a MACHINE slot booked as self-operate
+   *  (center default). See src/lib/self-operate-adjustment.ts. */
   selfOperateAdjustment?: number;
+  /** Per-Machine-row self-operate settings: `enabled: false` makes a
+   *  machine operator-only; `adjustment` overrides the default. */
+  selfOperateMachines?: Record<string, { enabled?: boolean; adjustment?: number | null }>;
 }
 
 interface ResourceAvailabilityResponse {
@@ -923,30 +927,28 @@ export default function ResourceSlotsPage() {
       if (!pool || pool.length === 0) {
         return { ok: false, reason: reasonForEmptyPool() };
       }
-      // Operator gating — only for non-tennis (leather) machines. Tennis
-      // machines can self-operate, so a busy operator pool doesn't block
-      // them; leather machines go Not Available instead. The source of
-      // truth is the machine type's ballType — relying on the code string
-      // would silently miss any future Tennis machine added with a
-      // different code than 'LEVERAGE'.
+      // Operator gating — only for operator-only machines (self-operate
+      // switched off by the admin). Every other machine, leather
+      // included, falls back to self-operate when no operator is free.
       //
       // Two operator-unavailability paths to cover:
       //   1. No operator's weekly availability covers this window — which
       //      includes operators who have no schedule entered at all, since
       //      those are never on duty.
       //      → s.selfOperate === true, s.operatorAvailable === false.
-      //      Tennis machines fall back to self-operate; leather
+      //      Self-operate machines fall back to it; operator-only
       //      machines need an operator who isn't there — Not Available.
       //   2. Operators are available but every one is already booked —
       //      one operator serves one booking, so the slot is at
       //      capacity. → s.operatorAvailable === false.
-      //      Same rule: tennis self-operates, leather greys out.
-      const selectedMachine = machineId ? filteredMachines.find((m) => m.id === machineId) : null;
-      const isTennisMachine = selectedMachine?.machineType?.ballType === 'TENNIS';
-      if (!isTennisMachine) {
-        // Leather machines always need an operator. A window with no
-        // operator available leaves leather machines unbookable — the
-        // machine can't run itself.
+      //      Same rule: self-operate machines run themselves,
+      //      operator-only machines grey out.
+      // Per-machine self-operate setting (every machine allows it unless
+      // the admin made it operator-only). Same rule the booking route
+      // applies, so the grid can't offer a slot the server refuses.
+      if (!isSelfOperateAllowed(data?.pricingConfig, machineId)) {
+        // Operator-only machine: a window with no operator free leaves
+        // it unbookable — it can't run itself.
         if (s.selfOperate === true) {
           return { ok: false, reason: 'Operator unavailable — this machine requires an operator' };
         }
@@ -1089,16 +1091,28 @@ export default function ResourceSlotsPage() {
     return machines;
   }, [machines]);
 
-  // Effective Self Operate pick. The toggle only renders for tennis
-  // machines, but `operationMode` state survives switching to another
-  // machine — so gate on the machine actually picked, never on the bare
-  // state. This is also what gets sent to the server, which prices and
-  // assigns from it (and refuses it outright on a leather machine).
-  const selfOperatePicked =
-    category === 'MACHINE'
-    && operationMode === 'SELF_OPERATE'
-    && filteredMachines.find((m) => m.id === machineId)?.machineType?.ballType === 'TENNIS';
-  const selfOperateAdjustment = normalizeSelfOperateAdjustment(data?.pricingConfig?.selfOperateAdjustment);
+  // Self-operate for the picked machine. Every machine allows it unless
+  // the admin made it operator-only (Settings → pricing). The toggle only
+  // renders when allowed, but `operationMode` state survives switching to
+  // another machine — so gate on the machine actually picked, never on
+  // the bare state. This is also what gets sent to the server.
+  const machineAllowsSelfOperate =
+    category === 'MACHINE' && !!machineId && isSelfOperateAllowed(data?.pricingConfig, machineId);
+  const selfOperatePicked = machineAllowsSelfOperate && operationMode === 'SELF_OPERATE';
+  /** Signed ₹/slot for self-operating the picked machine (its own
+   *  override, else the center default). */
+  const selfOperateAdjustment = machineAllowsSelfOperate
+    ? resolveSelfOperateAdjustment(data?.pricingConfig, machineId)
+    : 0;
+
+  /** Will this slot be booked as self-operate? Mirrors the booking
+   *  route's per-slot decision: the player picked it, or no operator is
+   *  free for the slot (none on duty, or all busy) and the machine can
+   *  run itself. The adjustment follows this, so a slot the grid labels
+   *  "Self Operate" is priced as one. */
+  const slotWillSelfOperate = (s: ResourceSlot): boolean =>
+    machineAllowsSelfOperate
+    && (selfOperatePicked || s.selfOperate === true || s.operatorAvailable === false);
 
   /** Raw discount inputs (recurring ₹ for one/two slots + applicable promo
    *  offers) for this slot under the active category. For MACHINE with a
@@ -1219,13 +1233,13 @@ export default function ResourceSlotsPage() {
     return cfg.categoryRates[category]?.[slab] ?? s.prices[priceCategory] ?? 0;
   };
 
-  /** Slot rate including the center's self-operate adjustment when the
-   *  player picked Self Operate. Same rule and same helper the booking
-   *  route uses, so card, bar, confirm dialog and the Razorpay amount all
-   *  match the price the server records. */
+  /** Slot rate including the self-operate adjustment when this slot
+   *  will be booked as self-operate. Same rule and same helper the
+   *  booking route uses, so card, bar, confirm dialog and the Razorpay
+   *  amount all match the price the server records. */
   const slotPriceWithConsecutive = (s: ResourceSlot, consecutive: boolean): number => {
     const rate = rawSlotPriceWithConsecutive(s, consecutive);
-    return selfOperatePicked
+    return slotWillSelfOperate(s)
       ? applySelfOperateAdjustment(rate, selfOperateAdjustment).price
       : rate;
   };
@@ -1337,7 +1351,12 @@ export default function ResourceSlotsPage() {
    *  "Save ₹X" — same convention as ABCA's BookingBar. */
   const originalTotal = useMemo(() => {
     if (packageCoversBooking) return 0;
-    return selectedSlots.reduce((sum, s) => sum + slotSinglePriceFor(s), 0);
+    // A self-operate reduction counts as savings (struck-through list
+    // price is the operator rate); a surcharge is part of the price.
+    return selectedSlots.reduce(
+      (sum, s) => sum + Math.max(slotSinglePriceFor(s), rawSlotPriceWithConsecutive(s, false)),
+      0,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSlots, category, machineId, pitchType, ballType, operationMode, data?.pricingConfig, packageCoversBooking]);
 
@@ -1362,6 +1381,21 @@ export default function ResourceSlotsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSlots, category, machineId, pitchType, ballType, operationMode, data?.pricingConfig]);
   const totalSavings = originalTotal - totalPrice;
+
+  /** Net ₹ the self-operate adjustment moves the selected slots by
+   *  (negative = saving), on the same consecutive-aware base the total
+   *  uses. Drives the "Self-operate" line in the bar and dialog. */
+  const selfOperateTotal = useMemo(() => {
+    if (packageCoversBooking || isFreeBooking) return 0;
+    let net = 0;
+    for (const s of selectedSlots) {
+      if (!slotWillSelfOperate(s)) continue;
+      const consecutive = isSlotConsecutive(s);
+      net += applySelfOperateAdjustment(rawSlotPriceWithConsecutive(s, consecutive), selfOperateAdjustment).applied;
+    }
+    return net;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSlots, category, machineId, pitchType, ballType, operationMode, data?.pricingConfig, packageCoversBooking, isFreeBooking]);
 
   const toggleSlot = (slot: ResourceSlot) => {
     const idx = selectedSlots.findIndex((s) => s.startTime === slot.startTime);
@@ -1772,13 +1806,14 @@ export default function ResourceSlotsPage() {
             )}
             {/* Operation mode toggle — sits right after Pitch + Ball
                 so the booking flow reads top-to-bottom: machine →
-                pitch → ball → operation mode → slot grid. Tennis
-                machines only; leather forces WITH_OPERATOR server-
-                side. Previously rendered way down past the slot grid,
-                which made admins miss it and complain that 'self
-                operate isn't an option' — now it's visible before
-                they ever scroll. */}
-            {m.machineType?.ballType === 'TENNIS' && (
+                pitch → ball → operation mode → slot grid. Shown for
+                every machine that allows self-operate (all of them,
+                leather included, unless the admin made it operator-
+                only in Settings → pricing). Previously rendered way
+                down past the slot grid, which made admins miss it and
+                complain that 'self operate isn't an option' — now it's
+                visible before they ever scroll. */}
+            {machineAllowsSelfOperate && (
               <div className="mb-2.5">
                 <label className="block text-[10px] font-medium text-accent mb-1 uppercase tracking-wider">
                   Operation Mode
@@ -1804,27 +1839,42 @@ export default function ResourceSlotsPage() {
                         : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:border-accent/20'
                     }`}
                   >
-                    <span className="truncate">
-                      Self Operate
-                      {selfOperateAdjustment !== 0 && !isFreeBooking && (
-                        <span className={selfOperateAdjustment < 0 ? 'ml-1 text-green-500' : 'ml-1 text-amber-500'}>
-                          {formatSelfOperateAdjustment(selfOperateAdjustment)}
-                        </span>
-                      )}
-                    </span>
+                    <span className="truncate">Self Operate</span>
+                    {/* The self-operate offer, promoted on the button
+                        itself so it's seen before the player picks. */}
+                    {selfOperateAdjustment !== 0 && !isFreeBooking && (
+                      <span
+                        className={`shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                          selfOperateAdjustment < 0
+                            ? operationMode === 'SELF_OPERATE'
+                              ? 'bg-primary text-green-300'
+                              : 'bg-green-500 text-black'
+                            : operationMode === 'SELF_OPERATE'
+                              ? 'bg-primary text-amber-300'
+                              : 'bg-amber-500/20 text-amber-300'
+                        }`}
+                      >
+                        {selfOperateBadgeLabel(selfOperateAdjustment)}
+                        {selfOperateAdjustment < 0 && '/slot'}
+                      </span>
+                    )}
                   </button>
                 </div>
                 {operationMode === 'SELF_OPERATE' && (
                   <p className="text-[11px] text-amber-400/80 mt-1.5 leading-relaxed">
                     No machine operator will be assigned. You&apos;ll need to operate the machine yourself — please be familiar with it before booking.
-                    {selfOperateAdjustment !== 0 && !isFreeBooking && (
-                      <>
-                        {' '}
-                        {selfOperateAdjustment < 0
-                          ? `Self-operate saves ₹${Math.abs(selfOperateAdjustment)} per slot.`
-                          : `Self-operate adds ₹${selfOperateAdjustment} per slot.`}
-                      </>
-                    )}
+                  </p>
+                )}
+                {selfOperateAdjustment < 0 && !isFreeBooking && (
+                  <p className="text-[11px] font-semibold text-green-400 mt-1.5">
+                    {operationMode === 'SELF_OPERATE'
+                      ? `You save ₹${Math.abs(selfOperateAdjustment)} on every slot by operating it yourself.`
+                      : `Operate it yourself and get ₹${Math.abs(selfOperateAdjustment)} off every slot.`}
+                  </p>
+                )}
+                {selfOperateAdjustment > 0 && !isFreeBooking && operationMode === 'SELF_OPERATE' && (
+                  <p className="text-[11px] text-amber-400 mt-1.5">
+                    Self operate adds ₹{selfOperateAdjustment} per slot.
                   </p>
                 )}
               </div>
@@ -2082,18 +2132,16 @@ export default function ResourceSlotsPage() {
 
               // Self-operate state — drives the amber warning theme below
               // (matches ABCA SlotGrid). True when no operator will be
-              // assigned to this booking: either nobody is available for
-              // the slot, or operators are available but all busy AND the
-              // user picked a tennis machine (LEVERAGE ballType). Leather
-              // machines are never self-operate — they need an operator
-              // who, when absent, makes the slot unavailable (gated
-              // above in slotIsBookable).
-              const sel = machineId ? filteredMachines.find((m) => m.id === machineId) : null;
-              const isTennisMachine = sel?.machineType?.ballType === 'TENNIS';
-              const isSelfOperate = !isUnavailable && category === 'MACHINE' && isTennisMachine && (
-                slot.selfOperate === true
-                || slot.operatorAvailable === false
-              );
+              // assigned to this booking: the player picked Self Operate,
+              // or no operator is free for the slot, on a machine that
+              // allows self-operate. Operator-only machines are never
+              // self-operate — an absent operator makes the slot
+              // unavailable (gated above in slotIsBookable).
+              const isSelfOperate = !isUnavailable && slotWillSelfOperate(slot);
+              // Operator rate before the self-operate adjustment — shown
+              // struck through next to a reduced self-operate price.
+              const listPrice = rawSlotPriceWithConsecutive(slot, false);
+              const selfOperateOff = isSelfOperate && !isFreeBooking ? listPrice - basePrice : 0;
 
               const bgClass = isUnavailable
                 ? 'bg-white/[0.02] border border-white/[0.05] cursor-not-allowed'
@@ -2169,6 +2217,9 @@ export default function ResourceSlotsPage() {
                     </span>
                     {!isUnavailable && (
                       <span className={`text-[9px] font-medium ${selected ? 'text-primary/70' : 'text-slate-400'}`}>
+                        {selfOperateOff > 0 && (
+                          <span className="line-through opacity-60 mr-1">₹{listPrice}</span>
+                        )}
                         ₹{basePrice}
                       </span>
                     )}
@@ -2189,6 +2240,17 @@ export default function ResourceSlotsPage() {
                       this badge, admins who configure a recurring or promo
                       offer can't see it's taking effect until they pick a
                       slot and look at the booking bar. */}
+                  {/* Self-operate saving on this slot — same pill style as
+                      the offer badge below so it reads as a deal. */}
+                  {selfOperateOff > 0 && (
+                    <div className={`mt-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full text-center ${
+                      selected
+                        ? 'bg-primary/20 text-primary/80'
+                        : 'bg-green-500/15 text-green-400 border border-green-500/20'
+                    }`}>
+                      Self operate: ₹{selfOperateOff} off
+                    </div>
+                  )}
                   {!isUnavailable && (() => {
                     const disc = discountFor(slot);
                     if (!disc || disc.amount <= 0) return null;
@@ -2307,8 +2369,13 @@ export default function ResourceSlotsPage() {
           `${CATEGORIES.find((c) => c.key === category)?.label} on ${format(selectedDate, 'EEE, dd MMM yyyy')}`,
           `Slots: ${selectedSlots.map((s) => formatTimeRangeIST(s.startTime, s.endTime)).join(', ')}`,
         ];
-        if (selfOperatePicked && selfOperateAdjustment !== 0 && !isFreeBooking && !packageCoversBooking) {
-          lines.push(`Self operate: ${formatSelfOperateAdjustment(selfOperateAdjustment)} per slot (included)`);
+        if (selfOperateTotal !== 0) {
+          const n = selectedSlots.filter(slotWillSelfOperate).length;
+          lines.push(
+            selfOperateTotal < 0
+              ? `Self operate: ₹${Math.abs(selfOperateTotal)} off (${n} slot${n === 1 ? '' : 's'}, included)`
+              : `Self operate: +₹${selfOperateTotal} (${n} slot${n === 1 ? '' : 's'}, included)`,
+          );
         }
         if (kitRental && isKitRentalAvailable && kitRentalTotal > 0) {
           lines.push(`+ Kit rental: ₹${kitRentalTotal} (${selectedSlots.length} × ₹${kitRentalCharge})`);
@@ -2365,13 +2432,7 @@ export default function ResourceSlotsPage() {
                 {/* Show "Self Operate" inline next to the date when any
                     selected slot will run without an operator. Matches
                     ABCA's BookingBar subtitle treatment. */}
-                {category === 'MACHINE' && selectedSlots.some((s) => {
-                  const m = machineId ? filteredMachines.find((mm) => mm.id === machineId) : null;
-                  const tennis = m?.machineType?.ballType === 'TENNIS';
-                  // Only tennis machines self-operate. Leather selections
-                  // are blocked upstream when no operator is free.
-                  return tennis && (s.selfOperate === true || s.operatorAvailable === false);
-                }) && (
+                {category === 'MACHINE' && selectedSlots.some(slotWillSelfOperate) && (
                   <span> &middot; <span className="text-amber-400">Self Operate</span></span>
                 )}
               </p>
@@ -2434,6 +2495,16 @@ export default function ResourceSlotsPage() {
                           Save ₹{totalSavings.toLocaleString()}
                         </span>
                       </>
+                    )}
+                    {selfOperateTotal < 0 && (
+                      <span className="text-[10px] text-green-400 ml-1">
+                        (incl. Self Operate: -₹{Math.abs(selfOperateTotal)})
+                      </span>
+                    )}
+                    {selfOperateTotal > 0 && (
+                      <span className="text-[10px] text-amber-400 ml-1">
+                        (incl. Self Operate: +₹{selfOperateTotal})
+                      </span>
                     )}
                     {discountBreakdown.recurring > 0 && (
                       <span className="text-[10px] text-emerald-400 ml-1">

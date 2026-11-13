@@ -3,7 +3,11 @@ import {
   MAX_SELF_OPERATE_ADJUSTMENT,
   applySelfOperateAdjustment,
   formatSelfOperateAdjustment,
+  isSelfOperateAllowed,
   normalizeSelfOperateAdjustment,
+  normalizeSelfOperateMachines,
+  resolveSelfOperateAdjustment,
+  selfOperateBadgeLabel,
 } from '@/lib/self-operate-adjustment';
 
 describe('normalizeSelfOperateAdjustment', () => {
@@ -79,5 +83,91 @@ describe('formatSelfOperateAdjustment', () => {
     expect(formatSelfOperateAdjustment(0)).toBe('');
     expect(formatSelfOperateAdjustment(null)).toBe('');
     expect(formatSelfOperateAdjustment(undefined)).toBe('');
+  });
+});
+
+describe('normalizeSelfOperateMachines', () => {
+  it('keeps enabled flags and numeric overrides', () => {
+    expect(
+      normalizeSelfOperateMachines({
+        m1: { enabled: false },
+        m2: { adjustment: -50 },
+        m3: { enabled: 'true', adjustment: '0' },
+      }),
+    ).toEqual({
+      m1: { enabled: false },
+      m2: { adjustment: -50 },
+      m3: { enabled: true, adjustment: 0 },
+    });
+  });
+
+  it('drops malformed entries and unusable amounts', () => {
+    expect(
+      normalizeSelfOperateMachines({
+        bad: 'x',
+        arr: [1],
+        empty: {},
+        noAmount: { adjustment: 'abc' },
+        nullAmount: { adjustment: null },
+      }),
+    ).toEqual({});
+    expect(normalizeSelfOperateMachines(null)).toEqual({});
+    expect(normalizeSelfOperateMachines([])).toEqual({});
+  });
+});
+
+describe('isSelfOperateAllowed', () => {
+  it('allows every machine by default, leather included', () => {
+    expect(isSelfOperateAllowed({}, 'leather-machine')).toBe(true);
+    expect(isSelfOperateAllowed(undefined, 'm1')).toBe(true);
+  });
+
+  it('honours an operator-only machine', () => {
+    const cfg = { selfOperateMachines: { m1: { enabled: false } } };
+    expect(isSelfOperateAllowed(cfg, 'm1')).toBe(false);
+    expect(isSelfOperateAllowed(cfg, 'm2')).toBe(true);
+  });
+
+  it('treats an unidentified machine as allowed', () => {
+    expect(isSelfOperateAllowed({ selfOperateMachines: { m1: { enabled: false } } }, null)).toBe(true);
+  });
+});
+
+describe('resolveSelfOperateAdjustment', () => {
+  const cfg = {
+    selfOperateAdjustment: -100,
+    selfOperateMachines: {
+      yantra: { adjustment: -150 },
+      gravity: { adjustment: 0 },
+      leverage: {},
+      off: { enabled: false, adjustment: -200 },
+    },
+  };
+
+  it('uses the center default when a machine has no override', () => {
+    expect(resolveSelfOperateAdjustment(cfg, 'leverage')).toBe(-100);
+    expect(resolveSelfOperateAdjustment(cfg, 'unknown')).toBe(-100);
+    expect(resolveSelfOperateAdjustment(cfg, null)).toBe(-100);
+  });
+
+  it('prefers the machine override, including an explicit 0', () => {
+    expect(resolveSelfOperateAdjustment(cfg, 'yantra')).toBe(-150);
+    expect(resolveSelfOperateAdjustment(cfg, 'gravity')).toBe(0);
+  });
+
+  it('is 0 for an operator-only machine', () => {
+    expect(resolveSelfOperateAdjustment(cfg, 'off')).toBe(0);
+  });
+
+  it('is 0 when nothing is configured', () => {
+    expect(resolveSelfOperateAdjustment({}, 'm1')).toBe(0);
+  });
+});
+
+describe('selfOperateBadgeLabel', () => {
+  it('reads as a deal for a reduction and a surcharge otherwise', () => {
+    expect(selfOperateBadgeLabel(-100)).toBe('₹100 off');
+    expect(selfOperateBadgeLabel(50)).toBe('+₹50');
+    expect(selfOperateBadgeLabel(0)).toBe('');
   });
 });

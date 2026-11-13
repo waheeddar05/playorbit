@@ -25,7 +25,11 @@ import {
 import { notifyAssignedStaffNewBooking, notifyCustomerNewBooking, notifyAdminPaymentIssue } from '@/lib/notifications';
 import { markCaptureNeedsRecovery } from '@/lib/payment-recovery';
 import { getResourceSlotPrice, getResourcePricingConfig } from '@/lib/resource-pricing';
-import { applySelfOperateAdjustment, normalizeSelfOperateAdjustment } from '@/lib/self-operate-adjustment';
+import {
+  applySelfOperateAdjustment,
+  isSelfOperateAllowed,
+  resolveSelfOperateAdjustment,
+} from '@/lib/self-operate-adjustment';
 import { getAllApplicablePromoDiscounts } from '@/lib/promotionalOffers';
 import {
   effectivePitchTypes,
@@ -637,11 +641,11 @@ async function executeResourceBookingCore(
   // values, or the universe when the admin left them empty) so client
   // tampering can't sneak in unsupported types.
   let machineTypeCode: string | null = null;
-  // `machineTypeBallType` (TENNIS / LEATHER / MACHINE) drives the
-  // operator-required vs self-operate gate below. Sourced from the
-  // MachineType.ballType column — the authoritative semantic. Tying the
-  // gate to the code string (LEVERAGE / YANTRA / GRAVITY) would silently
-  // miss any future machine type added with a different code.
+  // `machineTypeBallType` (TENNIS / LEATHER / MACHINE) gates package
+  // cross-machine redemption to the same machine family. Sourced from the
+  // MachineType.ballType column — the authoritative semantic. (Whether a
+  // machine needs an operator is NOT derived from it any more: that is the
+  // per-machine self-operate setting, see `selfOperateAllowed`.)
   let machineTypeBallType: string | null = null;
   if (body.category === 'MACHINE' && body.machineId) {
     const m = await prisma.machine.findUnique({
@@ -976,20 +980,27 @@ async function executeResourceBookingCore(
     }
   }
 
-  // ─── Self-operate price adjustment ───────────────────────────────
-  // A signed ₹/slot the center adds when the player explicitly picks
-  // Self Operate on a machine that can run without an operator (never
-  // LEATHER — the operator cascade below refuses the pick there, so the
-  // price must refuse it too). Keyed on the request, not on the
-  // in-transaction operator fallback: the client quoted (and, for online
-  // payments, charged) this price before the transaction ran, so the
-  // recorded price has to follow the same rule.
-  const selfOperatePicked =
-    body.category === 'MACHINE'
-    && body.operationMode === 'SELF_OPERATE'
-    && machineTypeBallType !== 'LEATHER';
-  const selfOperateAdjustment = selfOperatePicked && !isFreeBooking && !body.userPackageId
-    ? normalizeSelfOperateAdjustment((await getResourcePricingConfig(center.id)).selfOperateAdjustment)
+  // ─── Self-operate: who may, and what it costs ────────────────────
+  // Per-machine settings on RESOURCE_PRICING_CONFIG (see
+  // src/lib/self-operate-adjustment.ts). Every machine — leather
+  // included — allows self-operate unless the admin switched it off; a
+  // machine that doesn't is operator-only (Not Available when no
+  // operator is free, and a Self Operate pick is ignored).
+  //
+  // The adjustment is applied per slot below, to every slot whose final
+  // operationMode is SELF_OPERATE — picked, or fallen back to because no
+  // operator was free. The slot page predicts the same per slot from the
+  // availability grid, so the quoted price is the recorded price; only a
+  // change in operator availability between the grid load and this
+  // transaction can make them differ.
+  const selfOperateConfig = body.category === 'MACHINE'
+    ? await getResourcePricingConfig(center.id)
+    : null;
+  const selfOperateAllowed =
+    body.category === 'MACHINE' && isSelfOperateAllowed(selfOperateConfig, body.machineId ?? null);
+  const selfOperatePicked = selfOperateAllowed && body.operationMode === 'SELF_OPERATE';
+  const selfOperateAdjustment = selfOperateAllowed && !isFreeBooking && !body.userPackageId
+    ? resolveSelfOperateAdjustment(selfOperateConfig, body.machineId ?? null)
     : 0;
 
   // Recurring slot discounts for this center. Fetched once and matched
@@ -1138,8 +1149,9 @@ async function executeResourceBookingCore(
               // Leather (and any future operator-mandatory) machines
               // can't be booked when no operator's weekly availability
               // covers the window, or when every available operator is
-              // already assigned to an overlapping booking. Tennis
-              // machines self-operate, so they're not gated here.
+              // already assigned to an overlapping booking. Machines that
+              // allow self-operate fall back to it, so they're not gated
+              // here.
               // Passed into planBooking so the engine has a single
               // place to reject the booking — the operator-assignment
               // cascade further down still runs to actually pick the
@@ -1147,14 +1159,10 @@ async function executeResourceBookingCore(
               let planOperatorRequired = false;
               let planOperatorAvailable = true;
               if (plan.category === 'MACHINE') {
-                // Only a LEATHER machine truly can't run itself. An
-                // unidentified machine type (machineTypeBallType null —
-                // `machineId` is optional on the request schema) used to
-                // fall into this branch and be treated as leather, which
-                // turned a should-be-self-operate booking into a hard
-                // 409. Require an operator only when we positively know
-                // the machine needs one.
-                planOperatorRequired = machineTypeBallType === 'LEATHER';
+                // Only a machine the admin made operator-only can't run
+                // itself (per-machine self-operate setting; every machine
+                // is allowed by default, an unidentified one included).
+                planOperatorRequired = !selfOperateAllowed;
                 if (planOperatorRequired) {
                   // Capacity, not just staffing: each operator-assisted
                   // booking consumes one operator, so the slot can carry
@@ -1182,6 +1190,92 @@ async function executeResourceBookingCore(
                 tx,
                 operator: { required: planOperatorRequired, available: planOperatorAvailable },
               });
+
+              // ─── Operator auto-assignment (MACHINE category only) ───
+              //
+              // Capacity comes from the operator availability schedule, not
+              // from a roster count: one operator serves one booking, so a
+              // slot carries exactly as many operator-assisted machine
+              // bookings as there are operators on duty for it. Operators
+              // with no weekly schedule are not on duty at all.
+              //
+              //   - onDuty === 0 → nobody is working this window: an
+              //     operator-only machine is rejected (409), any other
+              //     falls back to SELF_OPERATE.
+              //   - onDuty > 0 but every one already has an overlapping
+              //     booking → slot is at capacity: same split.
+              //   - Otherwise take the highest-priority free operator.
+              //
+              // SIDEARM/COACHING/FULL_COURT skip this — those categories
+              // already pin a specific staff/coach via assignedStaffId /
+              // assignedCoachId, or need no operator at all.
+              //
+              // Runs BEFORE pricing: the self-operate adjustment follows
+              // the mode decided here.
+              let assignedOperatorId: string | null = null;
+              let operationMode: 'WITH_OPERATOR' | 'SELF_OPERATE' = 'WITH_OPERATOR';
+              if (plan.category === 'MACHINE') {
+                // Operator-only = the admin switched self-operate off for
+                // this machine. Every other machine can run itself.
+                const operatorMandatory = !selfOperateAllowed;
+
+                // User-picked SELF_OPERATE: honour it unless the machine
+                // is operator-only (then the pick is ignored).
+                if (selfOperatePicked) {
+                  operationMode = 'SELF_OPERATE';
+                  assignedOperatorId = null;
+                  // Skip the rest of the operator-assignment cascade
+                  // below by jumping straight to booking creation.
+                  // (Falling through would re-derive operationMode
+                  // from operator availability and clobber the
+                  // explicit pick.)
+                } else {
+
+                // Availability is the only input. `onDuty` counts the
+                // operators whose weekly schedule covers this window;
+                // `freeOperatorIds` removes the ones already assigned to
+                // an overlapping booking. Each operator-assisted booking
+                // takes one operator, so the number of such bookings a
+                // slot can carry is exactly the number available for it.
+                const capacity = await getOperatorSlotCapacity({
+                  centerId: center.id,
+                  slot: { date: plan.date, startTime: plan.startTime, endTime: plan.endTime },
+                  tx,
+                });
+                if (capacity.onDuty === 0) {
+                  // Nobody available: an operator-only machine can't be
+                  // booked at all; any other falls back to self-operate.
+                  if (operatorMandatory) {
+                    throw new BookingResourceError(
+                      `No operator is available for this slot, and ${machineTypeCode ?? 'this'} machine requires one.`,
+                      409,
+                    );
+                  }
+                  operationMode = 'SELF_OPERATE';
+                } else {
+                  // Highest-priority available operator who isn't already
+                  // on another booking in this window.
+                  assignedOperatorId = capacity.freeOperatorIds[0] ?? null;
+                  if (!assignedOperatorId) {
+                    // Operators are scheduled but every one of them is
+                    // already committed — the slot is at capacity.
+                    if (operatorMandatory) {
+                      throw new BookingResourceError(
+                        'All operators are already booked for this slot.',
+                        409,
+                      );
+                    }
+                    operationMode = 'SELF_OPERATE';
+                  }
+                }
+                } // end else (user did NOT pick SELF_OPERATE)
+              } else {
+                // Non-MACHINE categories have no operator concept at all.
+                // Persisting them as WITH_OPERATOR made every net /
+                // sidearm / coaching row look like an unassigned machine
+                // booking in operator reports.
+                operationMode = 'SELF_OPERATE';
+              }
 
               const isPackageRedemption = !!userPackage;
 
@@ -1294,12 +1388,16 @@ async function executeResourceBookingCore(
                       startTime: plan.startTime,
                       centerId: center.id,
                     });
-              // Self-operate adjustment is part of the slot's rate, so it
-              // lands in `originalPrice` and recurring / promo discounts
-              // compute on the adjusted figure — exactly what the slot
-              // page quotes. Zero for free bookings and package
-              // redemptions (resolved above).
-              const selfOperate = applySelfOperateAdjustment(rateBeforeSelfOperate, selfOperateAdjustment);
+              // Self-operate adjustment, for a machine slot that is being
+              // booked as self-operate (picked, or no operator free). Part
+              // of the slot's rate, so it lands in `originalPrice` and
+              // recurring / promo discounts compute on the adjusted figure
+              // — exactly what the slot page quotes. Zero for free
+              // bookings and package redemptions (resolved above).
+              const selfOperate = applySelfOperateAdjustment(
+                rateBeforeSelfOperate,
+                plan.category === 'MACHINE' && operationMode === 'SELF_OPERATE' ? selfOperateAdjustment : 0,
+              );
               const basePrice = selfOperate.price;
 
               // ── Recurring slot discount ──────────────────────────────
@@ -1388,90 +1486,6 @@ async function executeResourceBookingCore(
               const slotKitCharge = kitRental ? kitRentalChargePerSlot : 0;
               if (slotKitCharge > 0) {
                 finalPrice += slotKitCharge;
-              }
-
-              // ─── Operator auto-assignment (MACHINE category only) ───
-              //
-              // Capacity comes from the operator availability schedule, not
-              // from a roster count: one operator serves one booking, so a
-              // slot carries exactly as many operator-assisted machine
-              // bookings as there are operators on duty for it. Operators
-              // with no weekly schedule are not on duty at all.
-              //
-              //   - onDuty === 0 → nobody is working this window: leather
-              //     is rejected (409), tennis falls back to SELF_OPERATE.
-              //   - onDuty > 0 but every one already has an overlapping
-              //     booking → slot is at capacity: same split, leather 409
-              //     and tennis SELF_OPERATE.
-              //   - Otherwise take the highest-priority free operator.
-              //
-              // SIDEARM/COACHING/FULL_COURT skip this — those categories
-              // already pin a specific staff/coach via assignedStaffId /
-              // assignedCoachId, or need no operator at all.
-              let assignedOperatorId: string | null = null;
-              let operationMode: 'WITH_OPERATOR' | 'SELF_OPERATE' = 'WITH_OPERATOR';
-              if (plan.category === 'MACHINE') {
-                // Only a machine we positively know is LEATHER hard-
-                // requires an operator. Tennis (and an unidentified
-                // machine type) can self-operate.
-                const operatorMandatory = machineTypeBallType === 'LEATHER';
-
-                // User-picked SELF_OPERATE: honour it unless the machine
-                // literally needs someone to load balls.
-                if (body.operationMode === 'SELF_OPERATE' && !operatorMandatory) {
-                  operationMode = 'SELF_OPERATE';
-                  assignedOperatorId = null;
-                  // Skip the rest of the operator-assignment cascade
-                  // below by jumping straight to booking creation.
-                  // (Falling through would re-derive operationMode
-                  // from operator availability and clobber the
-                  // explicit pick.)
-                } else {
-
-                // Availability is the only input. `onDuty` counts the
-                // operators whose weekly schedule covers this window;
-                // `freeOperatorIds` removes the ones already assigned to
-                // an overlapping booking. Each operator-assisted booking
-                // takes one operator, so the number of such bookings a
-                // slot can carry is exactly the number available for it.
-                const capacity = await getOperatorSlotCapacity({
-                  centerId: center.id,
-                  slot: { date: plan.date, startTime: plan.startTime, endTime: plan.endTime },
-                  tx,
-                });
-                if (capacity.onDuty === 0) {
-                  // Nobody available: leather can't be booked at all,
-                  // tennis falls back to self-operate.
-                  if (operatorMandatory) {
-                    throw new BookingResourceError(
-                      `No operator is available for this slot, and ${machineTypeCode ?? 'this'} machine requires one.`,
-                      409,
-                    );
-                  }
-                  operationMode = 'SELF_OPERATE';
-                } else {
-                  // Highest-priority available operator who isn't already
-                  // on another booking in this window.
-                  assignedOperatorId = capacity.freeOperatorIds[0] ?? null;
-                  if (!assignedOperatorId) {
-                    // Operators are scheduled but every one of them is
-                    // already committed — the slot is at capacity.
-                    if (operatorMandatory) {
-                      throw new BookingResourceError(
-                        'All operators are already booked for this slot.',
-                        409,
-                      );
-                    }
-                    operationMode = 'SELF_OPERATE';
-                  }
-                }
-                } // end else (user did NOT pick SELF_OPERATE)
-              } else {
-                // Non-MACHINE categories have no operator concept at all.
-                // Persisting them as WITH_OPERATOR made every net /
-                // sidearm / coaching row look like an unassigned machine
-                // booking in operator reports.
-                operationMode = 'SELF_OPERATE';
               }
 
               const booking = await tx.booking.upsert({

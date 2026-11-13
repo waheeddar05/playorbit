@@ -1471,12 +1471,11 @@ export async function planBooking(
      * `lib/operatorAssign.ts` and the route handler computes it
      * before calling planBooking. When `required` is true and
      * `available` is false, the booking is rejected immediately so
-     * leather-ball / operator-mandatory machines can't be booked
-     * during an operator-unavailable window (admin date override,
-     * weekly off, or every scheduled operator already busy).
-     * SELF_OPERATE is intentionally NOT a fallback here — that's
-     * only valid for tennis machines, which the route flags by
-     * passing `required: false`.
+     * operator-only machines (self operate switched off by the admin)
+     * can't be booked during an operator-unavailable window (weekly
+     * off, or every scheduled operator already busy). SELF_OPERATE is
+     * intentionally NOT a fallback here — machines that allow it are
+     * flagged by the route passing `required: false`.
      */
     operator?: { required: boolean; available: boolean };
   } = {},
@@ -1550,13 +1549,12 @@ export async function planBooking(
   switch (plan.category) {
     case 'MACHINE': {
       // Operator availability gate. The route handler resolves
-      // `operator.required` from the picked machine's MachineType.ballType
-      // (LEATHER → required, TENNIS → not required) and `operator.available`
-      // from getOperatorCount + live busy count. We reject here so a
-      // leather-ball booking can't slip through during an operator-
-      // unavailable window — same outcome whether the admin set
-      // operatorCount=0 (date override / weekly off) or every
-      // scheduled operator was already booked.
+      // `operator.required` from the machine's self-operate setting
+      // (operator-only → required; see src/lib/self-operate-adjustment.ts)
+      // and `operator.available` from live operator capacity. We reject
+      // here so an operator-only booking can't slip through during an
+      // operator-unavailable window — same outcome whether nobody is on
+      // duty or every scheduled operator was already booked.
       if (context.operator?.required && !context.operator.available) {
         throw new BookingResourceError(
           'Operator unavailable for this slot — this machine requires an operator',
