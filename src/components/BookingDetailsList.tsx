@@ -1,6 +1,7 @@
 'use client';
 
 import { Phone } from 'lucide-react';
+import { formatSelfOperateAdjustment } from '@/lib/self-operate-adjustment';
 
 // ─── Display labels ──────────────────────────────────────
 // Human-readable labels so every booking type reads the same way across
@@ -174,6 +175,12 @@ export function BookingDetailsList({
         ? 'Self Operate'
         : 'With Operator'
       : null;
+  // Signed ₹ the self-operate adjustment moved this slot's price by
+  // (already included in the booking's price). Empty when none applied.
+  const selfOperateAdjustmentLabel =
+    isMachine && booking.operationMode === 'SELF_OPERATE'
+      ? formatSelfOperateAdjustment(booking.selfOperateAdjustment)
+      : '';
 
   const operatorName = booking.operatorName || booking.operator?.name || null;
   const operatorMobile = booking.operatorMobile || booking.operator?.mobileNumber || null;
@@ -231,7 +238,16 @@ export function BookingDetailsList({
       {machineLabel && <DetailRow label="Machine Type">{machineLabel}</DetailRow>}
       {showPitch && <DetailRow label="Pitch Type">{pitchLabel}</DetailRow>}
       {ballLabel && <DetailRow label="Ball Type">{ballLabel}</DetailRow>}
-      {operationLabel && <DetailRow label="Operation Mode">{operationLabel}</DetailRow>}
+      {operationLabel && (
+        <DetailRow label="Operation Mode">
+          {operationLabel}
+          {selfOperateAdjustmentLabel && (
+            <span className={`ml-1 ${booking.selfOperateAdjustment < 0 ? 'text-green-400' : 'text-amber-400'}`}>
+              ({selfOperateAdjustmentLabel})
+            </span>
+          )}
+        </DetailRow>
+      )}
 
       {showSidearmRow && (
         <DetailRow label="Sidearm Specialist">

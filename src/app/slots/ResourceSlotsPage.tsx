@@ -68,6 +68,11 @@ import { api } from '@/lib/api-client';
 import { useRazorpay, usePaymentConfig } from '@/lib/useRazorpay';
 import { DEFAULT_BOOKING_NOTICE } from '@/lib/client-constants';
 import { computeSlotDiscount, type OfferDescriptor } from '@/lib/offer-calc';
+import {
+  applySelfOperateAdjustment,
+  formatSelfOperateAdjustment,
+  normalizeSelfOperateAdjustment,
+} from '@/lib/self-operate-adjustment';
 import MatchPracticePanel from './MatchPracticePanel';
 
 type Category =
@@ -209,6 +214,9 @@ interface ClientPricingConfig {
   fullCourtRate?: ClientPerSlabRates;
   /** Category-level FULL_OUTDOOR_COURT rate, same pair shape. */
   fullOutdoorCourtRate?: ClientPerSlabRates;
+  /** Signed ₹/slot added to a MACHINE booking when the player picks
+   *  Self Operate. See src/lib/self-operate-adjustment.ts. */
+  selfOperateAdjustment?: number;
 }
 
 interface ResourceAvailabilityResponse {
@@ -1081,6 +1089,17 @@ export default function ResourceSlotsPage() {
     return machines;
   }, [machines]);
 
+  // Effective Self Operate pick. The toggle only renders for tennis
+  // machines, but `operationMode` state survives switching to another
+  // machine — so gate on the machine actually picked, never on the bare
+  // state. This is also what gets sent to the server, which prices and
+  // assigns from it (and refuses it outright on a leather machine).
+  const selfOperatePicked =
+    category === 'MACHINE'
+    && operationMode === 'SELF_OPERATE'
+    && filteredMachines.find((m) => m.id === machineId)?.machineType?.ballType === 'TENNIS';
+  const selfOperateAdjustment = normalizeSelfOperateAdjustment(data?.pricingConfig?.selfOperateAdjustment);
+
   /** Raw discount inputs (recurring ₹ for one/two slots + applicable promo
    *  offers) for this slot under the active category. For MACHINE with a
    *  picked machine, prefer the per-machine entry so machine-row-pinned
@@ -1119,7 +1138,7 @@ export default function ResourceSlotsPage() {
    *  close over it without hitting a temporal-dead-zone error in
    *  minified production builds (see the comment further up about
    *  `filteredMachines` for the same pattern). */
-  const slotPriceWithConsecutive = (s: ResourceSlot, consecutive: boolean): number => {
+  const rawSlotPriceWithConsecutive = (s: ResourceSlot, consecutive: boolean): number => {
     const slab = s.timeSlab;
     const cfg = data?.pricingConfig;
 
@@ -1198,6 +1217,17 @@ export default function ResourceSlotsPage() {
     }
 
     return cfg.categoryRates[category]?.[slab] ?? s.prices[priceCategory] ?? 0;
+  };
+
+  /** Slot rate including the center's self-operate adjustment when the
+   *  player picked Self Operate. Same rule and same helper the booking
+   *  route uses, so card, bar, confirm dialog and the Razorpay amount all
+   *  match the price the server records. */
+  const slotPriceWithConsecutive = (s: ResourceSlot, consecutive: boolean): number => {
+    const rate = rawSlotPriceWithConsecutive(s, consecutive);
+    return selfOperatePicked
+      ? applySelfOperateAdjustment(rate, selfOperateAdjustment).price
+      : rate;
   };
 
   /** Per-slot price WITH consecutive rate applied. Used by the totalPrice
@@ -1298,7 +1328,7 @@ export default function ResourceSlotsPage() {
     return selectedSlots.reduce((sum, s) => sum + slotPriceFor(s), 0);
     // slotPriceFor depends on every selection that affects the cascade.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSlots, category, machineId, pitchType, ballType, data?.pricingConfig, packageCoversBooking, packageValidation]);
+  }, [selectedSlots, category, machineId, pitchType, ballType, operationMode, data?.pricingConfig, packageCoversBooking, packageValidation]);
 
   /** Sum of SINGLE-slot rates — what the user would've paid if every
    *  slot were billed independently (no consecutive pair pricing, no
@@ -1309,7 +1339,7 @@ export default function ResourceSlotsPage() {
     if (packageCoversBooking) return 0;
     return selectedSlots.reduce((sum, s) => sum + slotSinglePriceFor(s), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSlots, category, machineId, pitchType, ballType, data?.pricingConfig, packageCoversBooking]);
+  }, [selectedSlots, category, machineId, pitchType, ballType, operationMode, data?.pricingConfig, packageCoversBooking]);
 
   /** Aggregate per-slot discount into two buckets for the booking-bar
    *  breakdown. Computed on each slot's multi-slot-adjusted price and
@@ -1330,7 +1360,7 @@ export default function ResourceSlotsPage() {
     return { recurring, promo, promoLabel };
     // discountResultFor/slotBaseFor depend on the selection axes below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSlots, category, machineId, pitchType, ballType, data?.pricingConfig]);
+  }, [selectedSlots, category, machineId, pitchType, ballType, operationMode, data?.pricingConfig]);
   const totalSavings = originalTotal - totalPrice;
 
   const toggleSlot = (slot: ResourceSlot) => {
@@ -1437,7 +1467,7 @@ export default function ResourceSlotsPage() {
         // Leather machines always WITH_OPERATOR (server enforces);
         // tennis machines honour the user's pick.
         ...(category === 'MACHINE'
-          ? { operationMode }
+          ? { operationMode: selfOperatePicked ? 'SELF_OPERATE' : 'WITH_OPERATOR' }
           : {}),
         ...(walletCoversAll
           ? { paymentMethod: 'WALLET' as const, walletDeduction }
@@ -1774,12 +1804,27 @@ export default function ResourceSlotsPage() {
                         : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:border-accent/20'
                     }`}
                   >
-                    <span className="truncate">Self Operate</span>
+                    <span className="truncate">
+                      Self Operate
+                      {selfOperateAdjustment !== 0 && !isFreeBooking && (
+                        <span className={selfOperateAdjustment < 0 ? 'ml-1 text-green-500' : 'ml-1 text-amber-500'}>
+                          {formatSelfOperateAdjustment(selfOperateAdjustment)}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 </div>
                 {operationMode === 'SELF_OPERATE' && (
                   <p className="text-[11px] text-amber-400/80 mt-1.5 leading-relaxed">
                     No machine operator will be assigned. You&apos;ll need to operate the machine yourself — please be familiar with it before booking.
+                    {selfOperateAdjustment !== 0 && !isFreeBooking && (
+                      <>
+                        {' '}
+                        {selfOperateAdjustment < 0
+                          ? `Self-operate saves ₹${Math.abs(selfOperateAdjustment)} per slot.`
+                          : `Self-operate adds ₹${selfOperateAdjustment} per slot.`}
+                      </>
+                    )}
                   </p>
                 )}
               </div>
@@ -2262,6 +2307,9 @@ export default function ResourceSlotsPage() {
           `${CATEGORIES.find((c) => c.key === category)?.label} on ${format(selectedDate, 'EEE, dd MMM yyyy')}`,
           `Slots: ${selectedSlots.map((s) => formatTimeRangeIST(s.startTime, s.endTime)).join(', ')}`,
         ];
+        if (selfOperatePicked && selfOperateAdjustment !== 0 && !isFreeBooking && !packageCoversBooking) {
+          lines.push(`Self operate: ${formatSelfOperateAdjustment(selfOperateAdjustment)} per slot (included)`);
+        }
         if (kitRental && isKitRentalAvailable && kitRentalTotal > 0) {
           lines.push(`+ Kit rental: ₹${kitRentalTotal} (${selectedSlots.length} × ₹${kitRentalCharge})`);
         }

@@ -28,6 +28,7 @@ const SAFE_BOOKING_SELECT = {
   discountAmount: true,
   kitRental: true,
   kitRentalCharge: true,
+  selfOperateAdjustment: true,
   // Resource-based (Toplay) fields. Null on ABCA rows; populated on
   // category-based bookings so the CSV captures the actual machine /
   // coach / staff that ran the session.
@@ -249,6 +250,7 @@ export async function GET(req: NextRequest) {
       'Payment Status',
       'Kit Rental',
       'Kit Rental Charge',
+      'Self-Operate Adjustment',
       'Refund Status',
       'Refund Amount',
       'Refund Method',
@@ -345,6 +347,8 @@ export async function GET(req: NextRequest) {
         pkg ? 'NA' : (b.paymentStatus || ''),
         b.kitRental ? 'Yes' : 'No',
         b.kitRentalCharge != null ? b.kitRentalCharge.toString() : '',
+        // Signed ₹ already inside Booking Price (e.g. -100); blank when none.
+        b.selfOperateAdjustment != null ? b.selfOperateAdjustment.toString() : '',
         refundStatus,
         refundAmount,
         refundMethodCol,

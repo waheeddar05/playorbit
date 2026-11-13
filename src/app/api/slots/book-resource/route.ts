@@ -24,7 +24,8 @@ import {
 } from '@/lib/match-practice';
 import { notifyAssignedStaffNewBooking, notifyCustomerNewBooking, notifyAdminPaymentIssue } from '@/lib/notifications';
 import { markCaptureNeedsRecovery } from '@/lib/payment-recovery';
-import { getResourceSlotPrice } from '@/lib/resource-pricing';
+import { getResourceSlotPrice, getResourcePricingConfig } from '@/lib/resource-pricing';
+import { applySelfOperateAdjustment, normalizeSelfOperateAdjustment } from '@/lib/self-operate-adjustment';
 import { getAllApplicablePromoDiscounts } from '@/lib/promotionalOffers';
 import {
   effectivePitchTypes,
@@ -975,6 +976,22 @@ async function executeResourceBookingCore(
     }
   }
 
+  // ─── Self-operate price adjustment ───────────────────────────────
+  // A signed ₹/slot the center adds when the player explicitly picks
+  // Self Operate on a machine that can run without an operator (never
+  // LEATHER — the operator cascade below refuses the pick there, so the
+  // price must refuse it too). Keyed on the request, not on the
+  // in-transaction operator fallback: the client quoted (and, for online
+  // payments, charged) this price before the transaction ran, so the
+  // recorded price has to follow the same rule.
+  const selfOperatePicked =
+    body.category === 'MACHINE'
+    && body.operationMode === 'SELF_OPERATE'
+    && machineTypeBallType !== 'LEATHER';
+  const selfOperateAdjustment = selfOperatePicked && !isFreeBooking && !body.userPackageId
+    ? normalizeSelfOperateAdjustment((await getResourcePricingConfig(center.id)).selfOperateAdjustment)
+    : 0;
+
   // Recurring slot discounts for this center. Fetched once and matched
   // per-slot inside the tx — same shape ABCA uses, but matched on the
   // resource axes (categories + machineRowIds). Match-practice fees are
@@ -1255,7 +1272,7 @@ async function executeResourceBookingCore(
                       : timingExtra > 0 ? 'TIMING'
                         : null;
 
-              const basePrice = isFreeBooking
+              const rateBeforeSelfOperate = isFreeBooking
                 ? 0
                 : isPackageRedemption
                   ? packageExtra
@@ -1277,6 +1294,13 @@ async function executeResourceBookingCore(
                       startTime: plan.startTime,
                       centerId: center.id,
                     });
+              // Self-operate adjustment is part of the slot's rate, so it
+              // lands in `originalPrice` and recurring / promo discounts
+              // compute on the adjusted figure — exactly what the slot
+              // page quotes. Zero for free bookings and package
+              // redemptions (resolved above).
+              const selfOperate = applySelfOperateAdjustment(rateBeforeSelfOperate, selfOperateAdjustment);
+              const basePrice = selfOperate.price;
 
               // ── Recurring slot discount ──────────────────────────────
               // Apply on top of basePrice (before promotional offers) so
@@ -1491,6 +1515,10 @@ async function executeResourceBookingCore(
                   // decomposed for refunds, exports, and admin views.
                   kitRental: kitRental,
                   kitRentalCharge: kitRental ? kitRentalChargePerSlot : null,
+                  // Signed ₹ the self-operate adjustment actually moved
+                  // this slot's rate by (already inside originalPrice /
+                  // price). Null when none applied.
+                  selfOperateAdjustment: selfOperate.applied !== 0 ? selfOperate.applied : null,
                   // discountType uses the same enum as the offer (PERCENTAGE/
                   // FIXED) so reports can render either, mirroring the
                   // legacy MACHINE_PITCH booking flow. Recurring-only
