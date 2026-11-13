@@ -7,6 +7,8 @@ import {
   MAX_SELF_OPERATE_ADJUSTMENT,
   formatSelfOperateAdjustment,
   normalizeSelfOperateAdjustment,
+  normalizeSelfOperateMachines,
+  type SelfOperateMachineSettings,
 } from '@/lib/self-operate-adjustment';
 
 /**
@@ -109,6 +111,9 @@ interface ResourcePricingValue {
   /** Signed ₹/slot added to a bowling-machine booking when the player
    *  picks Self Operate (−100 = ₹100 cheaper). 0 = no adjustment. */
   selfOperateAdjustment?: number;
+  /** Per-Machine-row self-operate settings (Machine.id → { enabled,
+   *  adjustment }). Absent = allowed with the center default. */
+  selfOperateMachines?: SelfOperateMachineSettings;
 }
 
 interface CenterMachineLite {
@@ -260,6 +265,7 @@ function normalize(raw: Partial<ResourcePricingValue> | null | undefined): Resou
     netPricing: normalisePerPitch(raw?.netPricing),
     coachingPricing: normalisePerPitch(raw?.coachingPricing),
     selfOperateAdjustment: normalizeSelfOperateAdjustment(raw?.selfOperateAdjustment),
+    selfOperateMachines: normalizeSelfOperateMachines(raw?.selfOperateMachines),
   };
 }
 
@@ -447,10 +453,25 @@ export function ResourcePricingEditor({
         )}
       </Section>
 
-      <Section title="Bowling Machine — self-operate adjustment">
-        <SelfOperateAdjustmentInput
-          value={value.selfOperateAdjustment ?? 0}
-          onChange={(n) => setValue((prev) => ({ ...prev, selfOperateAdjustment: n }))}
+      <Section title="Bowling Machine — self operate">
+        <SelfOperateSettings
+          defaultAdjustment={value.selfOperateAdjustment ?? 0}
+          onDefaultChange={(n) => setValue((prev) => ({ ...prev, selfOperateAdjustment: n }))}
+          machines={scope === 'center' ? centerMachines : []}
+          settings={value.selfOperateMachines ?? {}}
+          onMachineChange={(machineId, next) => {
+            setValue((prev) => {
+              const all = { ...(prev.selfOperateMachines ?? {}) };
+              // Store only what differs from the default (allowed, center
+              // amount) so the policy JSON stays readable.
+              const cell: SelfOperateMachineSettings[string] = {};
+              if (next.enabled === false) cell.enabled = false;
+              if (next.adjustment != null) cell.adjustment = next.adjustment;
+              if (Object.keys(cell).length > 0) all[machineId] = cell;
+              else delete all[machineId];
+              return { ...prev, selfOperateMachines: all };
+            });
+          }}
         />
       </Section>
 
@@ -841,58 +862,164 @@ function TabbedMachinePricing({
 }
 
 /**
- * Signed ₹ per slot for Self Operate machine bookings. Unlike every
- * other input in this editor it accepts a negative number — that is the
- * point: "−100" makes self-operate ₹100 cheaper than the machine rate.
+ * Signed whole-rupee input. Unlike every other input in this editor it
+ * accepts a negative number — that is the point: "-100" makes self
+ * operate ₹100 cheaper than the machine rate. With `allowBlank`, an
+ * empty field means "no value" (null) — used for the per-machine
+ * override, where blank = use the center default.
  */
-function SelfOperateAdjustmentInput({
+function SignedRupeeInput({
   value,
   onChange,
+  allowBlank = false,
+  placeholder,
+  ariaLabel,
 }: {
-  value: number;
-  onChange: (n: number) => void;
+  value: number | null;
+  onChange: (n: number | null) => void;
+  allowBlank?: boolean;
+  placeholder?: string;
+  ariaLabel: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const label = formatSelfOperateAdjustment(value);
+  const shown = value == null ? '' : String(value);
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <div className="relative w-36">
-          <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
-          <input
-            type="number"
-            inputMode="numeric"
-            step={1}
-            min={-MAX_SELF_OPERATE_ADJUSTMENT}
-            max={MAX_SELF_OPERATE_ADJUSTMENT}
-            aria-label="Self-operate adjustment per slot"
-            value={draft ?? String(value)}
-            onFocus={() => setDraft(String(value))}
-            onBlur={() => setDraft(null)}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              const raw = e.target.value;
-              // Allow a lone "-" while the admin is typing a negative.
-              if (raw === '' || raw === '-') return;
-              const n = Number(raw);
-              if (!Number.isNaN(n)) onChange(normalizeSelfOperateAdjustment(n));
-            }}
-            className="w-full bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-500 rounded-lg pl-7 pr-2 py-1.5 text-xs sm:text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors"
-          />
+    <div className="relative w-32">
+      <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+      <input
+        type="number"
+        inputMode="numeric"
+        step={1}
+        min={-MAX_SELF_OPERATE_ADJUSTMENT}
+        max={MAX_SELF_OPERATE_ADJUSTMENT}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        value={draft ?? shown}
+        onFocus={() => setDraft(shown)}
+        onBlur={() => setDraft(null)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setDraft(raw);
+          if (raw === '') {
+            if (allowBlank) onChange(null);
+            return;
+          }
+          // Allow a lone "-" while the admin is typing a negative.
+          if (raw === '-') return;
+          const n = Number(raw);
+          if (!Number.isNaN(n)) onChange(normalizeSelfOperateAdjustment(n));
+        }}
+        className="w-full bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-500 rounded-lg pl-7 pr-2 py-1.5 text-xs sm:text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors"
+      />
+    </div>
+  );
+}
+
+function AdjustmentHint({ value }: { value: number }) {
+  const label = formatSelfOperateAdjustment(value);
+  if (!label) return <span className="text-[11px] text-slate-500">no change</span>;
+  return (
+    <span className={`text-[11px] font-semibold ${value < 0 ? 'text-green-400' : 'text-amber-400'}`}>
+      {value < 0 ? `${label.replace('−', '')} off` : `${label} extra`}
+    </span>
+  );
+}
+
+/**
+ * Self-operate settings: the center-wide ₹/slot adjustment, plus one row
+ * per machine with an "allow self operate" switch and an optional
+ * amount of its own. Every machine — leather included — allows self
+ * operate unless switched off here; a machine switched off always needs
+ * an operator.
+ */
+function SelfOperateSettings({
+  defaultAdjustment,
+  onDefaultChange,
+  machines,
+  settings,
+  onMachineChange,
+}: {
+  defaultAdjustment: number;
+  onDefaultChange: (n: number) => void;
+  machines: CenterMachineLite[];
+  settings: SelfOperateMachineSettings;
+  onMachineChange: (machineId: string, next: { enabled: boolean; adjustment: number | null }) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+          Default adjustment
         </div>
-        <span className="text-[11px] text-slate-400">per slot</span>
-        {label && (
-          <span className={`text-[11px] font-semibold ${value < 0 ? 'text-green-400' : 'text-amber-400'}`}>
-            {value < 0 ? `Self operate ${label} cheaper` : `Self operate ${label} extra`}
-          </span>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <SignedRupeeInput
+            value={defaultAdjustment}
+            onChange={(n) => onDefaultChange(n ?? 0)}
+            ariaLabel="Default self-operate adjustment per slot"
+          />
+          <span className="text-[11px] text-slate-400">per slot</span>
+          <AdjustmentHint value={defaultAdjustment} />
+        </div>
+        <p className="text-[10px] text-slate-500 leading-relaxed">
+          Added to the slot price whenever a machine slot is booked as <span className="text-slate-300">Self Operate</span>
+          {' '}— when the player picks it, or when no operator is free for that slot. Use a negative number for a
+          reduction, e.g. <span className="text-slate-300">-100</span> shows players &ldquo;₹100 off&rdquo;; 0 turns it off.
+          Applied before offers and recurring discounts, never below ₹0, and not to package redemptions or free
+          bookings.
+        </p>
       </div>
-      <p className="text-[10px] text-slate-500 leading-relaxed">
-        Added to the machine&apos;s slot price when a player picks <span className="text-slate-300">Self Operate</span>
-        {' '}(tennis machines only — leather machines always need an operator). Use a negative number for a
-        reduction, e.g. <span className="text-slate-300">-100</span>; 0 turns it off. Applied before offers and
-        recurring discounts, never below ₹0, and not to package redemptions or free bookings.
-      </p>
+
+      {machines.length > 0 && (
+        <div className="space-y-2 pt-2.5 border-t border-white/[0.04]">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+            Per machine
+          </div>
+          {machines.map((m) => {
+            const cell = settings[m.id] ?? {};
+            const enabled = cell.enabled !== false;
+            const override = cell.adjustment ?? null;
+            const effective = override ?? defaultAdjustment;
+            return (
+              <div
+                key={m.id}
+                className="rounded-lg bg-white/[0.02] border border-white/[0.05] p-2.5 flex items-center gap-3 flex-wrap"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold text-white truncate">{m.shortName || m.name}</div>
+                  <div className="text-[10px] text-slate-500">{m.machineType.name}</div>
+                </div>
+                <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    onChange={(e) => onMachineChange(m.id, { enabled: e.target.checked, adjustment: override })}
+                    className="w-4 h-4 accent-accent rounded"
+                  />
+                  Allow self operate
+                </label>
+                {enabled ? (
+                  <div className="flex items-center gap-2">
+                    <SignedRupeeInput
+                      value={override}
+                      allowBlank
+                      placeholder={`Default (${defaultAdjustment})`}
+                      onChange={(n) => onMachineChange(m.id, { enabled, adjustment: n })}
+                      ariaLabel={`Self-operate adjustment for ${m.name}`}
+                    />
+                    <AdjustmentHint value={effective} />
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-amber-400">Operator required</span>
+                )}
+              </div>
+            );
+          })}
+          <p className="text-[10px] text-slate-500 leading-relaxed">
+            Leave the amount blank to use the default. A machine with self operate switched off always needs an
+            operator: its slots show Not Available when no operator is free.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

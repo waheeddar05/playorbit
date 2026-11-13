@@ -98,6 +98,10 @@ export interface ResourcePricingConfig {
    *  Self Operate (−100 = ₹100 cheaper). Absent / 0 = no adjustment.
    *  See `src/lib/self-operate-adjustment.ts`. */
   selfOperateAdjustment?: number;
+  /** Per-Machine-row self-operate settings, keyed by Machine.id:
+   *  `enabled: false` = operator-only; numeric `adjustment` overrides
+   *  the center default. Absent = allowed, default adjustment. */
+  selfOperateMachines?: Record<string, { enabled?: boolean; adjustment?: number | null }>;
   /** Free-form notes the admin can leave for themselves. Not rendered. */
   notes?: string;
 }
