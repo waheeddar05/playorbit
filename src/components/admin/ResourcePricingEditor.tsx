@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import { IndianRupee, Loader2, Save, Trash2 } from 'lucide-react';
 import { useCenter } from '@/lib/center-context';
+import {
+  MAX_SELF_OPERATE_ADJUSTMENT,
+  formatSelfOperateAdjustment,
+  normalizeSelfOperateAdjustment,
+} from '@/lib/self-operate-adjustment';
 
 /**
  * Edits the `RESOURCE_PRICING_CONFIG` policy for a resource-based
@@ -101,6 +106,9 @@ interface ResourcePricingValue {
    *  engine consults this when category=COACHING and the booking
    *  carries a pitchType. */
   coachingPricing?: Partial<Record<PitchKey, PairSlabRates>>;
+  /** Signed ₹/slot added to a bowling-machine booking when the player
+   *  picks Self Operate (−100 = ₹100 cheaper). 0 = no adjustment. */
+  selfOperateAdjustment?: number;
 }
 
 interface CenterMachineLite {
@@ -251,6 +259,7 @@ function normalize(raw: Partial<ResourcePricingValue> | null | undefined): Resou
     sidearmPricing: normalisePerPitch(raw?.sidearmPricing),
     netPricing: normalisePerPitch(raw?.netPricing),
     coachingPricing: normalisePerPitch(raw?.coachingPricing),
+    selfOperateAdjustment: normalizeSelfOperateAdjustment(raw?.selfOperateAdjustment),
   };
 }
 
@@ -436,6 +445,13 @@ export function ResourcePricingEditor({
               : 'No machines configured at this center yet. Add a machine on the Centers → Machines tab to enable per-machine pricing.'}
           </div>
         )}
+      </Section>
+
+      <Section title="Bowling Machine — self-operate adjustment">
+        <SelfOperateAdjustmentInput
+          value={value.selfOperateAdjustment ?? 0}
+          onChange={(n) => setValue((prev) => ({ ...prev, selfOperateAdjustment: n }))}
+        />
       </Section>
 
       <Section title="Sidearm — per pitch">
@@ -820,6 +836,63 @@ function TabbedMachinePricing({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Signed ₹ per slot for Self Operate machine bookings. Unlike every
+ * other input in this editor it accepts a negative number — that is the
+ * point: "−100" makes self-operate ₹100 cheaper than the machine rate.
+ */
+function SelfOperateAdjustmentInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const label = formatSelfOperateAdjustment(value);
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <div className="relative w-36">
+          <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
+          <input
+            type="number"
+            inputMode="numeric"
+            step={1}
+            min={-MAX_SELF_OPERATE_ADJUSTMENT}
+            max={MAX_SELF_OPERATE_ADJUSTMENT}
+            aria-label="Self-operate adjustment per slot"
+            value={draft ?? String(value)}
+            onFocus={() => setDraft(String(value))}
+            onBlur={() => setDraft(null)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              const raw = e.target.value;
+              // Allow a lone "-" while the admin is typing a negative.
+              if (raw === '' || raw === '-') return;
+              const n = Number(raw);
+              if (!Number.isNaN(n)) onChange(normalizeSelfOperateAdjustment(n));
+            }}
+            className="w-full bg-white/[0.04] border border-white/[0.1] text-white placeholder:text-slate-500 rounded-lg pl-7 pr-2 py-1.5 text-xs sm:text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors"
+          />
+        </div>
+        <span className="text-[11px] text-slate-400">per slot</span>
+        {label && (
+          <span className={`text-[11px] font-semibold ${value < 0 ? 'text-green-400' : 'text-amber-400'}`}>
+            {value < 0 ? `Self operate ${label} cheaper` : `Self operate ${label} extra`}
+          </span>
+        )}
+      </div>
+      <p className="text-[10px] text-slate-500 leading-relaxed">
+        Added to the machine&apos;s slot price when a player picks <span className="text-slate-300">Self Operate</span>
+        {' '}(tennis machines only — leather machines always need an operator). Use a negative number for a
+        reduction, e.g. <span className="text-slate-300">-100</span>; 0 turns it off. Applied before offers and
+        recurring discounts, never below ₹0, and not to package redemptions or free bookings.
+      </p>
     </div>
   );
 }

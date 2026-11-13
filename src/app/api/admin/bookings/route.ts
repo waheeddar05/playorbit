@@ -46,6 +46,7 @@ const SAFE_BOOKING_SELECT = {
   isSuperAdminBooking: true,
   kitRental: true,
   kitRentalCharge: true,
+  selfOperateAdjustment: true,
   // Resource-based booking fields (Toplay). null on ABCA rows; the
   // admin UI uses these to render the right chips instead of the
   // legacy machine/pitch enums. category disambiguates the booking

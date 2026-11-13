@@ -222,6 +222,7 @@ export async function GET(req: NextRequest) {
       operationMode: b.operationMode,
       kitRental: b.kitRental ?? false,
       kitRentalCharge: b.kitRentalCharge ?? null,
+      selfOperateAdjustment: b.selfOperateAdjustment ?? null,
       cancelledBy: b.cancelledBy,
       createdAt: b.createdAt ? b.createdAt.toISOString() : null,
       paymentMethod: b.paymentMethod ?? null,

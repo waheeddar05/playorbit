@@ -94,6 +94,10 @@ export interface ResourcePricingConfig {
   fullCourtRate?: PerSlabRates;
   /** Same pattern for Full Outdoor Court. */
   fullOutdoorCourtRate?: PerSlabRates;
+  /** Signed ₹ per slot added to a MACHINE booking when the player picks
+   *  Self Operate (−100 = ₹100 cheaper). Absent / 0 = no adjustment.
+   *  See `src/lib/self-operate-adjustment.ts`. */
+  selfOperateAdjustment?: number;
   /** Free-form notes the admin can leave for themselves. Not rendered. */
   notes?: string;
 }

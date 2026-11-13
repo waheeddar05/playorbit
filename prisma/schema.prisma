@@ -469,6 +469,12 @@ model Booking {
   paymentStatus       BookingPaymentStatus?
   kitRental           Boolean               @default(false)
   kitRentalCharge     Float?
+  // Signed ₹ the center's self-operate price adjustment moved this slot's
+  // rate by (RESOURCE_PRICING_CONFIG.selfOperateAdjustment; −100 = ₹100
+  // cheaper). Already included in originalPrice / price — stored so the
+  // booking decomposes. Null when the player didn't pick Self Operate or
+  // the center has no adjustment.
+  selfOperateAdjustment Float?
 
   // ─── Resource-based booking model (phase 5) ─────────────────────
   //

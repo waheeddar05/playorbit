@@ -60,6 +60,7 @@ interface Booking {
   operationMode: 'WITH_OPERATOR' | 'SELF_OPERATE';
   kitRental: boolean;
   kitRentalCharge: number | null;
+  selfOperateAdjustment?: number | null;
   cancelledBy: string | null;
   createdAt: string | null;
   paymentMethod: string | null;

@@ -112,6 +112,8 @@ export interface BookingCardData {
   refund: BookingCardRefund | null;
   kitRental: boolean;
   kitRentalCharge: number | null;
+  /** Signed ₹/slot from the self-operate adjustment, already in price. */
+  selfOperateAdjustment: number | null;
   createdAt: string | null;
   isPackageBooking: boolean;
   packageName: string | null;
@@ -184,6 +186,7 @@ export function mapBookingForCard(
     refund: opts.refund,
     kitRental: b.kitRental ?? false,
     kitRentalCharge: b.kitRentalCharge ?? null,
+    selfOperateAdjustment: b.selfOperateAdjustment ?? null,
     createdAt: b.createdAt ? b.createdAt.toISOString() : null,
     isPackageBooking: opts.isPackageBooking,
     packageName: b.packageBooking?.userPackage?.package?.name || null,
