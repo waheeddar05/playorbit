@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
 import { lookup } from 'node:dns/promises';
 import net from 'node:net';
 
-// Temporary latency probe. Preview-only: 404s in production. Reports hosts and
-// timings only — never URLs or credentials.
+// Temporary latency probe. In production it answers super admins only. Reports
+// hosts, parameter names and timings only — never URLs, values or credentials.
 export const dynamic = 'force-dynamic';
 
 const CANDIDATES = ['POOLED_DATABASE_URL', 'PRISMA_DATABASE_URL', 'DATABASE_URL', 'POSTGRES_URL'] as const;
@@ -67,10 +69,24 @@ async function probe(name: string, raw: string) {
   return { name, paramNames: [...u.searchParams.keys()], host, port, addrs: addrs.map((a) => a.address), dnsMs, tcpConnectMs: tcp, queries };
 }
 
-export async function GET() {
-  if (process.env.VERCEL_ENV === 'production') {
-    return NextResponse.json({ error: 'not found' }, { status: 404 });
+async function timeSingleton() {
+  const warm: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    const s = performance.now();
+    await prisma.$queryRawUnsafe('SELECT 1');
+    warm.push(Math.round(performance.now() - s));
   }
+  const s2 = performance.now();
+  await prisma.user.findFirst({ select: { id: true } });
+  return { warm, modelQ: Math.round(performance.now() - s2) };
+}
+
+export async function GET(req: NextRequest) {
+  if (process.env.VERCEL_ENV === 'production') {
+    const user = await getAuthenticatedUser(req).catch(() => null);
+    if (!user?.isSuperAdmin) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  }
+  const singleton = await timeSingleton().catch((e) => ({ error: (e as Error).message.slice(0, 200) }));
   const results = [];
   for (const name of CANDIDATES) {
     const raw = process.env[name];
@@ -78,5 +94,5 @@ export async function GET() {
     try { results.push(await probe(name, raw)); }
     catch (e) { results.push({ name, error: (e as Error).message.slice(0, 200) }); }
   }
-  return NextResponse.json({ region: process.env.VERCEL_REGION, env: process.env.VERCEL_ENV, results });
+  return NextResponse.json({ region: process.env.VERCEL_REGION, env: process.env.VERCEL_ENV, singleton, results });
 }
