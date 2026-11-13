@@ -36,6 +36,9 @@ async function probe(name: string, raw: string) {
     const v = new URL(raw);
     v.searchParams.set('connection_limit', '1');
     variants.limit1 = v.toString();
+    const b = new URL(raw);
+    b.searchParams.set('pgbouncer', 'true');
+    variants.pgbouncerTrue = b.toString();
   }
   const queries: Record<string, unknown> = {};
   for (const [label, url] of Object.entries(variants)) {
@@ -61,7 +64,7 @@ async function probe(name: string, raw: string) {
       await client.$disconnect().catch(() => {});
     }
   }
-  return { name, host, port, addrs: addrs.map((a) => a.address), dnsMs, tcpConnectMs: tcp, queries };
+  return { name, paramNames: [...u.searchParams.keys()], host, port, addrs: addrs.map((a) => a.address), dnsMs, tcpConnectMs: tcp, queries };
 }
 
 export async function GET() {
