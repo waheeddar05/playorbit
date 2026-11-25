@@ -1833,23 +1833,25 @@ export default function ResourceSlotsPage() {
                   <button
                     type="button"
                     onClick={() => setOperationMode('SELF_OPERATE')}
-                    // flex-wrap, not truncate: on a phone the half-width
-                    // button can't fit "Self Operate" plus the saving badge
-                    // on one line, and truncating clipped the label to
-                    // "Self Ope…". Now the badge drops under the label when
-                    // space runs out and sits beside it when it doesn't.
-                    className={`flex-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all cursor-pointer border min-w-0 text-center ${
+                    // One line, same height as "With Operator". On a phone
+                    // the half-width button can't fit "Self Operate" plus
+                    // the saving badge at the normal 11px/10px sizes (the
+                    // label clipped to "Self Ope…"), and wrapping the badge
+                    // onto a second line made the button taller. So below
+                    // `sm` the label, badge, gap and padding shrink until
+                    // both fit on one line; from `sm` up it's the usual size.
+                    className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 py-2 sm:px-3 sm:py-2.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all cursor-pointer border min-w-0 text-center ${
                       operationMode === 'SELF_OPERATE'
                         ? 'bg-accent text-primary border-accent shadow-sm'
                         : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:border-accent/20'
                     }`}
                   >
-                    <span className="whitespace-nowrap">Self Operate</span>
+                    <span className="min-w-0 truncate">Self Operate</span>
                     {/* The self-operate offer, promoted on the button
                         itself so it's seen before the player picks. */}
                     {selfOperateAdjustment !== 0 && !isFreeBooking && (
                       <span
-                        className={`shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                        className={`shrink-0 whitespace-nowrap px-1 sm:px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold leading-none ${
                           selfOperateAdjustment < 0
                             ? operationMode === 'SELF_OPERATE'
                               ? 'bg-primary text-green-300'

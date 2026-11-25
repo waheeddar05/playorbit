@@ -157,15 +157,17 @@ describe('ResourceSlotsPage — self operate', () => {
   it('never clips the Self Operate label on a narrow phone button', async () => {
     setup({ selfOperateAdjustment: -50 });
     const button = await toggle();
-    // The label used to be `truncate` and rendered as "Self Ope…" next
-    // to the badge on a half-width mobile button. The button now wraps
-    // the badge under the label instead of ellipsising either.
+    // At 11px/10px the label rendered as "Self Ope…" next to the badge on
+    // a half-width mobile button; wrapping the badge onto a second line
+    // fixed that but made the button taller than "With Operator". Now it
+    // stays on one line and shrinks text, badge, gap and padding below
+    // `sm` so both fit at the original height.
     const label = within(button).getByText('Self Operate');
     const badge = within(button).getByText(/₹50 off/);
-    expect(button).toHaveClass('flex-wrap');
-    expect(label).not.toHaveClass('truncate');
-    expect(label).toHaveClass('whitespace-nowrap');
-    expect(badge).toHaveClass('whitespace-nowrap');
+    expect(button).not.toHaveClass('flex-wrap');
+    expect(button).toHaveClass('text-[10px]', 'sm:text-xs', 'gap-1', 'px-2', 'py-2');
+    expect(badge).toHaveClass('whitespace-nowrap', 'shrink-0', 'text-[9px]', 'sm:text-[10px]');
+    expect(label).toHaveClass('min-w-0');
   });
 
   it('prices a self-operate-only slot with the adjustment (the reported bug)', async () => {

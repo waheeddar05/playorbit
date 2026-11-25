@@ -62,3 +62,66 @@ export function withPitchAssignments(
   else next.pitchAssignments = normalised;
   return next;
 }
+
+/**
+ * The staff surface a booking sits on, for picking who works it.
+ *
+ *   FULL_OUTDOOR_COURT                  → NATURAL_TURF (always turf)
+ *   FULL_COURT / CORPORATE_BATCH        → INDOOR_ASTRO (indoor nets)
+ *   pitchType NATURAL                   → NATURAL_TURF
+ *   pitchType ASTRO, or no pitch on a
+ *   net-pool category (the engine puts
+ *   those on the indoor NET pool)       → INDOOR_ASTRO
+ *   anything else (CEMENT, match
+ *   practice, unknown)                  → null — no staff-pitch constraint
+ */
+export function staffPitchForBooking(
+  category: string | null | undefined,
+  pitchType: string | null | undefined,
+): StaffPitchAssignment | null {
+  if (category === 'FULL_OUTDOOR_COURT') return 'NATURAL_TURF';
+  if (category === 'FULL_COURT' || category === 'CORPORATE_BATCH') return 'INDOOR_ASTRO';
+  if (pitchType === 'NATURAL') return 'NATURAL_TURF';
+  if (pitchType === 'ASTRO') return 'INDOOR_ASTRO';
+  if (
+    pitchType == null &&
+    (category === 'NET' || category === 'MACHINE' || category === 'SIDEARM' || category === 'COACHING')
+  ) {
+    return 'INDOOR_ASTRO';
+  }
+  return null;
+}
+
+/**
+ * Can this member work a booking on `pitch`?
+ *
+ * A member with no pitch assignment is eligible everywhere (centers that
+ * never set assignments keep their old behaviour). A member assigned to
+ * one or more pitches only works those. No pitch = no constraint.
+ */
+export function memberServesPitch(metadata: unknown, pitch: StaffPitchAssignment | null): boolean {
+  if (!pitch) return true;
+  const assigned = readPitchAssignments(metadata);
+  return assigned.length === 0 || assigned.includes(pitch);
+}
+
+/**
+ * Members who can work `pitch`, best candidates first: those explicitly
+ * assigned to the pitch, then unassigned members, each group keeping the
+ * caller's (priority) order. Members assigned only to other pitches are
+ * dropped. Without a pitch the list is returned unchanged.
+ */
+export function rankStaffForPitch<T extends { metadata?: unknown }>(
+  members: readonly T[],
+  pitch: StaffPitchAssignment | null,
+): T[] {
+  if (!pitch) return [...members];
+  const assigned: T[] = [];
+  const unassigned: T[] = [];
+  for (const m of members) {
+    const a = readPitchAssignments(m.metadata);
+    if (a.length === 0) unassigned.push(m);
+    else if (a.includes(pitch)) assigned.push(m);
+  }
+  return [...assigned, ...unassigned];
+}

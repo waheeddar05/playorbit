@@ -5,6 +5,7 @@ import {
   type AvailabilityWindow,
   type BookableSlotWindow,
 } from './resource-booking';
+import { rankStaffForPitch, type StaffPitchAssignment } from './staff-pitch';
 
 type PrismaTransaction = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 type Db = PrismaTransaction | typeof defaultPrisma;
@@ -103,6 +104,8 @@ export interface OperatorRosterEntry {
   priority: number;
   /** Weekly windows. Empty = no schedule configured = never available. */
   availability: AvailabilityWindow[];
+  /** Membership metadata — carries `pitchAssignments`. */
+  metadata?: unknown;
 }
 
 /**
@@ -122,6 +125,7 @@ export async function loadOperatorRoster(
     select: {
       userId: true,
       priority: true,
+      metadata: true,
       availability: {
         where: { isActive: true },
         select: {
@@ -139,6 +143,7 @@ export async function loadOperatorRoster(
     userId: m.userId,
     priority: m.priority,
     availability: m.availability as AvailabilityWindow[],
+    metadata: m.metadata,
   }));
 }
 
@@ -220,16 +225,21 @@ export async function getOperatorSlotCapacity({
   slot,
   tx,
   roster,
+  pitch = null,
 }: {
   centerId: string | null;
   slot: BookableSlotWindow;
   tx?: PrismaTransaction;
   /** Pre-loaded roster (avoids a query when the caller already has it). */
   roster?: OperatorRosterEntry[];
+  /** Surface the booking sits on. Operators assigned only to another
+   *  pitch don't count; assigned operators are picked before unassigned
+   *  ones. Null = no pitch constraint. */
+  pitch?: StaffPitchAssignment | null;
 }): Promise<OperatorSlotCapacity> {
   const db = tx || defaultPrisma;
   const full = roster ?? (await loadOperatorRoster(centerId, db));
-  const onDuty = operatorsAvailableForSlot(full, slot);
+  const onDuty = rankStaffForPitch(operatorsAvailableForSlot(full, slot), pitch);
   if (onDuty.length === 0) {
     return { onDuty: 0, busy: 0, free: 0, freeOperatorIds: [] };
   }
