@@ -39,6 +39,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getCenterOnlyPolicyJson } from '@/lib/policy';
+import { rankStaffForPitch, staffPitchForBooking, type StaffPitchAssignment } from '@/lib/staff-pitch';
 import type {
   BookingCategory,
   BookingStatus,
@@ -406,6 +407,8 @@ export async function getCenterGroundStaff(
   centerId: string,
 ): Promise<Array<{
   userId: string;
+  /** Carries `pitchAssignments` (see src/lib/staff-pitch.ts). */
+  metadata: unknown;
   availability: AvailabilityWindow[];
   user: { id: string; name: string | null; mobileNumber: string | null } | null;
 }>> {
@@ -413,6 +416,7 @@ export async function getCenterGroundStaff(
     where: { centerId, role: 'GROUND_STAFF', isActive: true },
     select: {
       userId: true,
+      metadata: true,
       availability: {
         where: { isActive: true },
         select: { dayOfWeek: true, startTime: true, endTime: true, effectiveFrom: true, effectiveTo: true },
@@ -437,18 +441,28 @@ export async function getCenterGroundStaff(
  *     top-priority member so a facility booking never loses its contact
  *     when the center has any ground staff at all.
  *
- * Returns null only when the center has no active ground staff.
+ *
+ * Pitch assignment comes first: when the booking sits on a known surface
+ * (`pitch`), only members assigned to that surface — or with no
+ * assignment at all — are considered, explicitly assigned ones ahead of
+ * unassigned ones. Indoor-only staff are never handed a natural-turf
+ * booking (and vice versa), even when they are the only one on duty.
+ *
+ * Returns null when the center has no active ground staff, or none who
+ * can work `pitch`.
  */
 export function pickGroundStaffForSlot(
-  groundStaff: Array<{ userId: string; availability: AvailabilityWindow[] }>,
+  groundStaff: Array<{ userId: string; availability: AvailabilityWindow[]; metadata?: unknown }>,
   slot: BookableSlotWindow,
+  pitch: StaffPitchAssignment | null = null,
 ): string | null {
-  if (groundStaff.length === 0) return null;
-  const available = groundStaff.find((gs) =>
+  const pool = rankStaffForPitch(groundStaff, pitch);
+  if (pool.length === 0) return null;
+  const available = pool.find((gs) =>
     // Unconfigured = always available (default floor contact).
     gs.availability.length === 0 || slotMatchesMembershipAvailability(slot, gs.availability),
   );
-  return (available ?? groundStaff[0]).userId;
+  return (available ?? pool[0]).userId;
 }
 
 export async function getCenterStaff(centerId: string): Promise<CenterMembershipUserRow[]> {
@@ -1499,7 +1513,10 @@ export async function planBooking(
   // then null). Used for NET / FULL_COURT / FULL_OUTDOOR_COURT /
   // CORPORATE_BATCH; null when the
   // center has no ground staff configured.
-  const defaultGroundStaffId = pickGroundStaffForSlot(groundStaff, slot);
+  // Staff surface for this booking (natural turf vs indoor astro), so the
+  // engine never hands a turf booking to indoor-only staff.
+  const staffPitch = staffPitchForBooking(plan.category, plan.pitchType);
+  const defaultGroundStaffId = pickGroundStaffForSlot(groundStaff, slot, staffPitch);
   const audience = context.audience ?? 'ALL';
   // Hold admin "count blocks" (block N units of a pitch) as virtual load
   // before computing availability so this booking respects the reserved
@@ -1593,10 +1610,13 @@ export async function planBooking(
         throw new BookingResourceError('No sidearm staff available for this slot', 409);
       }
       // Caller may pin a specific staff member; otherwise pick the first free.
+      // Auto-pick prefers staff assigned to this pitch; a pinned pick is
+      // honoured as-is (the player chose them from the availability list).
       const chosenStaff =
         plan.staffId
           ? availability.freeSidearmStaff.find((s) => s.userId === plan.staffId)
-          : availability.freeSidearmStaff[0];
+          : (rankStaffForPitch(availability.freeSidearmStaff, staffPitch)[0] ??
+            availability.freeSidearmStaff[0]);
       if (!chosenStaff) {
         throw new BookingResourceError('Selected staff is not available', 409);
       }
@@ -1614,10 +1634,12 @@ export async function planBooking(
       if (availability.freeCoaches.length === 0) {
         throw new BookingResourceError('No coaches available for this slot', 409);
       }
+      // Same rule as sidearm: auto-pick prefers this pitch's coaches.
       const chosenCoach =
         plan.coachId
           ? availability.freeCoaches.find((c) => c.userId === plan.coachId)
-          : availability.freeCoaches[0];
+          : (rankStaffForPitch(availability.freeCoaches, staffPitch)[0] ??
+            availability.freeCoaches[0]);
       if (!chosenCoach) {
         throw new BookingResourceError('Selected coach is not available', 409);
       }

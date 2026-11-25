@@ -16,6 +16,7 @@ import {
   pickGroundStaffForSlot,
   type BookingPlan,
 } from '@/lib/resource-booking';
+import { staffPitchForBooking } from '@/lib/staff-pitch';
 import {
   resolveMatchPracticePlans,
   assertMatchPracticeSeat,
@@ -1171,6 +1172,7 @@ async function executeResourceBookingCore(
                     centerId: center.id,
                     slot: { date: plan.date, startTime: plan.startTime, endTime: plan.endTime },
                     tx,
+                    pitch: staffPitchForBooking(plan.category, plan.pitchType),
                   });
                   planOperatorAvailable = capacity.free > 0;
                 }
@@ -1237,10 +1239,13 @@ async function executeResourceBookingCore(
                 // an overlapping booking. Each operator-assisted booking
                 // takes one operator, so the number of such bookings a
                 // slot can carry is exactly the number available for it.
+                // Only operators who work this pitch count (indoor-only
+                // operators never take a natural-turf machine booking).
                 const capacity = await getOperatorSlotCapacity({
                   centerId: center.id,
                   slot: { date: plan.date, startTime: plan.startTime, endTime: plan.endTime },
                   tx,
+                  pitch: staffPitchForBooking(plan.category, plan.pitchType),
                 });
                 if (capacity.onDuty === 0) {
                   // Nobody available: an operator-only machine can't be
