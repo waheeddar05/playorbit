@@ -39,7 +39,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getCenterOnlyPolicyJson } from '@/lib/policy';
-import { rankStaffForPitch, staffPitchForBooking, type StaffPitchAssignment } from '@/lib/staff-pitch';
+import { memberServesPitch, rankStaffForPitch, staffPitchForBooking, type StaffPitchAssignment } from '@/lib/staff-pitch';
 import type {
   BookingCategory,
   BookingStatus,
@@ -1610,15 +1610,25 @@ export async function planBooking(
         throw new BookingResourceError('No sidearm staff available for this slot', 409);
       }
       // Caller may pin a specific staff member; otherwise pick the first free.
-      // Auto-pick prefers staff assigned to this pitch; a pinned pick is
-      // honoured as-is (the player chose them from the availability list).
+      // Only specialists who work this pitch (assigned to it, or with no
+      // assignment) can take the booking; assigned ones are auto-picked
+      // first. The booking page lists the same set, so a pinned pick
+      // outside it means a stale page.
+      if (plan.staffId) {
+        const pinned = availability.freeSidearmStaff.find((s) => s.userId === plan.staffId);
+        if (pinned && !memberServesPitch(pinned.metadata, staffPitch)) {
+          throw new BookingResourceError('Selected specialist does not work on this pitch', 409);
+        }
+      }
       const chosenStaff =
         plan.staffId
           ? availability.freeSidearmStaff.find((s) => s.userId === plan.staffId)
-          : (rankStaffForPitch(availability.freeSidearmStaff, staffPitch)[0] ??
-            availability.freeSidearmStaff[0]);
+          : rankStaffForPitch(availability.freeSidearmStaff, staffPitch)[0];
       if (!chosenStaff) {
-        throw new BookingResourceError('Selected staff is not available', 409);
+        throw new BookingResourceError(
+          plan.staffId ? 'Selected staff is not available' : 'No sidearm specialist available for this pitch',
+          409,
+        );
       }
       const net = await pickNetFor({ plan, availability, resources, occupancy });
       return {
@@ -1634,14 +1644,22 @@ export async function planBooking(
       if (availability.freeCoaches.length === 0) {
         throw new BookingResourceError('No coaches available for this slot', 409);
       }
-      // Same rule as sidearm: auto-pick prefers this pitch's coaches.
+      // Same rule as sidearm: only coaches who work this pitch.
+      if (plan.coachId) {
+        const pinned = availability.freeCoaches.find((c) => c.userId === plan.coachId);
+        if (pinned && !memberServesPitch(pinned.metadata, staffPitch)) {
+          throw new BookingResourceError('Selected coach does not work on this pitch', 409);
+        }
+      }
       const chosenCoach =
         plan.coachId
           ? availability.freeCoaches.find((c) => c.userId === plan.coachId)
-          : (rankStaffForPitch(availability.freeCoaches, staffPitch)[0] ??
-            availability.freeCoaches[0]);
+          : rankStaffForPitch(availability.freeCoaches, staffPitch)[0];
       if (!chosenCoach) {
-        throw new BookingResourceError('Selected coach is not available', 409);
+        throw new BookingResourceError(
+          plan.coachId ? 'Selected coach is not available' : 'No coach available for this pitch',
+          409,
+        );
       }
       const net = await pickNetFor({ plan, availability, resources, occupancy });
       return {

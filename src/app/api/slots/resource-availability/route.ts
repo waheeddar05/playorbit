@@ -28,6 +28,7 @@ import { getResourcePricingConfig, getResourceSlotPrice } from '@/lib/resource-p
 import { getSidearmPitchTypes, getNetPitchTypes, getCoachingPitchTypes, getEnabledBookingCategories } from '@/lib/pitch-config';
 import { sanitizeApiError } from '@/lib/api-errors';
 import { loadOperatorRoster, operatorsAvailableForSlot } from '@/lib/operatorAssign';
+import { readPitchAssignments } from '@/lib/staff-pitch';
 import {
   getCenterRecurringDiscountRules,
   recurringRuleMatches,
@@ -560,11 +561,14 @@ export async function GET(req: NextRequest) {
             CEMENT: availability.freeByPitch.CEMENT.map((r) => ({ id: r.id, name: r.name, type: r.type })),
             NATURAL: availability.freeByPitch.NATURAL.map((r) => ({ id: r.id, name: r.name, type: r.type })),
           },
+          // pitchAssignments lets the page list only the coaches /
+          // specialists who work the picked pitch (empty = unassigned =
+          // works every pitch). planBooking enforces the same rule.
           freeCoaches: availability.freeCoaches.map((c) => ({
-            userId: c.userId, name: c.user.name,
+            userId: c.userId, name: c.user.name, pitchAssignments: readPitchAssignments(c.metadata),
           })),
           freeSidearmStaff: availability.freeSidearmStaff.map((s) => ({
-            userId: s.userId, name: s.user.name,
+            userId: s.userId, name: s.user.name, pitchAssignments: readPitchAssignments(s.metadata),
           })),
           fullCourtAvailable:
             availability.fullCourtAvailable && !blockedCategories.has('FULL_COURT'),
