@@ -154,6 +154,20 @@ describe('ResourceSlotsPage — self operate', () => {
     expect(await screen.findByText(/get ₹100 off every slot/)).toBeInTheDocument();
   });
 
+  it('never clips the Self Operate label on a narrow phone button', async () => {
+    setup({ selfOperateAdjustment: -50 });
+    const button = await toggle();
+    // The label used to be `truncate` and rendered as "Self Ope…" next
+    // to the badge on a half-width mobile button. The button now wraps
+    // the badge under the label instead of ellipsising either.
+    const label = within(button).getByText('Self Operate');
+    const badge = within(button).getByText(/₹50 off/);
+    expect(button).toHaveClass('flex-wrap');
+    expect(label).not.toHaveClass('truncate');
+    expect(label).toHaveClass('whitespace-nowrap');
+    expect(badge).toHaveClass('whitespace-nowrap');
+  });
+
   it('prices a self-operate-only slot with the adjustment (the reported bug)', async () => {
     setup({ selfOperateAdjustment: -100 });
     await toggle(); // machine loaded + auto-selected

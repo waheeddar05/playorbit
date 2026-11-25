@@ -27,6 +27,7 @@
 import { useState, type ReactNode } from 'react';
 import { Loader2, CalendarClock, CalendarRange, Save, Plus, Trash2, Pencil, Mail, Phone } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { StaffPitchAssignment } from '@/components/admin/StaffPitchAssignment';
 
 export type WeeklyWindowRow = {
   id: string;
@@ -44,6 +45,10 @@ export type Specialist = {
   priority: number;
   user: { id: string; name: string | null; email: string | null; mobileNumber: string | null };
   availability: WeeklyWindowRow[];
+  /** CenterMembership.metadata — carries the pitch assignment
+   *  (see src/lib/staff-pitch.ts). Absent on endpoints that don't
+   *  return it. */
+  metadata?: unknown;
 };
 
 export const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -133,6 +138,7 @@ export function SpecialistAvailabilityCard({
   weeklyEndpoint,
   onChanged,
   leading,
+  pitchEndpoint,
 }: {
   specialist: Specialist;
   /** Base URL for weekly availability GET/PUT (preview via ?preview=true). */
@@ -141,6 +147,10 @@ export function SpecialistAvailabilityCard({
   onChanged: () => void;
   /** Optional leading column (e.g. admin priority up/down arrows). */
   leading?: ReactNode;
+  /** Membership PATCH URL. When set, the admin can assign the pitch
+   *  (Indoor astro nets / Natural turf) from the card; when omitted the
+   *  assignment is shown read-only. */
+  pitchEndpoint?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const hasAvailability = s.availability.length > 0;
@@ -186,6 +196,8 @@ export function SpecialistAvailabilityCard({
               </div>
             </div>
           </div>
+
+          <StaffPitchAssignment metadata={s.metadata} endpoint={pitchEndpoint} />
 
           {/* Weekly availability summary — visible without opening the editor. */}
           <div>
