@@ -75,6 +75,7 @@ import {
   selfOperateBadgeLabel,
 } from '@/lib/self-operate-adjustment';
 import MatchPracticePanel from './MatchPracticePanel';
+import { rankStaffForPitch, staffPitchForBooking } from '@/lib/staff-pitch';
 
 type Category =
   | 'MACHINE'
@@ -104,7 +105,12 @@ interface SlotDiscountInputs {
 
 interface NetLite { id: string; name: string }
 interface ResourceLite { id: string; name: string; type: string }
-interface PersonLite { userId: string; name: string | null }
+interface PersonLite {
+  userId: string;
+  name: string | null;
+  /** Pitches this coach / specialist works (empty = every pitch). */
+  pitchAssignments?: string[];
+}
 
 interface ResourceSlot {
   startTime: string;
@@ -345,6 +351,16 @@ export default function ResourceSlotsPage() {
   const [ballType, setBallType] = useState<BallTypeId | null>(null);
   const [coachId, setCoachId] = useState<string | null>(null);
   const [staffId, setStaffId] = useState<string | null>(null);
+  // Coaches / sidearm specialists who work the picked pitch, assigned ones
+  // first then unassigned (who work every pitch). Same rule as the
+  // server's planBooking, so the picker never offers someone the booking
+  // would be refused for. Recreated each render, like slotIsBookable.
+  const staffPitch = staffPitchForBooking(category, pitchType);
+  const rankForPitch = (people: PersonLite[]): PersonLite[] =>
+    rankStaffForPitch(
+      people.map((p) => ({ p, metadata: { pitchAssignments: p.pitchAssignments ?? [] } })),
+      staffPitch,
+    ).map((x) => x.p);
 
   const [data, setData] = useState<ResourceAvailabilityResponse | null>(null);
   const [machines, setMachines] = useState<MachineLite[]>([]);
@@ -755,24 +771,28 @@ export default function ResourceSlotsPage() {
       if (coachId !== null) setCoachId(null);
       return;
     }
-    const coaches = data?.slots[0]?.freeCoaches ?? [];
+    const coaches = rankForPitch(data?.slots[0]?.freeCoaches ?? []);
     if (coaches.length > 0 && (!coachId || !coaches.some((c) => c.userId === coachId))) {
       setCoachId(coaches[0].userId);
+    } else if (coaches.length === 0 && coachId !== null) {
+      setCoachId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, data?.slots]);
+  }, [category, data?.slots, pitchType]);
 
   useEffect(() => {
     if (category !== 'SIDEARM') {
       if (staffId !== null) setStaffId(null);
       return;
     }
-    const staff = data?.slots[0]?.freeSidearmStaff ?? [];
+    const staff = rankForPitch(data?.slots[0]?.freeSidearmStaff ?? []);
     if (staff.length > 0 && (!staffId || !staff.some((s) => s.userId === staffId))) {
       setStaffId(staff[0].userId);
+    } else if (staff.length === 0 && staffId !== null) {
+      setStaffId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, data?.slots]);
+  }, [category, data?.slots, pitchType]);
 
   // Reset selected slots when date changes (availability is per-date)
   useEffect(() => { setSelectedSlots([]); }, [selectedDate]);
@@ -959,8 +979,11 @@ export default function ResourceSlotsPage() {
       return { ok: true };
     }
     if (cat === 'SIDEARM') {
-      if (s.freeSidearmStaff.length === 0) return { ok: false, reason: 'No sidearm specialist free' };
-      if (staffId && !s.freeSidearmStaff.some((p) => p.userId === staffId)) {
+      const staffHere = rankForPitch(s.freeSidearmStaff);
+      if (staffHere.length === 0) {
+        return { ok: false, reason: s.freeSidearmStaff.length > 0 ? 'No sidearm specialist for this pitch' : 'No sidearm specialist free' };
+      }
+      if (staffId && !staffHere.some((p) => p.userId === staffId)) {
         return { ok: false, reason: 'Selected specialist is busy in this slot' };
       }
       const { pool } = poolForPicked();
@@ -968,8 +991,11 @@ export default function ResourceSlotsPage() {
       return { ok: true };
     }
     if (cat === 'COACHING') {
-      if (s.freeCoaches.length === 0) return { ok: false, reason: 'No coaches free' };
-      if (coachId && !s.freeCoaches.some((p) => p.userId === coachId)) {
+      const coachesHere = rankForPitch(s.freeCoaches);
+      if (coachesHere.length === 0) {
+        return { ok: false, reason: s.freeCoaches.length > 0 ? 'No coach for this pitch' : 'No coaches free' };
+      }
+      if (coachId && !coachesHere.some((p) => p.userId === coachId)) {
         return { ok: false, reason: 'Selected coach is busy in this slot' };
       }
       const { pool } = poolForPicked();
@@ -1938,7 +1964,7 @@ export default function ResourceSlotsPage() {
             const seen = new Set<string>();
             const all: PersonLite[] = [];
             data?.slots.forEach((s) => {
-              s.freeCoaches.forEach((p) => {
+              rankForPitch(s.freeCoaches).forEach((p) => {
                 if (!seen.has(p.userId)) {
                   seen.add(p.userId);
                   all.push(p);
@@ -1949,7 +1975,7 @@ export default function ResourceSlotsPage() {
           })()}
           value={coachId}
           onChange={setCoachId}
-          emptyMessage="No coaches free for the selected slots."
+          emptyMessage="No coaches free for this pitch on the selected slots."
         />
       )}
 
@@ -1960,7 +1986,7 @@ export default function ResourceSlotsPage() {
             const seen = new Set<string>();
             const all: PersonLite[] = [];
             data?.slots.forEach((s) => {
-              s.freeSidearmStaff.forEach((p) => {
+              rankForPitch(s.freeSidearmStaff).forEach((p) => {
                 if (!seen.has(p.userId)) {
                   seen.add(p.userId);
                   all.push(p);
@@ -1971,7 +1997,7 @@ export default function ResourceSlotsPage() {
           })()}
           value={staffId}
           onChange={setStaffId}
-          emptyMessage="No sidearm specialist free for the selected slots."
+          emptyMessage="No sidearm specialist free for this pitch on the selected slots."
         />
       )}
 
