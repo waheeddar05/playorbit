@@ -194,6 +194,7 @@ export default function AdminCoachPage() {
               key={s.id}
               specialist={s}
               weeklyEndpoint={`/api/admin/centers/${currentCenter.id}/members/${s.id}/availability`}
+              pitchEndpoint={`/api/admin/centers/${currentCenter.id}/members/${s.id}`}
               onChanged={refresh}
               leading={
                 <div className="flex flex-col gap-1 shrink-0">

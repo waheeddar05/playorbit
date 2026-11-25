@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireCenterStaffManagerForCenter } from '@/lib/adminAuth';
 import { z } from 'zod';
+import { STAFF_PITCH_ASSIGNMENTS, withPitchAssignments } from '@/lib/staff-pitch';
 
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'waheeddar8@gmail.com';
 
@@ -20,6 +21,11 @@ const PatchSchema = z.object({
   // specialists; also accessible from the Members tab. Validated as
   // a non-negative integer to keep the ordering stable.
   priority: z.number().int().min(0).max(10_000).optional(),
+  // Which surface the staff member works on (Indoor astro nets and/or
+  // Natural turf). Replaces the list; [] clears it. Merged into
+  // `metadata.pitchAssignments` server-side so the client never has to
+  // round-trip the whole metadata blob — see src/lib/staff-pitch.ts.
+  pitchAssignments: z.array(z.enum(STAFF_PITCH_ASSIGNMENTS)).max(STAFF_PITCH_ASSIGNMENTS.length).optional(),
   user: z.object({
     name:         z.string().max(120).optional().nullable().or(z.literal('')),
     email:        z.string().email().max(200).optional().nullable().or(z.literal('')),
@@ -55,7 +61,9 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<Params> }) 
   // The "edit name" affordance on the Members tab failed before this
   // because the old guard rejected ANY PATCH on an ADMIN membership.
   const isMembershipLevelChange =
-    parsed.data.isActive !== undefined || parsed.data.metadata !== undefined;
+    parsed.data.isActive !== undefined ||
+    parsed.data.metadata !== undefined ||
+    parsed.data.pitchAssignments !== undefined;
   if (!ctxAuth.isSuperAdmin && m.role === 'ADMIN' && isMembershipLevelChange) {
     return NextResponse.json(
       { error: 'Only super admin can modify ADMIN memberships.' },
@@ -89,7 +97,19 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<Params> }) 
       // patch so we don't blank-out metadata by accident.
       const membershipData: Prisma.CenterMembershipUpdateInput = {};
       if (parsed.data.isActive !== undefined) membershipData.isActive = parsed.data.isActive;
-      if (parsed.data.metadata !== undefined) {
+      if (parsed.data.pitchAssignments !== undefined) {
+        // Merge onto whatever metadata this request leaves behind (an
+        // explicit metadata patch in the same body wins as the base).
+        // Re-read inside the transaction so a concurrent metadata write
+        // isn't clobbered by the copy loaded before validation.
+        const base = parsed.data.metadata !== undefined
+          ? parsed.data.metadata
+          : (await tx.centerMembership.findUnique({
+              where: { id: membershipId },
+              select: { metadata: true },
+            }))?.metadata;
+        membershipData.metadata = withPitchAssignments(base, parsed.data.pitchAssignments) as Prisma.InputJsonValue;
+      } else if (parsed.data.metadata !== undefined) {
         membershipData.metadata = (parsed.data.metadata as never) ?? Prisma.JsonNull;
       }
       if (parsed.data.priority !== undefined) {
